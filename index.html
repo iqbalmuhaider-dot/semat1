@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal SK Masjid Tanah</title>
+    <title>Portal SK Masjid Tanah - Dynamic App</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,96 +13,63 @@
 
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .animate-fade-in-up {
-            animation: fadeInUp 0.5s ease-out;
-        }
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .animate-fade-in-up { animation: fadeInUp 0.5s ease-out; }
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        /* Custom scrollbar for better look */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1; 
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8; 
-        }
+        .view-section { transition: opacity 0.3s ease; }
         
-        /* Utility untuk sembunyi/tunjuk view */
-        .view-section {
-            transition: opacity 0.3s ease;
+        /* Utility untuk Custom HTML Container */
+        #dynamic-app-container {
+            width: 100%;
+            min-height: calc(100vh - 100px);
+            position: relative;
         }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen">
 
     <!-- Loading Screen -->
-    <div id="loading-screen" class="fixed inset-0 bg-slate-50 z-[60] flex flex-col items-center justify-center transition-opacity duration-300">
+    <div id="loading-screen" class="fixed inset-0 bg-slate-50 z-[70] flex flex-col items-center justify-center transition-opacity duration-300">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-800 mb-4"></div>
-        <p class="text-slate-500 text-sm animate-pulse">Memuatkan Portal...</p>
+        <p class="text-slate-500 text-sm animate-pulse">Menghubungkan ke Pangkalan Data...</p>
     </div>
 
     <!-- VIEW 1: Login View -->
     <div id="login-view" class="view-section hidden min-h-screen flex-col items-center justify-center p-4 relative overflow-hidden">
-        <!-- Decorative Background -->
         <div class="absolute top-0 left-0 w-full h-64 bg-blue-800 rounded-b-[50px] shadow-xl z-0"></div>
-        
         <div class="z-10 w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center animate-fade-in-up">
             <div class="w-24 h-24 bg-white rounded-full p-2 shadow-lg -mt-20 mb-6 flex items-center justify-center border-4 border-blue-50">
                 <i data-lucide="school" class="w-12 h-12 text-blue-800"></i>
             </div>
-            
             <h1 class="text-2xl font-bold text-slate-800 text-center mb-1">Portal SK Masjid Tanah</h1>
-            <p class="text-slate-500 text-center text-sm mb-8">Gerbang Aplikasi Digital Berpusat</p>
-            
+            <p class="text-slate-500 text-center text-sm mb-8">Platform Aplikasi Digital Berpusat</p>
             <div class="w-full space-y-4">
                 <button id="btn-google-login" class="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 text-slate-700 font-semibold py-3 px-4 rounded-xl hover:bg-slate-50 transition-all duration-200 shadow-sm active:scale-95">
                     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-5 h-5">
                     <span>Log Masuk dengan Google</span>
                 </button>
-
                 <div class="relative flex py-2 items-center">
                     <div class="flex-grow border-t border-slate-200"></div>
                     <span class="flex-shrink mx-4 text-slate-400 text-xs uppercase">Atau</span>
                     <div class="flex-grow border-t border-slate-200"></div>
                 </div>
-
                 <button id="btn-guest-login" class="w-full text-sm text-slate-500 hover:text-blue-700 font-medium py-2 transition-colors">
                     Log Masuk Sebagai Tetamu (Demo)
                 </button>
             </div>
-
             <div id="login-error" class="hidden mt-6 p-3 bg-red-50 text-red-600 text-xs rounded-lg w-full text-center border border-red-100"></div>
-
-            <div class="mt-8 text-center">
-                <p class="text-xs text-slate-400">
-                    &copy; 2025 SK Masjid Tanah. Hak Cipta Terpelihara.
-                </p>
-            </div>
         </div>
     </div>
 
     <!-- VIEW 2: Dashboard View -->
     <div id="dashboard-view" class="view-section hidden min-h-screen bg-slate-50">
-        <!-- Header -->
         <header class="bg-blue-800 text-white shadow-lg sticky top-0 z-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                 <div class="flex items-center gap-3">
@@ -114,12 +81,13 @@
                         <p class="text-[10px] text-blue-200 uppercase tracking-wider">Portal Digital</p>
                     </div>
                 </div>
-                
                 <div class="flex items-center gap-4">
-                    <button class="p-2 hover:bg-white/10 rounded-full transition-colors relative">
-                        <i data-lucide="bell" class="w-5 h-5"></i>
-                        <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-blue-800"></span>
+                    <!-- Butang Admin Toggle (Rahsia) -->
+                    <button id="btn-admin-toggle" class="hidden sm:flex items-center gap-2 px-3 py-1 bg-blue-900/50 rounded-full text-xs text-blue-200 hover:bg-blue-900 border border-blue-700">
+                        <i data-lucide="shield" class="w-3 h-3"></i>
+                        <span>Admin Mode</span>
                     </button>
+
                     <div class="h-8 w-px bg-blue-600 hidden sm:block"></div>
                     <div class="flex items-center gap-3">
                         <div class="hidden sm:block text-right">
@@ -135,10 +103,7 @@
             </div>
         </header>
 
-        <!-- Main Content -->
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            
-            <!-- Welcome Section -->
             <div class="mb-8">
                 <h2 id="welcome-text" class="text-2xl font-bold text-slate-800">Selamat Datang!</h2>
                 <p class="text-slate-500 mt-1 flex items-center gap-2">
@@ -147,44 +112,30 @@
                 </p>
             </div>
 
-            <!-- Stats Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                <!-- Card 1 -->
-                <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg relative overflow-hidden group hover:scale-[1.02] transition-transform cursor-pointer">
-                    <div class="relative z-10">
-                        <p class="text-blue-100 font-medium text-sm mb-1">Pengumuman Terkini</p>
-                        <h3 class="font-bold text-lg">Mesyuarat Guru Bil 1/2025</h3>
-                        <p class="text-xs text-blue-100 mt-2 bg-white/20 inline-block px-2 py-1 rounded">2:30 Petang Ini</p>
+            <!-- Admin Banner -->
+            <div id="admin-banner" class="hidden mb-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-3 w-full sm:w-auto">
+                    <div class="p-2 bg-yellow-100 rounded-lg text-yellow-700 hidden sm:block">
+                        <i data-lucide="shield-alert" class="w-6 h-6"></i>
                     </div>
-                    <div class="absolute -right-4 -bottom-4 bg-white/10 w-32 h-32 rounded-full blur-2xl group-hover:bg-white/20 transition-all"></div>
+                    <div>
+                        <h3 class="font-bold text-yellow-800">Mod Super Admin</h3>
+                        <p class="text-xs text-yellow-700">Urus aplikasi portal di sini.</p>
+                    </div>
                 </div>
-                
-                <!-- Card 2 -->
-                <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                     <div class="flex justify-between items-start">
-                       <div>
-                         <p class="text-slate-500 text-sm font-medium">Status Kehadiran</p>
-                         <h3 class="text-2xl font-bold text-slate-800 mt-1">98.5%</h3>
-                         <p class="text-xs text-green-600 mt-1 font-medium">↑ 2% dari semalam</p>
-                       </div>
-                       <div class="p-2 bg-green-50 rounded-lg">
-                         <i data-lucide="user" class="w-6 h-6 text-green-600"></i>
-                       </div>
-                     </div>
-                </div>
-
-                <!-- Card 3 -->
-                <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                     <div class="flex justify-between items-start">
-                       <div>
-                         <p class="text-slate-500 text-sm font-medium">Tugasan Tertunda</p>
-                         <h3 class="text-2xl font-bold text-slate-800 mt-1">3</h3>
-                         <p class="text-xs text-orange-600 mt-1 font-medium">Perlu tindakan segera</p>
-                       </div>
-                       <div class="p-2 bg-orange-50 rounded-lg">
-                         <i data-lucide="file-text" class="w-6 h-6 text-orange-600"></i>
-                       </div>
-                     </div>
+                <div class="flex gap-2 w-full sm:w-auto flex-wrap">
+                    <!-- Butang Tambah -->
+                    <button onclick="openEditor()" class="flex-1 sm:flex-none bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-yellow-700 flex items-center justify-center gap-2">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Tambah App
+                    </button>
+                    <!-- Butang Export Hardcode -->
+                    <button onclick="exportPortal()" class="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-green-700 flex items-center justify-center gap-2" title="Muat turun versi statik (HTML)">
+                        <i data-lucide="download" class="w-4 h-4"></i> Simpan HTML
+                    </button>
+                    <!-- Butang Export TXT -->
+                    <button onclick="exportPortalTxt()" class="flex-1 sm:flex-none bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-slate-700 flex items-center justify-center gap-2" title="Muat turun sebagai teks Notepad">
+                        <i data-lucide="file-text" class="w-4 h-4"></i> TXT
+                    </button>
                 </div>
             </div>
 
@@ -192,87 +143,124 @@
             <div>
                 <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
                     <i data-lucide="layout-grid" class="w-5 h-5 text-blue-600"></i>
-                    Aplikasi Sistem
+                    Aplikasi & Sistem
                 </h3>
                 
                 <div id="systems-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <!-- System cards will be injected here via JS -->
+                    <!-- Apps will be injected here via Firestore -->
+                    <div class="col-span-full py-12 text-center text-slate-400 flex flex-col items-center">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400 mb-2"></div>
+                        <p>Memuatkan senarai aplikasi...</p>
+                    </div>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- VIEW 3: Internal App 1 (e-Kehadiran) -->
-    <div id="internal-kehadiran-view" class="view-section hidden min-h-screen bg-green-50">
-        <header class="bg-green-700 text-white shadow-lg sticky top-0 z-50">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <button onclick="window.backToDashboard()" class="p-2 hover:bg-white/20 rounded-full transition-colors">
-                        <i data-lucide="arrow-left" class="w-5 h-5 text-white"></i>
+    <!-- VIEW 3: Admin Editor View -->
+    <div id="admin-editor-view" class="view-section hidden min-h-screen bg-slate-100 fixed inset-0 z-[80] overflow-y-auto">
+        <div class="max-w-5xl mx-auto bg-white min-h-screen shadow-2xl">
+            <header class="bg-slate-800 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-md">
+                <h2 class="font-bold text-lg flex items-center gap-2">
+                    <i data-lucide="edit-3" class="w-5 h-5"></i> Editor Aplikasi
+                </h2>
+                <div class="flex gap-2">
+                    <button onclick="closeEditor()" class="px-4 py-2 text-slate-300 hover:text-white">Batal</button>
+                    <button id="btn-save-app" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold shadow flex items-center gap-2">
+                        <i data-lucide="save" class="w-4 h-4"></i> Simpan
                     </button>
-                    <h1 class="font-bold text-lg">Sistem e-Kehadiran</h1>
                 </div>
-                <div class="text-sm bg-green-800 px-3 py-1 rounded-full">
-                    Sistem Dalaman
+            </header>
+            
+            <div class="p-8 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Nama Aplikasi</label>
+                        <input type="text" id="edit-app-name" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Contoh: Sistem HRMIS">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Kategori</label>
+                        <select id="edit-app-category" class="w-full p-3 border border-slate-300 rounded-lg bg-white">
+                            <option value="Pentadbiran">Pentadbiran</option>
+                            <option value="Harian">Harian</option>
+                            <option value="Akademik">Akademik</option>
+                            <option value="Staf">Staf</option>
+                            <option value="Lain-lain">Lain-lain</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Deskripsi Ringkas</label>
+                    <input type="text" id="edit-app-desc" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Penerangan pendek fungsi sistem...">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Pilih Ikon</label>
+                        <div class="grid grid-cols-6 gap-2 p-2 border rounded-lg h-32 overflow-y-auto" id="icon-selector">
+                            <!-- Icons injected by JS -->
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Warna Tema</label>
+                        <div class="flex gap-2 flex-wrap" id="color-selector">
+                            <button class="w-8 h-8 rounded-full bg-blue-50 border-2 border-blue-500" data-color="bg-blue-50" data-text="text-blue-600"></button>
+                            <button class="w-8 h-8 rounded-full bg-green-50 border border-slate-200" data-color="bg-green-50" data-text="text-green-600"></button>
+                            <button class="w-8 h-8 rounded-full bg-purple-50 border border-slate-200" data-color="bg-purple-50" data-text="text-purple-600"></button>
+                            <button class="w-8 h-8 rounded-full bg-orange-50 border border-slate-200" data-color="bg-orange-50" data-text="text-orange-600"></button>
+                            <button class="w-8 h-8 rounded-full bg-pink-50 border border-slate-200" data-color="bg-pink-50" data-text="text-pink-600"></button>
+                            <button class="w-8 h-8 rounded-full bg-indigo-50 border border-slate-200" data-color="bg-indigo-50" data-text="text-indigo-600"></button>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2 flex justify-between">
+                        <span>Kod HTML Aplikasi (Paste HTML di sini)</span>
+                        <span class="text-xs font-normal text-slate-400">Pastikan tiada tag &lt;html&gt; atau &lt;head&gt;</span>
+                    </label>
+                    <div class="relative">
+                        <textarea id="edit-app-html" class="w-full h-96 p-4 bg-slate-900 text-green-400 font-mono text-sm rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" spellcheck="false" placeholder="<!-- Paste code HTML sistem anda di sini -->\n<div class='p-8'>\n  <h1>Hello World</h1>\n</div>"></textarea>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">
+                        <i data-lucide="alert-circle" class="w-3 h-3 inline"></i> 
+                        Amaran: Kod JavaScript dalam HTML ini akan dijalankan. Pastikan kod dari sumber yang dipercayai.
+                    </p>
                 </div>
             </div>
-        </header>
-        <main class="max-w-4xl mx-auto p-8">
-            <div class="bg-white rounded-xl shadow-lg p-8 text-center">
-                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i data-lucide="check-circle" class="w-8 h-8 text-green-600"></i>
-                </div>
-                <h2 class="text-2xl font-bold text-slate-800 mb-2">Modul Kehadiran</h2>
-                <p class="text-slate-600 mb-6">Ini adalah contoh paparan aplikasi Kehadiran yang digabungkan dalam portal.</p>
-                <div class="p-4 bg-slate-50 rounded-lg border border-slate-200 text-left text-sm font-mono text-slate-600">
-                    Status Auth: <span class="text-green-600 font-bold">Disahkan</span><br>
-                    User: <span class="current-user-email">...</span>
-                </div>
-            </div>
-        </main>
+        </div>
     </div>
 
-    <!-- VIEW 4: Internal App 2 (HRMIS) - BARU DITAMBAH -->
-    <div id="internal-hrmis-view" class="view-section hidden min-h-screen bg-purple-50">
-        <header class="bg-purple-800 text-white shadow-lg sticky top-0 z-50">
+    <!-- VIEW 4: Dynamic App Viewer -->
+    <div id="dynamic-app-view" class="view-section hidden min-h-screen bg-slate-50 flex flex-col">
+        <header class="bg-slate-800 text-white shadow-lg sticky top-0 z-50 flex-none">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <button onclick="window.backToDashboard()" class="p-2 hover:bg-white/20 rounded-full transition-colors">
                         <i data-lucide="arrow-left" class="w-5 h-5 text-white"></i>
                     </button>
-                    <h1 class="font-bold text-lg">HRMIS 2.0 (Lite)</h1>
+                    <h1 class="font-bold text-lg" id="app-viewer-title">Nama Aplikasi</h1>
                 </div>
-                <div class="text-sm bg-purple-900 px-3 py-1 rounded-full">
-                    Sistem Dalaman
+                <div class="text-sm bg-slate-700 px-3 py-1 rounded-full text-slate-200" id="app-viewer-category">
+                    App
                 </div>
             </div>
         </header>
-        <main class="max-w-4xl mx-auto p-8">
-            <div class="bg-white rounded-xl shadow-lg p-8 text-center border-t-4 border-purple-600">
-                <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i data-lucide="shield-check" class="w-8 h-8 text-purple-600"></i>
-                </div>
-                <h2 class="text-2xl font-bold text-slate-800 mb-2">Profil Perkhidmatan</h2>
-                <p class="text-slate-600 mb-6">Contoh penggabungan HTML kedua untuk HRMIS.</p>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                    <div class="p-4 bg-purple-50 rounded-lg border border-purple-100">
-                        <h3 class="font-bold text-purple-800 mb-2">Maklumat Diri</h3>
-                        <p class="text-sm text-slate-600">Nama: <span class="current-user-name font-semibold">...</span></p>
-                        <p class="text-sm text-slate-600">Jawatan: PPP Gred DG44</p>
-                    </div>
-                    <div class="p-4 bg-purple-50 rounded-lg border border-purple-100">
-                        <h3 class="font-bold text-purple-800 mb-2">Cuti Rehat</h3>
-                        <p class="text-sm text-slate-600">Baki Cuti: <span class="font-bold text-purple-600">7 Hari</span></p>
-                        <p class="text-sm text-slate-600">Status: Aktif</p>
-                    </div>
-                </div>
-            </div>
-        </main>
+        
+        <!-- Dynamic Content Injected Here -->
+        <div id="dynamic-app-container" class="flex-grow bg-white overflow-x-hidden">
+            <!-- Content -->
+        </div>
     </div>
 
     <!-- JavaScript Logic -->
     <script type="module">
+        // =================================================================
+        // TITIK SUNTIKAN DATA HARDCODED (Jangan ubah baris di bawah)
+        const HARDCODED_APPS = null; // DEFAULT: null. Akan diganti oleh fungsi export.
+        // =================================================================
+
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { 
             getAuth, 
@@ -284,13 +272,19 @@
         } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { 
             getFirestore, 
+            collection,
             doc, 
             setDoc, 
-            serverTimestamp 
+            addDoc,
+            getDocs,
+            deleteDoc,
+            updateDoc,
+            serverTimestamp,
+            query,
+            orderBy 
         } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         // --- Configuration ---
-        // Konfigurasi Firebase anda
         const firebaseConfig = {
             apiKey: "AIzaSyB8ywaXE0phvI4vIhHDDBZID7v2blO_J_o",
             authDomain: "semat-fa0b7.firebaseapp.com",
@@ -300,350 +294,467 @@
             appId: "1:361982206428:web:e7f4d5ed19238690736f19",
             measurementId: "G-0NH5EJD60N"
         };
-
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        
-        // Initialize Firebase
+        // KITA TIDAK GUNA 'appId' UNTUK PATH LAGI KERANA ARAHAN PENGGUNA "SEMAK JE"
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // --- Data ---
-        // KEMASKINI: URL kini merujuk kepada ID View dalam fail ini
-        const SYSTEMS = [
-            {
-                id: 1,
-                name: 'Sistem Pengurusan Murid',
-                shortName: 'SPM',
-                description: 'Pangkalan data utama murid dan profil pelajar.',
-                iconName: 'user',
-                url: '#', 
-                type: 'external',
-                category: 'Pentadbiran',
-                color: 'bg-blue-50',
-                iconColor: 'text-blue-600'
-            },
-            {
-                id: 2,
-                name: 'e-Kehadiran',
-                shortName: 'Kehadiran',
-                description: 'Sistem merekod kehadiran harian murid dan staf.',
-                iconName: 'calendar',
-                url: 'internal-kehadiran-view', // Merujuk ID DIV
-                type: 'internal', 
-                category: 'Harian',
-                color: 'bg-green-50',
-                iconColor: 'text-green-600'
-            },
-            {
-                id: 3,
-                name: 'SAPS Ibu Bapa',
-                shortName: 'SAPS',
-                description: 'Semakan analisis peperiksaan sekolah.',
-                iconName: 'file-text',
-                url: '#',
-                type: 'external',
-                category: 'Akademik',
-                color: 'bg-pink-50',
-                iconColor: 'text-pink-600'
-            },
-            {
-                id: 4,
-                name: 'HRMIS 2.0',
-                shortName: 'HRMIS',
-                description: 'Sistem Maklumat Pengurusan Sumber Manusia.',
-                iconName: 'shield-check',
-                url: 'internal-hrmis-view', // Merujuk ID DIV
-                type: 'internal',
-                category: 'Staf',
-                color: 'bg-purple-50',
-                iconColor: 'text-purple-600'
-            },
-            {
-                id: 5,
-                name: 'e-Operasi',
-                shortName: 'e-Ops',
-                description: 'Modul Pengurusan Guru dan data perjawatan.',
-                iconName: 'settings',
-                url: '#',
-                type: 'external',
-                category: 'Staf',
-                color: 'bg-orange-50',
-                iconColor: 'text-orange-600'
-            },
-            {
-                id: 6,
-                name: 'Pusat Sumber Digital',
-                shortName: 'PSS',
-                description: 'Akses kepada buku digital dan bahan bacaan.',
-                iconName: 'book-open',
-                url: '#',
-                type: 'external',
-                category: 'Akademik',
-                color: 'bg-indigo-50',
-                iconColor: 'text-indigo-600'
-            }
-        ];
+        // --- State ---
+        let currentUser = null;
+        let isAdminMode = false;
+        let appsData = [];
+        let currentEditingId = null;
+        let currentSelectedIcon = 'box';
+        let currentSelectedColor = { bg: 'bg-blue-50', text: 'text-blue-600' };
 
         // --- UI References ---
-        const loadingScreen = document.getElementById('loading-screen');
-        const loginView = document.getElementById('login-view');
-        const dashboardView = document.getElementById('dashboard-view');
-        const internalKehadiranView = document.getElementById('internal-kehadiran-view');
-        const internalHrmisView = document.getElementById('internal-hrmis-view');
-        const loginError = document.getElementById('login-error');
+        const views = {
+            loading: document.getElementById('loading-screen'),
+            login: document.getElementById('login-view'),
+            dashboard: document.getElementById('dashboard-view'),
+            editor: document.getElementById('admin-editor-view'),
+            viewer: document.getElementById('dynamic-app-view')
+        };
+        const adminBanner = document.getElementById('admin-banner');
         
-        const btnGoogle = document.getElementById('btn-google-login');
-        const btnGuest = document.getElementById('btn-guest-login');
-        const btnLogout = document.getElementById('btn-logout');
-
         // --- Functions ---
 
         function toggleLoading(show) {
             if (show) {
-                loadingScreen.classList.remove('hidden');
-                loadingScreen.classList.remove('opacity-0');
+                views.loading.classList.remove('hidden');
+                views.loading.classList.remove('opacity-0');
             } else {
-                loadingScreen.classList.add('opacity-0');
-                setTimeout(() => loadingScreen.classList.add('hidden'), 300);
+                views.loading.classList.add('opacity-0');
+                setTimeout(() => views.loading.classList.add('hidden'), 300);
             }
         }
 
-        // Fungsi Tukar View (SPA Logic)
-        // KEMASKINI: Boleh handle pelbagai view ID
-        function switchView(viewId) {
-            // Senarai semua view yang ada
-            const allViews = [loginView, dashboardView, internalKehadiranView, internalHrmisView];
-            
-            // Sembunyikan semua
-            allViews.forEach(el => {
-                if(el) el.classList.add('hidden');
-            });
-            
-            // Tunjukkan yang diminta
-            const target = document.getElementById(viewId);
-            if (target) {
-                target.classList.remove('hidden');
-            } else {
-                console.error("View not found:", viewId);
-                dashboardView.classList.remove('hidden'); // Fallback
-            }
-            
-            // Re-init icons jika perlu
+        function switchView(viewName) {
+            Object.values(views).forEach(el => el.classList.add('hidden'));
+            if(views[viewName]) views[viewName].classList.remove('hidden');
             if (window.lucide) window.lucide.createIcons();
         }
 
-        // Global function untuk back button
         window.backToDashboard = () => {
-            switchView('dashboard-view');
+            switchView('dashboard');
         };
 
-        function updateDateTime() {
-            const now = new Date();
-            
-            // Update Date
-            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            const dateString = new Intl.DateTimeFormat('ms-MY', dateOptions).format(now);
-            const dateEl = document.getElementById('current-date');
-            if(dateEl) dateEl.innerText = dateString;
-
-            // Update Greeting
-            const hour = now.getHours();
-            let greeting = "Selamat Pagi";
-            if (hour >= 12 && hour < 15) greeting = "Selamat Tengah Hari";
-            else if (hour >= 15) greeting = "Selamat Petang";
-            
-            // Get user display name if available for greeting context
-            const welcomeEl = document.getElementById('welcome-text');
-            if (welcomeEl && auth.currentUser) {
-                const firstName = auth.currentUser.displayName ? auth.currentUser.displayName.split(' ')[0] : 'Cikgu/Tuan';
-                welcomeEl.innerText = `${greeting}, ${firstName}!`;
-            }
+        // --- CORE: App Renderer & Script Executor ---
+        function runEmbeddedScripts(container) {
+            const scripts = container.querySelectorAll('script');
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement('script');
+                Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                oldScript.parentNode.replaceChild(newScript, oldScript);
+            });
         }
 
-        // --- SINGLE SIGN ON & INTERNAL APP LOGIC ---
-        window.handleSystemClick = async (systemId, systemName, systemUrl, type) => {
-            const user = auth.currentUser;
-            
-            if (!user) {
-                alert("Sila log masuk untuk mengakses sistem ini.");
+        async function openApp(appId) {
+            const app = appsData.find(a => a.id === appId);
+            if (!app) return;
+
+            document.getElementById('app-viewer-title').innerText = app.name;
+            document.getElementById('app-viewer-category').innerText = app.category;
+
+            const container = document.getElementById('dynamic-app-container');
+            container.innerHTML = app.html;
+
+            try {
+                runEmbeddedScripts(container);
+            } catch (e) {
+                console.error("Script execution error:", e);
+            }
+
+            switchView('viewer');
+        }
+
+        // --- FIRESTORE: Fetch & Render Apps ---
+        async function fetchApps() {
+            // 1. Cek jika ada data HARDCODED dulu
+            if (HARDCODED_APPS && Array.isArray(HARDCODED_APPS) && HARDCODED_APPS.length > 0) {
+                console.log("Menggunakan data aplikasi HARDCODED (Offline Mode).");
+                appsData = HARDCODED_APPS;
+                renderAppGrid();
                 return;
             }
 
-            // Ubah butang jadi loading
-            const btnContainer = document.getElementById(`sys-btn-${systemId}`);
-            const originalContent = btnContainer.innerHTML;
-            btnContainer.innerHTML = `
-                <span class="flex items-center gap-2">
-                    <span class="animate-spin h-4 w-4 border-2 border-blue-600 rounded-full border-t-transparent"></span>
-                    <span class="text-xs">Memproses...</span>
-                </span>
-            `;
+            const grid = document.getElementById('systems-grid');
+            grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400 mb-2 mx-auto"></div><p>Memuatkan senarai aplikasi...</p></div>';
 
             try {
-                // 1. Dapatkan Token ID Firebase (JWT) yang sah
-                const token = await user.getIdToken();
-                console.log("SSO Token Generated for " + systemName);
+                // 2. Jika tiada hardcoded, tarik dari Firebase (DIRECT ROOT COLLECTION 'apps')
+                const q = query(collection(db, 'apps'), orderBy('createdAt', 'desc'));
+                const querySnapshot = await getDocs(q);
+                
+                appsData = [];
+                querySnapshot.forEach((doc) => {
+                    appsData.push({ id: doc.id, ...doc.data() });
+                });
 
-                if (type === 'internal') {
-                    // CONTOH GABUNGAN HTML: Buka view dalam fail yang sama berdasarkan ID yang diberi (systemUrl)
-                    setTimeout(() => {
-                        // Update info pengguna di semua view dalaman
-                        document.querySelectorAll('.current-user-email').forEach(el => el.innerText = user.email);
-                        document.querySelectorAll('.current-user-name').forEach(el => el.innerText = user.displayName || 'Pengguna');
-                        
-                        // Buka View Dinamik
-                        switchView(systemUrl);
-                        btnContainer.innerHTML = originalContent;
-                    }, 500);
-                } else {
-                    // CONTOH EXTERNAL SSO: Buka URL luar dengan token
-                    if (systemUrl === '#' || systemUrl === '') {
-                        setTimeout(() => {
-                            alert(`DEMO SSO: Berjaya menjana token untuk ${systemName}.\n\nToken dihantar ke sistem luar untuk pengesahan automatik.`);
-                            btnContainer.innerHTML = originalContent;
-                        }, 800);
-                    } else {
-                        const separator = systemUrl.includes('?') ? '&' : '?';
-                        const ssoUrl = `${systemUrl}${separator}auth_token=${token}&uid=${user.uid}`;
-                        window.open(ssoUrl, '_blank');
-                        btnContainer.innerHTML = originalContent;
-                    }
-                }
+                renderAppGrid();
+
             } catch (error) {
-                console.error("SSO Error:", error);
-                alert("Gagal melakukan proses log masuk tunggal (SSO).");
-                btnContainer.innerHTML = originalContent;
+                console.error("Error fetching apps:", error);
+                grid.innerHTML = `<div class="col-span-full text-center text-red-500">Gagal memuatkan aplikasi.<br>Pastikan Firestore Rules membenarkan akses ke collection 'apps'.<br><small>${error.message}</small></div>`;
             }
-        };
+        }
 
-        function renderSystems() {
+        function renderAppGrid() {
             const grid = document.getElementById('systems-grid');
-            if (!grid) return;
             
-            grid.innerHTML = SYSTEMS.map(sys => `
-                <div class="group bg-white rounded-xl border border-slate-200 p-6 hover:shadow-lg hover:border-blue-300 transition-all duration-300 flex flex-col relative overflow-hidden cursor-pointer" onclick="handleSystemClick('${sys.id}', '${sys.name}', '${sys.url}', '${sys.type || 'external'}')">
-                    <div class="absolute top-0 right-0 w-24 h-24 ${sys.color} rounded-bl-full -mr-4 -mt-4 opacity-50 transition-transform group-hover:scale-110"></div>
+            if (appsData.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-12 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">
+                        <i data-lucide="box" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
+                        <p>Tiada aplikasi dijumpai.</p>
+                        ${isAdminMode ? '<p class="text-sm text-blue-500 mt-2">Klik "Tambah App Baru" untuk bermula.</p>' : ''}
+                    </div>
+                `;
+                if (window.lucide) window.lucide.createIcons();
+                return;
+            }
+
+            grid.innerHTML = appsData.map(app => `
+                <div class="group bg-white rounded-xl border border-slate-200 p-6 hover:shadow-lg hover:border-blue-300 transition-all duration-300 flex flex-col relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 ${app.colorBg || 'bg-blue-50'} rounded-bl-full -mr-4 -mt-4 opacity-50 transition-transform group-hover:scale-110"></div>
                     
                     <div class="flex items-start justify-between mb-4 relative z-10">
-                        <div class="p-3 rounded-xl ${sys.color}">
-                            <i data-lucide="${sys.iconName}" class="w-8 h-8 ${sys.iconColor}"></i>
+                        <div class="p-3 rounded-xl ${app.colorBg || 'bg-blue-50'}">
+                            <i data-lucide="${app.iconName || 'box'}" class="w-8 h-8 ${app.colorText || 'text-blue-600'}"></i>
                         </div>
                         <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-1 rounded-full">
-                            ${sys.category}
+                            ${app.category}
                         </span>
                     </div>
                     
                     <div class="relative z-10 flex-grow">
                         <h4 class="font-bold text-slate-800 text-lg group-hover:text-blue-700 transition-colors">
-                            ${sys.name}
+                            ${app.name}
                         </h4>
-                        <p class="text-slate-500 text-sm mt-2 leading-relaxed">
-                            ${sys.description}
+                        <p class="text-slate-500 text-sm mt-2 leading-relaxed line-clamp-2">
+                            ${app.description}
                         </p>
                     </div>
                     
-                    <div id="sys-btn-${sys.id}" class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-blue-600 font-medium text-sm relative z-10">
-                        <span>${sys.type === 'internal' ? 'Buka Aplikasi' : 'Buka Sistem'}</span>
-                        <i data-lucide="${sys.type === 'internal' ? 'arrow-right-circle' : 'external-link'}" class="w-4 h-4 transform group-hover:translate-x-1 transition-transform"></i>
+                    <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-blue-600 font-medium text-sm relative z-10">
+                        <button onclick="openApp('${app.id}')" class="hover:underline flex items-center gap-1">
+                            Buka App <i data-lucide="arrow-right-circle" class="w-4 h-4"></i>
+                        </button>
+                        
+                        ${isAdminMode ? `
+                            <div class="flex gap-2">
+                                <button onclick="editApp('${app.id}')" class="p-1 text-slate-400 hover:text-blue-600" title="Edit">
+                                    <i data-lucide="edit-2" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteApp('${app.id}')" class="p-1 text-slate-400 hover:text-red-600" title="Padam">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             `).join('');
-
-            // Re-initialize icons for newly added HTML
-            if (window.lucide) {
-                window.lucide.createIcons();
-            }
+            
+            if (window.lucide) window.lucide.createIcons();
         }
 
-        async function handleLoginSuccess(user) {
-            // Update UI with user info
+        // --- ADMIN: Editor Logic ---
+        const availableIcons = ['box', 'user', 'calendar', 'file-text', 'shield-check', 'settings', 'book-open', 'activity', 'alert-circle', 'archive', 'bar-chart', 'bell', 'briefcase', 'calculator', 'camera', 'check-circle', 'clipboard', 'clock', 'cloud', 'code', 'database', 'flag', 'folder', 'gift', 'globe', 'home', 'image', 'info', 'layers', 'layout', 'link', 'lock', 'mail', 'map', 'message-circle', 'monitor', 'moon', 'music', 'package', 'pie-chart', 'play', 'printer', 'save', 'search', 'send', 'server', 'share', 'smartphone', 'star', 'sun', 'table', 'tag', 'target', 'terminal', 'tool', 'trash', 'truck', 'tv', 'upload', 'video', 'wifi', 'zap'];
+
+        function initEditor() {
+            const iconContainer = document.getElementById('icon-selector');
+            iconContainer.innerHTML = availableIcons.map(icon => `
+                <button onclick="selectIcon('${icon}')" class="p-2 rounded hover:bg-slate-100 flex justify-center items-center ${icon === 'box' ? 'bg-blue-100 ring-2 ring-blue-500' : ''}" id="icon-btn-${icon}">
+                    <i data-lucide="${icon}" class="w-5 h-5 text-slate-600"></i>
+                </button>
+            `).join('');
+            
+            document.querySelectorAll('#color-selector button').forEach(btn => {
+                btn.onclick = () => {
+                    document.querySelectorAll('#color-selector button').forEach(b => b.classList.remove('ring-2', 'ring-offset-2', 'ring-slate-400'));
+                    btn.classList.add('ring-2', 'ring-offset-2', 'ring-slate-400');
+                    currentSelectedColor = { 
+                        bg: btn.dataset.color, 
+                        text: btn.dataset.text 
+                    };
+                }
+            });
+            if (window.lucide) window.lucide.createIcons();
+        }
+
+        window.selectIcon = (iconName) => {
+            currentSelectedIcon = iconName;
+            document.querySelectorAll('[id^="icon-btn-"]').forEach(btn => {
+                btn.classList.remove('bg-blue-100', 'ring-2', 'ring-blue-500');
+            });
+            document.getElementById(`icon-btn-${iconName}`).classList.add('bg-blue-100', 'ring-2', 'ring-blue-500');
+        };
+
+        window.openEditor = () => {
+            currentEditingId = null; 
+            document.getElementById('edit-app-name').value = '';
+            document.getElementById('edit-app-desc').value = '';
+            document.getElementById('edit-app-html').value = '';
+            document.getElementById('edit-app-category').value = 'Pentadbiran';
+            selectIcon('box');
+            switchView('editor');
+        };
+        
+        window.closeEditor = () => {
+            switchView('dashboard');
+        };
+
+        window.editApp = (id) => {
+            const app = appsData.find(a => a.id === id);
+            if (!app) return;
+            currentEditingId = id;
+            document.getElementById('edit-app-name').value = app.name;
+            document.getElementById('edit-app-desc').value = app.description;
+            document.getElementById('edit-app-html').value = app.html;
+            document.getElementById('edit-app-category').value = app.category;
+            selectIcon(app.iconName || 'box');
+            switchView('editor');
+        };
+
+        window.deleteApp = async (id) => {
+            if(!confirm("Adakah anda pasti mahu memadam aplikasi ini?")) return;
+            toggleLoading(true);
+            try {
+                // DELETE DARI ROOT COLLECTION 'apps'
+                await deleteDoc(doc(db, 'apps', id));
+                await fetchApps();
+                toggleLoading(false);
+            } catch(e) {
+                console.error(e);
+                alert("Gagal memadam: " + e.message);
+                toggleLoading(false);
+            }
+        };
+
+        // --- Save Logic ---
+        document.getElementById('btn-save-app').onclick = async () => {
+            const name = document.getElementById('edit-app-name').value;
+            const desc = document.getElementById('edit-app-desc').value;
+            const html = document.getElementById('edit-app-html').value;
+            const category = document.getElementById('edit-app-category').value;
+            
+            if (!name || !html) {
+                alert("Nama dan Kod HTML wajib diisi.");
+                return;
+            }
+            toggleLoading(true);
+            
+            const appPayload = {
+                name,
+                description: desc,
+                html,
+                category,
+                iconName: currentSelectedIcon,
+                colorBg: currentSelectedColor.bg,
+                colorText: currentSelectedColor.text,
+                updatedAt: serverTimestamp()
+            };
+            
+            try {
+                // SIMPAN TERUS KE ROOT COLLECTION 'apps'
+                const collectionRef = collection(db, 'apps');
+                if (currentEditingId) {
+                    await updateDoc(doc(collectionRef, currentEditingId), appPayload);
+                } else {
+                    appPayload.createdAt = serverTimestamp();
+                    await addDoc(collectionRef, appPayload);
+                }
+                await fetchApps();
+                switchView('dashboard');
+            } catch (error) {
+                console.error("Save failed:", error);
+                alert("Gagal menyimpan aplikasi: " + error.message);
+            } finally {
+                toggleLoading(false);
+            }
+        };
+        
+        // --- EXPORT / HARDCODE LOGIC ---
+        window.exportPortal = () => {
+            if(appsData.length === 0) {
+                alert("Tiada aplikasi untuk disimpan. Sila tambah aplikasi dahulu.");
+                return;
+            }
+            
+            if(!confirm("Adakah anda mahu muat turun fail HTML portal ini dengan data aplikasi tertanam (hardcoded)? Fail baru ini akan berfungsi walaupun tanpa sambungan Firestore.")) return;
+
+            // 1. Dapatkan kod sumber semasa
+            let htmlContent = document.documentElement.outerHTML;
+
+            // 2. Sediakan data hardcoded (Convert array appsData ke string JSON)
+            // Kita perlu sanitasi sikit untuk elak script tag rosak string
+            const appsJson = JSON.stringify(appsData).replace(/<\/script>/g, '<\\/script>');
+
+            // 3. Cari titik suntikan dan ganti null dengan data sebenar
+            const injectionPoint = 'const HARDCODED_APPS = null; // DEFAULT: null. Akan diganti oleh fungsi export.';
+            const replacement = `const HARDCODED_APPS = ${appsJson}; // DATA HARDCODED BERJAYA.`;
+
+            if (htmlContent.includes(injectionPoint)) {
+                htmlContent = htmlContent.replace(injectionPoint, replacement);
+                
+                // 4. Trigger muat turun
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'PortalSKMasjidTanah_Hardcoded.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                alert("Fail berjaya dimuat turun! Sila buka fail 'PortalSKMasjidTanah_Hardcoded.html' untuk melihat hasilnya.");
+            } else {
+                alert("Ralat: Tidak menjumpai titik suntikan data dalam kod.");
+            }
+        };
+
+        // --- EXPORT TXT LOGIC ---
+        window.exportPortalTxt = () => {
+            if(appsData.length === 0) {
+                alert("Tiada aplikasi untuk disimpan. Sila tambah aplikasi dahulu.");
+                return;
+            }
+            
+            if(!confirm("Adakah anda mahu muat turun fail HTML ini sebagai fail teks (.txt)? Anda boleh membukanya dengan Notepad.")) return;
+
+            let htmlContent = document.documentElement.outerHTML;
+            const appsJson = JSON.stringify(appsData).replace(/<\/script>/g, '<\\/script>');
+            const injectionPoint = 'const HARDCODED_APPS = null; // DEFAULT: null. Akan diganti oleh fungsi export.';
+            const replacement = `const HARDCODED_APPS = ${appsJson}; // DATA HARDCODED BERJAYA.`;
+
+            if (htmlContent.includes(injectionPoint)) {
+                htmlContent = htmlContent.replace(injectionPoint, replacement);
+                
+                const blob = new Blob([htmlContent], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'PortalSKMasjidTanah_Hardcoded.txt';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                alert("Fail teks berjaya dimuat turun! Anda boleh buka fail 'PortalSKMasjidTanah_Hardcoded.txt' ini menggunakan Notepad.");
+            } else {
+                alert("Ralat: Tidak menjumpai titik suntikan data dalam kod.");
+            }
+        };
+
+        // --- Auth & Init ---
+
+        function handleLoginSuccess(user) {
+            currentUser = user;
             document.getElementById('user-name').innerText = user.displayName || 'Pengguna';
             document.getElementById('user-email').innerText = user.email || 'Mod Tetamu';
             
             const avatarUrl = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'User'}&background=0D8ABC&color=fff`;
             document.getElementById('user-avatar').src = avatarUrl;
+            
+            document.getElementById('btn-admin-toggle').classList.remove('hidden');
 
-            // Save user data (optional firestore logic)
+            switchView('dashboard');
+            fetchApps();
+            
+            // Simpan profil pengguna ke root collection 'users' (Optional)
             if (!user.isAnonymous) {
                 try {
-                    const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
-                    await setDoc(userRef, {
+                    // PATH DIPERMUDAHKAN: 'users/{uid}'
+                    setDoc(doc(db, 'users', user.uid), {
                         email: user.email,
                         displayName: user.displayName,
                         photoURL: user.photoURL,
                         lastLogin: serverTimestamp()
                     }, { merge: true });
-                } catch (e) {
-                    console.log("Firestore write skipped (permission/guest)");
-                }
+                } catch (e) { console.log("User profile save skipped", e); }
             }
 
-            // Show Dashboard
-            switchView('dashboard-view');
+            const now = new Date();
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const dateString = new Intl.DateTimeFormat('ms-MY', dateOptions).format(now);
+            document.getElementById('current-date').innerText = dateString;
             
-            updateDateTime();
-            renderSystems();
+            const hour = now.getHours();
+            let greeting = "Selamat Pagi";
+            if (hour >= 12 && hour < 15) greeting = "Selamat Tengah Hari";
+            else if (hour >= 15) greeting = "Selamat Petang";
+            
+            const welcomeEl = document.getElementById('welcome-text');
+            const firstName = user.displayName ? user.displayName.split(' ')[0] : 'Cikgu/Tuan';
+            welcomeEl.innerText = `${greeting}, ${firstName}!`;
+            
             toggleLoading(false);
         }
 
-        // --- Event Listeners ---
+        document.getElementById('btn-admin-toggle').onclick = () => {
+            isAdminMode = !isAdminMode;
+            const btn = document.getElementById('btn-admin-toggle');
+            
+            if (isAdminMode) {
+                btn.classList.add('bg-blue-600', 'text-white');
+                btn.classList.remove('bg-blue-900/50', 'text-blue-200');
+                adminBanner.classList.remove('hidden');
+            } else {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('bg-blue-900/50', 'text-blue-200');
+                adminBanner.classList.add('hidden');
+            }
+            renderAppGrid();
+        };
 
-        btnGoogle.addEventListener('click', async () => {
+        // --- Event Listeners ---
+        document.getElementById('btn-google-login').onclick = async () => {
             toggleLoading(true);
-            loginError.classList.add('hidden');
             try {
-                const provider = new GoogleAuthProvider();
-                await signInWithPopup(auth, provider);
-                // Auth state listener handles the rest
+                await signInWithPopup(auth, new GoogleAuthProvider());
             } catch (err) {
                 console.error(err);
-                loginError.innerText = "Gagal log masuk: " + err.message;
-                loginError.classList.remove('hidden');
                 toggleLoading(false);
             }
-        });
+        };
 
-        btnGuest.addEventListener('click', async () => {
+        document.getElementById('btn-guest-login').onclick = async () => {
             toggleLoading(true);
-            loginError.classList.add('hidden');
             try {
                 await signInAnonymously(auth);
             } catch (err) {
                 console.error(err);
-                loginError.innerText = "Gagal log masuk tetamu: " + err.message;
-                loginError.classList.remove('hidden');
                 toggleLoading(false);
             }
-        });
+        };
 
-        btnLogout.addEventListener('click', async () => {
+        document.getElementById('btn-logout').onclick = async () => {
             toggleLoading(true);
-            try {
-                await signOut(auth);
-            } catch (err) {
-                console.error(err);
-            }
-        });
+            try { await signOut(auth); } catch(e) {}
+        };
 
-        // --- Initialization ---
-        
-        // Timer for date/time
-        setInterval(updateDateTime, 60000);
-
-        // Auth State Observer
+        // --- Init ---
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 handleLoginSuccess(user);
             } else {
-                // Show Login
-                switchView('login-view');
-                loginView.classList.add('flex'); // Ensure flex is restored for centering
+                switchView('login');
+                document.getElementById('login-view').classList.add('flex');
                 toggleLoading(false);
-                
-                if (window.lucide) window.lucide.createIcons();
             }
         });
+        
+        initEditor();
+
+        window.openApp = openApp;
+        window.editApp = editApp;
+        window.deleteApp = deleteApp;
+        window.openEditor = openEditor;
+        window.closeEditor = closeEditor;
+        window.selectIcon = selectIcon;
+
     </script>
 </body>
 </html>
