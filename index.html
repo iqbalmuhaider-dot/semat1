@@ -45,6 +45,11 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8; 
         }
+        
+        /* Utility untuk sembunyi/tunjuk view */
+        .view-section {
+            transition: opacity 0.3s ease;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen">
@@ -55,8 +60,8 @@
         <p class="text-slate-500 text-sm animate-pulse">Memuatkan Portal...</p>
     </div>
 
-    <!-- Login View -->
-    <div id="login-view" class="hidden min-h-screen flex-col items-center justify-center p-4 relative overflow-hidden">
+    <!-- VIEW 1: Login View -->
+    <div id="login-view" class="view-section hidden min-h-screen flex-col items-center justify-center p-4 relative overflow-hidden">
         <!-- Decorative Background -->
         <div class="absolute top-0 left-0 w-full h-64 bg-blue-800 rounded-b-[50px] shadow-xl z-0"></div>
         
@@ -95,8 +100,8 @@
         </div>
     </div>
 
-    <!-- Dashboard View -->
-    <div id="dashboard-view" class="hidden min-h-screen bg-slate-50">
+    <!-- VIEW 2: Dashboard View -->
+    <div id="dashboard-view" class="view-section hidden min-h-screen bg-slate-50">
         <!-- Header -->
         <header class="bg-blue-800 text-white shadow-lg sticky top-0 z-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -197,6 +202,36 @@
         </main>
     </div>
 
+    <!-- VIEW 3: Internal App View (Contoh Gabungan HTML) -->
+    <div id="internal-app-view" class="view-section hidden min-h-screen bg-green-50">
+        <header class="bg-green-700 text-white shadow-lg sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <button onclick="window.backToDashboard()" class="p-2 hover:bg-white/20 rounded-full transition-colors">
+                        <i data-lucide="arrow-left" class="w-5 h-5 text-white"></i>
+                    </button>
+                    <h1 class="font-bold text-lg">Sistem e-Kehadiran (Internal)</h1>
+                </div>
+                <div class="text-sm bg-green-800 px-3 py-1 rounded-full">
+                    Digabungkan dalam Portal
+                </div>
+            </div>
+        </header>
+        <main class="max-w-4xl mx-auto p-8">
+            <div class="bg-white rounded-xl shadow-lg p-8 text-center">
+                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="check-circle" class="w-8 h-8 text-green-600"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">Aplikasi Dalam Portal</h2>
+                <p class="text-slate-600 mb-6">Ini adalah contoh bagaimana HTML lain boleh digabungkan dalam satu fail web.</p>
+                <div class="p-4 bg-slate-50 rounded-lg border border-slate-200 text-left text-sm font-mono text-slate-600">
+                    Status Auth: <span id="internal-auth-status" class="text-green-600 font-bold">Disahkan</span><br>
+                    User ID: <span id="internal-user-id">...</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
     <!-- JavaScript Logic -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -242,7 +277,8 @@
                 shortName: 'SPM',
                 description: 'Pangkalan data utama murid dan profil pelajar.',
                 iconName: 'user',
-                url: '#',
+                url: '#', // Demo External
+                type: 'external',
                 category: 'Pentadbiran',
                 color: 'bg-blue-50',
                 iconColor: 'text-blue-600'
@@ -253,7 +289,8 @@
                 shortName: 'Kehadiran',
                 description: 'Sistem merekod kehadiran harian murid dan staf.',
                 iconName: 'calendar',
-                url: '#',
+                url: 'internal', // Demo Internal
+                type: 'internal', 
                 category: 'Harian',
                 color: 'bg-green-50',
                 iconColor: 'text-green-600'
@@ -265,6 +302,7 @@
                 description: 'Semakan analisis peperiksaan sekolah.',
                 iconName: 'file-text',
                 url: '#',
+                type: 'external',
                 category: 'Akademik',
                 color: 'bg-pink-50',
                 iconColor: 'text-pink-600'
@@ -276,6 +314,7 @@
                 description: 'Sistem Maklumat Pengurusan Sumber Manusia.',
                 iconName: 'shield-check',
                 url: '#',
+                type: 'external',
                 category: 'Staf',
                 color: 'bg-purple-50',
                 iconColor: 'text-purple-600'
@@ -287,6 +326,7 @@
                 description: 'Modul Pengurusan Guru dan data perjawatan.',
                 iconName: 'settings',
                 url: '#',
+                type: 'external',
                 category: 'Staf',
                 color: 'bg-orange-50',
                 iconColor: 'text-orange-600'
@@ -298,6 +338,7 @@
                 description: 'Akses kepada buku digital dan bahan bacaan.',
                 iconName: 'book-open',
                 url: '#',
+                type: 'external',
                 category: 'Akademik',
                 color: 'bg-indigo-50',
                 iconColor: 'text-indigo-600'
@@ -308,6 +349,7 @@
         const loadingScreen = document.getElementById('loading-screen');
         const loginView = document.getElementById('login-view');
         const dashboardView = document.getElementById('dashboard-view');
+        const internalAppView = document.getElementById('internal-app-view');
         const loginError = document.getElementById('login-error');
         
         const btnGoogle = document.getElementById('btn-google-login');
@@ -319,11 +361,28 @@
         function toggleLoading(show) {
             if (show) {
                 loadingScreen.classList.remove('hidden');
+                loadingScreen.classList.remove('opacity-0');
             } else {
                 loadingScreen.classList.add('opacity-0');
                 setTimeout(() => loadingScreen.classList.add('hidden'), 300);
             }
         }
+
+        // Fungsi Tukar View (SPA Logic)
+        function switchView(viewId) {
+            // Sembunyikan semua
+            [loginView, dashboardView, internalAppView].forEach(el => el.classList.add('hidden'));
+            // Tunjukkan yang diminta
+            document.getElementById(viewId).classList.remove('hidden');
+            
+            // Re-init icons jika perlu
+            if (window.lucide) window.lucide.createIcons();
+        }
+
+        // Global function untuk back button
+        window.backToDashboard = () => {
+            switchView('dashboard-view');
+        };
 
         function updateDateTime() {
             const now = new Date();
@@ -348,10 +407,8 @@
             }
         }
 
-        // --- SINGLE SIGN ON LOGIC ---
-        // Fungsi ini akan dipanggil apabila pengguna klik pada sistem
-        // Ia akan menjana ID Token dan menghantarnya melalui URL
-        window.handleSystemClick = async (systemId, systemName, systemUrl) => {
+        // --- SINGLE SIGN ON & INTERNAL APP LOGIC ---
+        window.handleSystemClick = async (systemId, systemName, systemUrl, type) => {
             const user = auth.currentUser;
             
             if (!user) {
@@ -365,30 +422,36 @@
             btnContainer.innerHTML = `
                 <span class="flex items-center gap-2">
                     <span class="animate-spin h-4 w-4 border-2 border-blue-600 rounded-full border-t-transparent"></span>
-                    <span class="text-xs">Menjana Token...</span>
+                    <span class="text-xs">Memproses...</span>
                 </span>
             `;
 
             try {
                 // 1. Dapatkan Token ID Firebase (JWT) yang sah
+                // Token ini digunakan untuk authentication di sistem lain
                 const token = await user.getIdToken();
-                console.log("SSO Token Generated for " + systemName, token.substring(0, 15) + "...");
+                console.log("SSO Token Generated for " + systemName);
 
-                // 2. Simulasi atau Redirect
-                if (systemUrl === '#' || systemUrl === '') {
-                    // Jika tiada URL sebenar, kita tunjukkan demo token
+                if (type === 'internal') {
+                    // CONTOH GABUNGAN HTML: Buka view dalam fail yang sama
                     setTimeout(() => {
-                        alert(`DEMO SSO: Berjaya menjana token untuk ${systemName}.\n\nSistem luar akan menerima token ini untuk pengesahan automatik.`);
+                        document.getElementById('internal-user-id').innerText = user.email;
+                        switchView('internal-app-view');
                         btnContainer.innerHTML = originalContent;
-                    }, 800);
+                    }, 500);
                 } else {
-                    // 3. Redirect ke sistem sebenar dengan token
-                    // Format URL: https://sistem-luar.com/auth/callback?token=XYZ
-                    const separator = systemUrl.includes('?') ? '&' : '?';
-                    const ssoUrl = `${systemUrl}${separator}auth_token=${token}&uid=${user.uid}`;
-                    
-                    window.open(ssoUrl, '_blank');
-                    btnContainer.innerHTML = originalContent;
+                    // CONTOH EXTERNAL SSO: Buka URL luar dengan token
+                    if (systemUrl === '#' || systemUrl === '') {
+                        setTimeout(() => {
+                            alert(`DEMO SSO: Berjaya menjana token untuk ${systemName}.\n\nToken dihantar ke sistem luar untuk pengesahan automatik.`);
+                            btnContainer.innerHTML = originalContent;
+                        }, 800);
+                    } else {
+                        const separator = systemUrl.includes('?') ? '&' : '?';
+                        const ssoUrl = `${systemUrl}${separator}auth_token=${token}&uid=${user.uid}`;
+                        window.open(ssoUrl, '_blank');
+                        btnContainer.innerHTML = originalContent;
+                    }
                 }
             } catch (error) {
                 console.error("SSO Error:", error);
@@ -402,7 +465,7 @@
             if (!grid) return;
             
             grid.innerHTML = SYSTEMS.map(sys => `
-                <div class="group bg-white rounded-xl border border-slate-200 p-6 hover:shadow-lg hover:border-blue-300 transition-all duration-300 flex flex-col relative overflow-hidden cursor-pointer" onclick="handleSystemClick('${sys.id}', '${sys.name}', '${sys.url}')">
+                <div class="group bg-white rounded-xl border border-slate-200 p-6 hover:shadow-lg hover:border-blue-300 transition-all duration-300 flex flex-col relative overflow-hidden cursor-pointer" onclick="handleSystemClick('${sys.id}', '${sys.name}', '${sys.url}', '${sys.type || 'external'}')">
                     <div class="absolute top-0 right-0 w-24 h-24 ${sys.color} rounded-bl-full -mr-4 -mt-4 opacity-50 transition-transform group-hover:scale-110"></div>
                     
                     <div class="flex items-start justify-between mb-4 relative z-10">
@@ -424,8 +487,8 @@
                     </div>
                     
                     <div id="sys-btn-${sys.id}" class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-blue-600 font-medium text-sm relative z-10">
-                        <span>Buka Sistem</span>
-                        <i data-lucide="external-link" class="w-4 h-4 transform group-hover:translate-x-1 transition-transform"></i>
+                        <span>${sys.type === 'internal' ? 'Buka Aplikasi' : 'Buka Sistem'}</span>
+                        <i data-lucide="${sys.type === 'internal' ? 'arrow-right-circle' : 'external-link'}" class="w-4 h-4 transform group-hover:translate-x-1 transition-transform"></i>
                     </div>
                 </div>
             `).join('');
@@ -460,8 +523,7 @@
             }
 
             // Show Dashboard
-            loginView.classList.add('hidden');
-            dashboardView.classList.remove('hidden');
+            switchView('dashboard-view');
             
             updateDateTime();
             renderSystems();
@@ -518,9 +580,8 @@
                 handleLoginSuccess(user);
             } else {
                 // Show Login
-                dashboardView.classList.add('hidden');
-                loginView.classList.remove('hidden');
-                loginView.classList.add('flex'); // Ensure flex is restored
+                switchView('login-view');
+                loginView.classList.add('flex'); // Ensure flex is restored for centering
                 toggleLoading(false);
                 
                 if (window.lucide) window.lucide.createIcons();
