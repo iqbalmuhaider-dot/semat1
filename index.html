@@ -216,7 +216,17 @@
         } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         // --- Configuration ---
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        // Konfigurasi Firebase anda
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8ywaXE0phvI4vIhHDDBZID7v2blO_J_o",
+            authDomain: "semat-fa0b7.firebaseapp.com",
+            projectId: "semat-fa0b7",
+            storageBucket: "semat-fa0b7.firebasestorage.app",
+            messagingSenderId: "361982206428",
+            appId: "1:361982206428:web:e7f4d5ed19238690736f19",
+            measurementId: "G-0NH5EJD60N"
+        };
+
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         
         // Initialize Firebase
