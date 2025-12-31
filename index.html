@@ -202,18 +202,18 @@
         </main>
     </div>
 
-    <!-- VIEW 3: Internal App View (Contoh Gabungan HTML) -->
-    <div id="internal-app-view" class="view-section hidden min-h-screen bg-green-50">
+    <!-- VIEW 3: Internal App 1 (e-Kehadiran) -->
+    <div id="internal-kehadiran-view" class="view-section hidden min-h-screen bg-green-50">
         <header class="bg-green-700 text-white shadow-lg sticky top-0 z-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <button onclick="window.backToDashboard()" class="p-2 hover:bg-white/20 rounded-full transition-colors">
                         <i data-lucide="arrow-left" class="w-5 h-5 text-white"></i>
                     </button>
-                    <h1 class="font-bold text-lg">Sistem e-Kehadiran (Internal)</h1>
+                    <h1 class="font-bold text-lg">Sistem e-Kehadiran</h1>
                 </div>
                 <div class="text-sm bg-green-800 px-3 py-1 rounded-full">
-                    Digabungkan dalam Portal
+                    Sistem Dalaman
                 </div>
             </div>
         </header>
@@ -222,11 +222,50 @@
                 <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i data-lucide="check-circle" class="w-8 h-8 text-green-600"></i>
                 </div>
-                <h2 class="text-2xl font-bold text-slate-800 mb-2">Aplikasi Dalam Portal</h2>
-                <p class="text-slate-600 mb-6">Ini adalah contoh bagaimana HTML lain boleh digabungkan dalam satu fail web.</p>
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">Modul Kehadiran</h2>
+                <p class="text-slate-600 mb-6">Ini adalah contoh paparan aplikasi Kehadiran yang digabungkan dalam portal.</p>
                 <div class="p-4 bg-slate-50 rounded-lg border border-slate-200 text-left text-sm font-mono text-slate-600">
-                    Status Auth: <span id="internal-auth-status" class="text-green-600 font-bold">Disahkan</span><br>
-                    User ID: <span id="internal-user-id">...</span>
+                    Status Auth: <span class="text-green-600 font-bold">Disahkan</span><br>
+                    User: <span class="current-user-email">...</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- VIEW 4: Internal App 2 (HRMIS) - BARU DITAMBAH -->
+    <div id="internal-hrmis-view" class="view-section hidden min-h-screen bg-purple-50">
+        <header class="bg-purple-800 text-white shadow-lg sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <button onclick="window.backToDashboard()" class="p-2 hover:bg-white/20 rounded-full transition-colors">
+                        <i data-lucide="arrow-left" class="w-5 h-5 text-white"></i>
+                    </button>
+                    <h1 class="font-bold text-lg">HRMIS 2.0 (Lite)</h1>
+                </div>
+                <div class="text-sm bg-purple-900 px-3 py-1 rounded-full">
+                    Sistem Dalaman
+                </div>
+            </div>
+        </header>
+        <main class="max-w-4xl mx-auto p-8">
+            <div class="bg-white rounded-xl shadow-lg p-8 text-center border-t-4 border-purple-600">
+                <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="shield-check" class="w-8 h-8 text-purple-600"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">Profil Perkhidmatan</h2>
+                <p class="text-slate-600 mb-6">Contoh penggabungan HTML kedua untuk HRMIS.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                    <div class="p-4 bg-purple-50 rounded-lg border border-purple-100">
+                        <h3 class="font-bold text-purple-800 mb-2">Maklumat Diri</h3>
+                        <p class="text-sm text-slate-600">Nama: <span class="current-user-name font-semibold">...</span></p>
+                        <p class="text-sm text-slate-600">Jawatan: PPP Gred DG44</p>
+                    </div>
+                    <div class="p-4 bg-purple-50 rounded-lg border border-purple-100">
+                        <h3 class="font-bold text-purple-800 mb-2">Cuti Rehat</h3>
+                        <p class="text-sm text-slate-600">Baki Cuti: <span class="font-bold text-purple-600">7 Hari</span></p>
+                        <p class="text-sm text-slate-600">Status: Aktif</p>
+                    </div>
                 </div>
             </div>
         </main>
@@ -270,6 +309,7 @@
         const db = getFirestore(app);
 
         // --- Data ---
+        // KEMASKINI: URL kini merujuk kepada ID View dalam fail ini
         const SYSTEMS = [
             {
                 id: 1,
@@ -277,7 +317,7 @@
                 shortName: 'SPM',
                 description: 'Pangkalan data utama murid dan profil pelajar.',
                 iconName: 'user',
-                url: '#', // Demo External
+                url: '#', 
                 type: 'external',
                 category: 'Pentadbiran',
                 color: 'bg-blue-50',
@@ -289,7 +329,7 @@
                 shortName: 'Kehadiran',
                 description: 'Sistem merekod kehadiran harian murid dan staf.',
                 iconName: 'calendar',
-                url: 'internal', // Demo Internal
+                url: 'internal-kehadiran-view', // Merujuk ID DIV
                 type: 'internal', 
                 category: 'Harian',
                 color: 'bg-green-50',
@@ -313,8 +353,8 @@
                 shortName: 'HRMIS',
                 description: 'Sistem Maklumat Pengurusan Sumber Manusia.',
                 iconName: 'shield-check',
-                url: '#',
-                type: 'external',
+                url: 'internal-hrmis-view', // Merujuk ID DIV
+                type: 'internal',
                 category: 'Staf',
                 color: 'bg-purple-50',
                 iconColor: 'text-purple-600'
@@ -349,7 +389,8 @@
         const loadingScreen = document.getElementById('loading-screen');
         const loginView = document.getElementById('login-view');
         const dashboardView = document.getElementById('dashboard-view');
-        const internalAppView = document.getElementById('internal-app-view');
+        const internalKehadiranView = document.getElementById('internal-kehadiran-view');
+        const internalHrmisView = document.getElementById('internal-hrmis-view');
         const loginError = document.getElementById('login-error');
         
         const btnGoogle = document.getElementById('btn-google-login');
@@ -369,11 +410,24 @@
         }
 
         // Fungsi Tukar View (SPA Logic)
+        // KEMASKINI: Boleh handle pelbagai view ID
         function switchView(viewId) {
+            // Senarai semua view yang ada
+            const allViews = [loginView, dashboardView, internalKehadiranView, internalHrmisView];
+            
             // Sembunyikan semua
-            [loginView, dashboardView, internalAppView].forEach(el => el.classList.add('hidden'));
+            allViews.forEach(el => {
+                if(el) el.classList.add('hidden');
+            });
+            
             // Tunjukkan yang diminta
-            document.getElementById(viewId).classList.remove('hidden');
+            const target = document.getElementById(viewId);
+            if (target) {
+                target.classList.remove('hidden');
+            } else {
+                console.error("View not found:", viewId);
+                dashboardView.classList.remove('hidden'); // Fallback
+            }
             
             // Re-init icons jika perlu
             if (window.lucide) window.lucide.createIcons();
@@ -428,15 +482,18 @@
 
             try {
                 // 1. Dapatkan Token ID Firebase (JWT) yang sah
-                // Token ini digunakan untuk authentication di sistem lain
                 const token = await user.getIdToken();
                 console.log("SSO Token Generated for " + systemName);
 
                 if (type === 'internal') {
-                    // CONTOH GABUNGAN HTML: Buka view dalam fail yang sama
+                    // CONTOH GABUNGAN HTML: Buka view dalam fail yang sama berdasarkan ID yang diberi (systemUrl)
                     setTimeout(() => {
-                        document.getElementById('internal-user-id').innerText = user.email;
-                        switchView('internal-app-view');
+                        // Update info pengguna di semua view dalaman
+                        document.querySelectorAll('.current-user-email').forEach(el => el.innerText = user.email);
+                        document.querySelectorAll('.current-user-name').forEach(el => el.innerText = user.displayName || 'Pengguna');
+                        
+                        // Buka View Dinamik
+                        switchView(systemUrl);
                         btnContainer.innerHTML = originalContent;
                     }, 500);
                 } else {
