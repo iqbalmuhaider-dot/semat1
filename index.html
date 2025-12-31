@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal SK Masjid Tanah</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .animate-fade-in-up {
+            animation: fadeInUp 0.5s ease-out;
+        }
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        /* Custom scrollbar for better look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-slate-50 z-[60] flex flex-col items-center justify-center transition-opacity duration-300">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-800 mb-4"></div>
+        <p class="text-slate-500 text-sm animate-pulse">Memuatkan Portal...</p>
+    </div>
+
+    <!-- Login View -->
+    <div id="login-view" class="hidden min-h-screen flex-col items-center justify-center p-4 relative overflow-hidden">
+        <!-- Decorative Background -->
+        <div class="absolute top-0 left-0 w-full h-64 bg-blue-800 rounded-b-[50px] shadow-xl z-0"></div>
+        
+        <div class="z-10 w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center animate-fade-in-up">
+            <div class="w-24 h-24 bg-white rounded-full p-2 shadow-lg -mt-20 mb-6 flex items-center justify-center border-4 border-blue-50">
+                <i data-lucide="school" class="w-12 h-12 text-blue-800"></i>
+            </div>
+            
+            <h1 class="text-2xl font-bold text-slate-800 text-center mb-1">Portal SK Masjid Tanah</h1>
+            <p class="text-slate-500 text-center text-sm mb-8">Gerbang Aplikasi Digital Berpusat</p>
+            
+            <div class="w-full space-y-4">
+                <button id="btn-google-login" class="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 text-slate-700 font-semibold py-3 px-4 rounded-xl hover:bg-slate-50 transition-all duration-200 shadow-sm active:scale-95">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-5 h-5">
+                    <span>Log Masuk dengan Google</span>
+                </button>
+
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-slate-200"></div>
+                    <span class="flex-shrink mx-4 text-slate-400 text-xs uppercase">Atau</span>
+                    <div class="flex-grow border-t border-slate-200"></div>
+                </div>
+
+                <button id="btn-guest-login" class="w-full text-sm text-slate-500 hover:text-blue-700 font-medium py-2 transition-colors">
+                    Log Masuk Sebagai Tetamu (Demo)
+                </button>
+            </div>
+
+            <div id="login-error" class="hidden mt-6 p-3 bg-red-50 text-red-600 text-xs rounded-lg w-full text-center border border-red-100"></div>
+
+            <div class="mt-8 text-center">
+                <p class="text-xs text-slate-400">
+                    &copy; 2025 SK Masjid Tanah. Hak Cipta Terpelihara.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard View -->
+    <div id="dashboard-view" class="hidden min-h-screen bg-slate-50">
+        <!-- Header -->
+        <header class="bg-blue-800 text-white shadow-lg sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/10 p-2 rounded-lg">
+                        <i data-lucide="school" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-sm sm:text-lg leading-tight">SK Masjid Tanah</h1>
+                        <p class="text-[10px] text-blue-200 uppercase tracking-wider">Portal Digital</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <button class="p-2 hover:bg-white/10 rounded-full transition-colors relative">
+                        <i data-lucide="bell" class="w-5 h-5"></i>
+                        <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-blue-800"></span>
+                    </button>
+                    <div class="h-8 w-px bg-blue-600 hidden sm:block"></div>
+                    <div class="flex items-center gap-3">
+                        <div class="hidden sm:block text-right">
+                            <p id="user-name" class="text-sm font-medium">Pengguna</p>
+                            <p id="user-email" class="text-xs text-blue-200">Tetamu</p>
+                        </div>
+                        <img id="user-avatar" src="" alt="Profile" class="w-10 h-10 rounded-full border-2 border-blue-400 bg-white object-cover">
+                        <button id="btn-logout" class="ml-2 p-2 text-blue-200 hover:text-white hover:bg-blue-700 rounded-lg transition-colors" title="Log Keluar">
+                            <i data-lucide="log-out" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            <!-- Welcome Section -->
+            <div class="mb-8">
+                <h2 id="welcome-text" class="text-2xl font-bold text-slate-800">Selamat Datang!</h2>
+                <p class="text-slate-500 mt-1 flex items-center gap-2">
+                    <i data-lucide="calendar" class="w-4 h-4"></i>
+                    <span id="current-date">...</span>
+                </p>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                <!-- Card 1 -->
+                <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg relative overflow-hidden group hover:scale-[1.02] transition-transform cursor-pointer">
+                    <div class="relative z-10">
+                        <p class="text-blue-100 font-medium text-sm mb-1">Pengumuman Terkini</p>
+                        <h3 class="font-bold text-lg">Mesyuarat Guru Bil 1/2025</h3>
+                        <p class="text-xs text-blue-100 mt-2 bg-white/20 inline-block px-2 py-1 rounded">2:30 Petang Ini</p>
+                    </div>
+                    <div class="absolute -right-4 -bottom-4 bg-white/10 w-32 h-32 rounded-full blur-2xl group-hover:bg-white/20 transition-all"></div>
+                </div>
+                
+                <!-- Card 2 -->
+                <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                     <div class="flex justify-between items-start">
+                       <div>
+                         <p class="text-slate-500 text-sm font-medium">Status Kehadiran</p>
+                         <h3 class="text-2xl font-bold text-slate-800 mt-1">98.5%</h3>
+                         <p class="text-xs text-green-600 mt-1 font-medium">↑ 2% dari semalam</p>
+                       </div>
+                       <div class="p-2 bg-green-50 rounded-lg">
+                         <i data-lucide="user" class="w-6 h-6 text-green-600"></i>
+                       </div>
+                     </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                     <div class="flex justify-between items-start">
+                       <div>
+                         <p class="text-slate-500 text-sm font-medium">Tugasan Tertunda</p>
+                         <h3 class="text-2xl font-bold text-slate-800 mt-1">3</h3>
+                         <p class="text-xs text-orange-600 mt-1 font-medium">Perlu tindakan segera</p>
+                       </div>
+                       <div class="p-2 bg-orange-50 rounded-lg">
+                         <i data-lucide="file-text" class="w-6 h-6 text-orange-600"></i>
+                       </div>
+                     </div>
+                </div>
+            </div>
+
+            <!-- Apps Grid -->
+            <div>
+                <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <i data-lucide="layout-grid" class="w-5 h-5 text-blue-600"></i>
+                    Aplikasi Sistem
+                </h3>
+                
+                <div id="systems-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- System cards will be injected here via JS -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { 
+            getAuth, 
+            GoogleAuthProvider, 
+            signInWithPopup, 
+            signInAnonymously, 
+            onAuthStateChanged, 
+            signOut 
+        } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { 
+            getFirestore, 
+            doc, 
+            setDoc, 
+            serverTimestamp 
+        } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+        // --- Configuration ---
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- Data ---
+        const SYSTEMS = [
+            {
+                id: 1,
+                name: 'Sistem Pengurusan Murid',
+                shortName: 'SPM',
+                description: 'Pangkalan data utama murid dan profil pelajar.',
+                iconName: 'user',
+                url: '#',
+                category: 'Pentadbiran',
+                color: 'bg-blue-50',
+                iconColor: 'text-blue-600'
+            },
+            {
+                id: 2,
+                name: 'e-Kehadiran',
+                shortName: 'Kehadiran',
+                description: 'Sistem merekod kehadiran harian murid dan staf.',
+                iconName: 'calendar',
+                url: '#',
+                category: 'Harian',
+                color: 'bg-green-50',
+                iconColor: 'text-green-600'
+            },
+            {
+                id: 3,
+                name: 'SAPS Ibu Bapa',
+                shortName: 'SAPS',
+                description: 'Semakan analisis peperiksaan sekolah.',
+                iconName: 'file-text',
+                url: '#',
+                category: 'Akademik',
+                color: 'bg-pink-50',
+                iconColor: 'text-pink-600'
+            },
+            {
+                id: 4,
+                name: 'HRMIS 2.0',
+                shortName: 'HRMIS',
+                description: 'Sistem Maklumat Pengurusan Sumber Manusia.',
+                iconName: 'shield-check',
+                url: '#',
+                category: 'Staf',
+                color: 'bg-purple-50',
+                iconColor: 'text-purple-600'
+            },
+            {
+                id: 5,
+                name: 'e-Operasi',
+                shortName: 'e-Ops',
+                description: 'Modul Pengurusan Guru dan data perjawatan.',
+                iconName: 'settings',
+                url: '#',
+                category: 'Staf',
+                color: 'bg-orange-50',
+                iconColor: 'text-orange-600'
+            },
+            {
+                id: 6,
+                name: 'Pusat Sumber Digital',
+                shortName: 'PSS',
+                description: 'Akses kepada buku digital dan bahan bacaan.',
+                iconName: 'book-open',
+                url: '#',
+                category: 'Akademik',
+                color: 'bg-indigo-50',
+                iconColor: 'text-indigo-600'
+            }
+        ];
+
+        // --- UI References ---
+        const loadingScreen = document.getElementById('loading-screen');
+        const loginView = document.getElementById('login-view');
+        const dashboardView = document.getElementById('dashboard-view');
+        const loginError = document.getElementById('login-error');
+        
+        const btnGoogle = document.getElementById('btn-google-login');
+        const btnGuest = document.getElementById('btn-guest-login');
+        const btnLogout = document.getElementById('btn-logout');
+
+        // --- Functions ---
+
+        function toggleLoading(show) {
+            if (show) {
+                loadingScreen.classList.remove('hidden');
+            } else {
+                loadingScreen.classList.add('opacity-0');
+                setTimeout(() => loadingScreen.classList.add('hidden'), 300);
+            }
+        }
+
+        function updateDateTime() {
+            const now = new Date();
+            
+            // Update Date
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const dateString = new Intl.DateTimeFormat('ms-MY', dateOptions).format(now);
+            const dateEl = document.getElementById('current-date');
+            if(dateEl) dateEl.innerText = dateString;
+
+            // Update Greeting
+            const hour = now.getHours();
+            let greeting = "Selamat Pagi";
+            if (hour >= 12 && hour < 15) greeting = "Selamat Tengah Hari";
+            else if (hour >= 15) greeting = "Selamat Petang";
+            
+            // Get user display name if available for greeting context
+            const welcomeEl = document.getElementById('welcome-text');
+            if (welcomeEl && auth.currentUser) {
+                const firstName = auth.currentUser.displayName ? auth.currentUser.displayName.split(' ')[0] : 'Cikgu/Tuan';
+                welcomeEl.innerText = `${greeting}, ${firstName}!`;
+            }
+        }
+
+        function renderSystems() {
+            const grid = document.getElementById('systems-grid');
+            if (!grid) return;
+            
+            grid.innerHTML = SYSTEMS.map(sys => `
+                <a href="${sys.url}" class="group bg-white rounded-xl border border-slate-200 p-6 hover:shadow-lg hover:border-blue-300 transition-all duration-300 flex flex-col relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 ${sys.color} rounded-bl-full -mr-4 -mt-4 opacity-50 transition-transform group-hover:scale-110"></div>
+                    
+                    <div class="flex items-start justify-between mb-4 relative z-10">
+                        <div class="p-3 rounded-xl ${sys.color}">
+                            <i data-lucide="${sys.iconName}" class="w-8 h-8 ${sys.iconColor}"></i>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-1 rounded-full">
+                            ${sys.category}
+                        </span>
+                    </div>
+                    
+                    <div class="relative z-10 flex-grow">
+                        <h4 class="font-bold text-slate-800 text-lg group-hover:text-blue-700 transition-colors">
+                            ${sys.name}
+                        </h4>
+                        <p class="text-slate-500 text-sm mt-2 leading-relaxed">
+                            ${sys.description}
+                        </p>
+                    </div>
+                    
+                    <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-blue-600 font-medium text-sm relative z-10">
+                        <span>Buka Sistem</span>
+                        <i data-lucide="external-link" class="w-4 h-4 transform group-hover:translate-x-1 transition-transform"></i>
+                    </div>
+                </a>
+            `).join('');
+
+            // Re-initialize icons for newly added HTML
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+        }
+
+        async function handleLoginSuccess(user) {
+            // Update UI with user info
+            document.getElementById('user-name').innerText = user.displayName || 'Pengguna';
+            document.getElementById('user-email').innerText = user.email || 'Mod Tetamu';
+            
+            const avatarUrl = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'User'}&background=0D8ABC&color=fff`;
+            document.getElementById('user-avatar').src = avatarUrl;
+
+            // Save user data (optional firestore logic)
+            if (!user.isAnonymous) {
+                try {
+                    const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
+                    await setDoc(userRef, {
+                        email: user.email,
+                        displayName: user.displayName,
+                        photoURL: user.photoURL,
+                        lastLogin: serverTimestamp()
+                    }, { merge: true });
+                } catch (e) {
+                    console.log("Firestore write skipped (permission/guest)");
+                }
+            }
+
+            // Show Dashboard
+            loginView.classList.add('hidden');
+            dashboardView.classList.remove('hidden');
+            
+            updateDateTime();
+            renderSystems();
+            toggleLoading(false);
+        }
+
+        // --- Event Listeners ---
+
+        btnGoogle.addEventListener('click', async () => {
+            toggleLoading(true);
+            loginError.classList.add('hidden');
+            try {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+                // Auth state listener handles the rest
+            } catch (err) {
+                console.error(err);
+                loginError.innerText = "Gagal log masuk: " + err.message;
+                loginError.classList.remove('hidden');
+                toggleLoading(false);
+            }
+        });
+
+        btnGuest.addEventListener('click', async () => {
+            toggleLoading(true);
+            loginError.classList.add('hidden');
+            try {
+                await signInAnonymously(auth);
+            } catch (err) {
+                console.error(err);
+                loginError.innerText = "Gagal log masuk tetamu: " + err.message;
+                loginError.classList.remove('hidden');
+                toggleLoading(false);
+            }
+        });
+
+        btnLogout.addEventListener('click', async () => {
+            toggleLoading(true);
+            try {
+                await signOut(auth);
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // --- Initialization ---
+        
+        // Timer for date/time
+        setInterval(updateDateTime, 60000);
+
+        // Auth State Observer
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                handleLoginSuccess(user);
+            } else {
+                // Show Login
+                dashboardView.classList.add('hidden');
+                loginView.classList.remove('hidden');
+                loginView.classList.add('flex'); // Ensure flex is restored
+                toggleLoading(false);
+                
+                if (window.lucide) window.lucide.createIcons();
+            }
+        });
+    </script>
+</body>
+</html>
