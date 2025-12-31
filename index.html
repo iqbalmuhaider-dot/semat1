@@ -257,8 +257,132 @@
     <!-- JavaScript Logic -->
     <script type="module">
         // =================================================================
-        // TITIK SUNTIKAN DATA HARDCODED (Jangan ubah baris di bawah)
-        const HARDCODED_APPS = null; // DEFAULT: null. Akan diganti oleh fungsi export.
+        // E-KEHADIRAN HARDCODED APP
+        // =================================================================
+        const eKehadiranHTML = `
+            <div class="p-6 max-w-lg mx-auto">
+                <div class="bg-white rounded-xl shadow-lg p-6 border-t-4 border-green-500">
+                    <div class="text-center mb-6">
+                        <div class="inline-block p-3 bg-green-100 rounded-full mb-3">
+                            <i data-lucide="check-circle" class="w-8 h-8 text-green-600"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-800">Rekod Kehadiran</h2>
+                        <p class="text-sm text-gray-500">Log Masuk Automatik Portal</p>
+                    </div>
+                    
+                    <div class="bg-slate-50 rounded-lg p-4 mb-6 flex items-center gap-3 border border-slate-200">
+                        <div class="p-2 bg-white rounded-full text-blue-600 shadow-sm">
+                            <i data-lucide="user" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Pengguna Semasa</p>
+                            <p id="att-user-name" class="font-bold text-gray-800 text-sm">Memuatkan...</p>
+                            <p id="att-user-email" class="text-xs text-gray-500 truncate max-w-[200px]">...</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <button onclick="recordAttendance('Hadir (Masuk)')" class="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold shadow transition-transform active:scale-95 flex items-center justify-center gap-2 group">
+                            <i data-lucide="log-in" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i> 
+                            Daftar Masuk (Check-In)
+                        </button>
+                        <button onclick="recordAttendance('Hadir (Keluar)')" class="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold shadow transition-transform active:scale-95 flex items-center justify-center gap-2 group">
+                            <i data-lucide="log-out" class="w-5 h-5 group-hover:-translate-x-1 transition-transform"></i> 
+                            Daftar Keluar (Check-Out)
+                        </button>
+                    </div>
+
+                    <div class="mt-8">
+                        <h3 class="font-bold text-gray-700 mb-3 text-sm flex items-center gap-2">
+                             <i data-lucide="clock" class="w-4 h-4"></i> Sejarah Ringkas
+                        </h3>
+                        <div id="att-history" class="space-y-2 text-sm max-h-40 overflow-y-auto">
+                            <p class="text-center text-gray-400 italic text-xs py-2">Rekod akan dipaparkan di sini...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                (function() {
+                    // Gunakan Auth Portal (window.auth)
+                    const user = window.auth.currentUser;
+                    
+                    // UI Update
+                    if (user) {
+                        document.getElementById('att-user-name').innerText = user.displayName || 'Tanpa Nama';
+                        document.getElementById('att-user-email').innerText = user.email;
+                    } else {
+                        document.getElementById('att-user-name').innerText = 'Tidak Log Masuk';
+                        document.getElementById('att-user-email').innerText = 'Sila log masuk portal dahulu.';
+                    }
+
+                    // Re-init Icons
+                    if (window.lucide) window.lucide.createIcons();
+                    
+                    // Fungsi Rekod (Global Scope untuk button onclick)
+                    window.recordAttendance = async (status) => {
+                        if (!user) { alert("Ralat: Sila log masuk portal."); return; }
+                        if (user.isAnonymous) { alert("Mod Tetamu tidak boleh menyimpan rekod."); return; }
+
+                        const btn = event.currentTarget;
+                        const originalContent = btn.innerHTML;
+                        btn.innerHTML = '<span class="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent inline-block"></span> Memproses...';
+                        btn.disabled = true;
+
+                        try {
+                            // Guna fungsi Firebase yang diexpose oleh Portal
+                            // Path: apps_data/kehadiran/logs
+                            await window.addDoc(window.collection(window.db, 'apps_data', 'kehadiran', 'logs'), {
+                                uid: user.uid,
+                                name: user.displayName,
+                                email: user.email,
+                                status: status,
+                                timestamp: window.serverTimestamp(),
+                                userAgent: navigator.userAgent
+                            });
+                            
+                            alert("Berjaya: " + status);
+                            addLogToUI(status, new Date());
+                        } catch (e) {
+                            console.error(e);
+                            alert("Gagal menyimpan rekod: " + e.message);
+                        } finally {
+                            btn.innerHTML = originalContent;
+                            btn.disabled = false;
+                            if (window.lucide) window.lucide.createIcons();
+                        }
+                    };
+
+                    function addLogToUI(status, date) {
+                        const historyContainer = document.getElementById('att-history');
+                        const timeStr = date.toLocaleTimeString('ms-MY', { hour: '2-digit', minute:'2-digit' });
+                        const div = document.createElement('div');
+                        div.className = "flex justify-between items-center p-2 bg-slate-50 rounded border border-slate-100";
+                        div.innerHTML = \`<span>\${status}</span> <span class="text-slate-400 text-xs">\${timeStr}</span>\`;
+                        
+                        // Buang placeholder jika ada
+                        if(historyContainer.innerText.includes('Rekod akan dipaparkan')) historyContainer.innerHTML = '';
+                        historyContainer.prepend(div);
+                    }
+                })();
+            <\/script>
+        `;
+
+        // Masukkan ke dalam array Hardcoded Apps
+        const HARDCODED_APPS = [
+            {
+                id: "app-kehadiran-v1",
+                name: "e-Kehadiran",
+                category: "Harian",
+                description: "Sistem kehadiran staf dan guru. Log masuk automatik menggunakan Portal.",
+                iconName: "calendar-check",
+                colorBg: "bg-green-50",
+                colorText: "text-green-600",
+                createdAt: "2025-01-01T00:00:00Z",
+                html: eKehadiranHTML
+            }
+        ];
         // =================================================================
 
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -298,6 +422,13 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+
+        // --- EXPOSE FIREBASE TO WINDOW (Untuk Embedded Apps) ---
+        window.db = db;
+        window.auth = auth;
+        window.collection = collection;
+        window.addDoc = addDoc;
+        window.serverTimestamp = serverTimestamp;
 
         // --- State ---
         let currentUser = null;
@@ -371,32 +502,39 @@
 
         // --- FIRESTORE: Fetch & Render Apps ---
         async function fetchApps() {
-            // 1. Cek jika ada data HARDCODED dulu
-            if (HARDCODED_APPS && Array.isArray(HARDCODED_APPS) && HARDCODED_APPS.length > 0) {
-                console.log("Menggunakan data aplikasi HARDCODED (Offline Mode).");
-                appsData = HARDCODED_APPS;
-                renderAppGrid();
-                return;
-            }
+            // Gabungkan HARDCODED_APPS dengan data dari Firestore
+            // Default apps dari Hardcoded
+            let combinedApps = [...(HARDCODED_APPS || [])];
 
             const grid = document.getElementById('systems-grid');
-            grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400 mb-2 mx-auto"></div><p>Memuatkan senarai aplikasi...</p></div>';
+            // Tunjuk loading jika tiada hardcoded apps
+            if (combinedApps.length === 0) {
+                 grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400 mb-2 mx-auto"></div><p>Memuatkan senarai aplikasi...</p></div>';
+            }
 
             try {
-                // 2. Jika tiada hardcoded, tarik dari Firebase (DIRECT ROOT COLLECTION 'apps')
+                // Tarik dari Firebase (DIRECT ROOT COLLECTION 'apps')
                 const q = query(collection(db, 'apps'), orderBy('createdAt', 'desc'));
                 const querySnapshot = await getDocs(q);
                 
-                appsData = [];
                 querySnapshot.forEach((doc) => {
-                    appsData.push({ id: doc.id, ...doc.data() });
+                    // Elak duplikasi ID jika sama dengan hardcoded
+                    if (!combinedApps.find(a => a.id === doc.id)) {
+                        combinedApps.push({ id: doc.id, ...doc.data() });
+                    }
                 });
 
+                appsData = combinedApps;
                 renderAppGrid();
 
             } catch (error) {
                 console.error("Error fetching apps:", error);
-                grid.innerHTML = `<div class="col-span-full text-center text-red-500">Gagal memuatkan aplikasi.<br>Pastikan Firestore Rules membenarkan akses ke collection 'apps'.<br><small>${error.message}</small></div>`;
+                // Jika error, sekurang-kurangnya tunjuk hardcoded apps
+                appsData = combinedApps;
+                renderAppGrid();
+                
+                // Show toast/error somewhere discreetly
+                // grid.innerHTML += `<div class="col-span-full text-center text-red-500 text-xs">Gagal menyambung ke database. Hanya aplikasi offline dipaparkan.</div>`;
             }
         }
 
@@ -518,6 +656,12 @@
         };
 
         window.deleteApp = async (id) => {
+            // Jika ia adalah hardcoded app, tidak boleh padam
+            if (HARDCODED_APPS.find(a => a.id === id)) {
+                alert("Aplikasi sistem (Hardcoded) tidak boleh dipadam dari sini.");
+                return;
+            }
+
             if(!confirm("Adakah anda pasti mahu memadam aplikasi ini?")) return;
             toggleLoading(true);
             try {
@@ -592,13 +736,31 @@
             const appsJson = JSON.stringify(appsData).replace(/<\/script>/g, '<\\/script>');
 
             // 3. Cari titik suntikan dan ganti null dengan data sebenar
-            const injectionPoint = 'const HARDCODED_APPS = null; // DEFAULT: null. Akan diganti oleh fungsi export.';
-            const replacement = `const HARDCODED_APPS = ${appsJson}; // DATA HARDCODED BERJAYA.`;
-
-            if (htmlContent.includes(injectionPoint)) {
-                htmlContent = htmlContent.replace(injectionPoint, replacement);
+            // NOTE: Kita perlu replace seluruh blok eKehadiran + HARDCODED_APPS jika sudah ada
+            // Untuk simple logic, kita assume user sedang run file ini.
+            // Kita replace variable HARDCODED_APPS sedia ada.
+            
+            // Regex match untuk replace isi kandungan HARDCODED_APPS
+            // const HARDCODED_APPS = [ ... ];
+            
+            // Cara selamat: Gantikan seluruh assignment
+            // Cari text 'const HARDCODED_APPS =' sehingga '; // ================================================================='
+            
+            // SIMPLIFICATION: Kita hanya inject data ke dalam variable const HARDCODED_APPS = ...
+            // Jika ia sudah ada data (seperti sekarang), kita replace keseluruhan array.
+            
+            // Dapatkan index start
+            const startMarker = 'const HARDCODED_APPS = ';
+            const endMarker = '; // =================================================================';
+            
+            const startIndex = htmlContent.indexOf(startMarker);
+            const endIndex = htmlContent.indexOf(endMarker, startIndex);
+            
+            if (startIndex !== -1 && endIndex !== -1) {
+                const newAssignment = startMarker + appsJson;
+                htmlContent = htmlContent.substring(0, startIndex) + newAssignment + htmlContent.substring(endIndex);
                 
-                // 4. Trigger muat turun
+                 // 4. Trigger muat turun
                 const blob = new Blob([htmlContent], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -609,7 +771,7 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 
-                alert("Fail berjaya dimuat turun! Sila buka fail 'PortalSKMasjidTanah_Hardcoded.html' untuk melihat hasilnya.");
+                alert("Fail berjaya dimuat turun!");
             } else {
                 alert("Ralat: Tidak menjumpai titik suntikan data dalam kod.");
             }
@@ -617,20 +779,23 @@
 
         // --- EXPORT TXT LOGIC ---
         window.exportPortalTxt = () => {
-            if(appsData.length === 0) {
-                alert("Tiada aplikasi untuk disimpan. Sila tambah aplikasi dahulu.");
+             if(appsData.length === 0) {
+                alert("Tiada aplikasi untuk disimpan.");
                 return;
             }
             
-            if(!confirm("Adakah anda mahu muat turun fail HTML ini sebagai fail teks (.txt)? Anda boleh membukanya dengan Notepad.")) return;
-
             let htmlContent = document.documentElement.outerHTML;
             const appsJson = JSON.stringify(appsData).replace(/<\/script>/g, '<\\/script>');
-            const injectionPoint = 'const HARDCODED_APPS = null; // DEFAULT: null. Akan diganti oleh fungsi export.';
-            const replacement = `const HARDCODED_APPS = ${appsJson}; // DATA HARDCODED BERJAYA.`;
+            
+            const startMarker = 'const HARDCODED_APPS = ';
+            const endMarker = '; // =================================================================';
+            
+            const startIndex = htmlContent.indexOf(startMarker);
+            const endIndex = htmlContent.indexOf(endMarker, startIndex);
 
-            if (htmlContent.includes(injectionPoint)) {
-                htmlContent = htmlContent.replace(injectionPoint, replacement);
+             if (startIndex !== -1 && endIndex !== -1) {
+                const newAssignment = startMarker + appsJson;
+                htmlContent = htmlContent.substring(0, startIndex) + newAssignment + htmlContent.substring(endIndex);
                 
                 const blob = new Blob([htmlContent], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
@@ -641,10 +806,9 @@
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                
-                alert("Fail teks berjaya dimuat turun! Anda boleh buka fail 'PortalSKMasjidTanah_Hardcoded.txt' ini menggunakan Notepad.");
+                alert("Fail teks berjaya dimuat turun!");
             } else {
-                alert("Ralat: Tidak menjumpai titik suntikan data dalam kod.");
+                alert("Ralat injection point.");
             }
         };
 
