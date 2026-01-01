@@ -25,11 +25,16 @@
         }
         .view-section { transition: opacity 0.3s ease; }
         
-        /* Utility untuk Custom HTML Container */
         #dynamic-app-container {
             width: 100%;
             min-height: calc(100vh - 100px);
             position: relative;
+        }
+        /* Tab Styles */
+        .tab-btn.active {
+            border-bottom: 2px solid #2563eb;
+            color: #2563eb;
+            font-weight: 600;
         }
     </style>
 </head>
@@ -38,7 +43,7 @@
     <!-- Loading Screen -->
     <div id="loading-screen" class="fixed inset-0 bg-slate-50 z-[70] flex flex-col items-center justify-center transition-opacity duration-300">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-800 mb-4"></div>
-        <p class="text-slate-500 text-sm animate-pulse">Menghubungkan ke Pangkalan Data...</p>
+        <p id="loading-text" class="text-slate-500 text-sm animate-pulse">Menghubungkan ke Pangkalan Data...</p>
     </div>
 
     <!-- VIEW 1: Login View -->
@@ -82,12 +87,10 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-4">
-                    <!-- Butang Admin Toggle (Rahsia) -->
-                    <button id="btn-admin-toggle" class="hidden sm:flex items-center gap-2 px-3 py-1 bg-blue-900/50 rounded-full text-xs text-blue-200 hover:bg-blue-900 border border-blue-700">
+                    <button id="btn-admin-toggle" class="hidden sm:flex items-center gap-2 px-3 py-1 bg-blue-900/50 rounded-full text-xs text-blue-200 hover:bg-blue-900 border border-blue-700 transition-colors">
                         <i data-lucide="shield" class="w-3 h-3"></i>
                         <span>Admin Mode</span>
                     </button>
-
                     <div class="h-8 w-px bg-blue-600 hidden sm:block"></div>
                     <div class="flex items-center gap-3">
                         <div class="hidden sm:block text-right">
@@ -113,28 +116,28 @@
             </div>
 
             <!-- Admin Banner -->
-            <div id="admin-banner" class="hidden mb-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div id="admin-banner" class="hidden mb-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in-up">
                 <div class="flex items-center gap-3 w-full sm:w-auto">
                     <div class="p-2 bg-yellow-100 rounded-lg text-yellow-700 hidden sm:block">
                         <i data-lucide="shield-alert" class="w-6 h-6"></i>
                     </div>
                     <div>
                         <h3 class="font-bold text-yellow-800">Mod Super Admin</h3>
-                        <p class="text-xs text-yellow-700">Urus aplikasi portal di sini.</p>
+                        <p class="text-xs text-yellow-700">Urus sistem dan data sekolah.</p>
                     </div>
                 </div>
                 <div class="flex gap-2 w-full sm:w-auto flex-wrap">
-                    <!-- Butang Tambah -->
-                    <button onclick="openEditor()" class="flex-1 sm:flex-none bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-yellow-700 flex items-center justify-center gap-2">
-                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Tambah App
+                    <button onclick="openSchoolDataManager()" class="flex-1 sm:flex-none bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors">
+                        <i data-lucide="database" class="w-4 h-4"></i> Urus Data Sekolah
                     </button>
-                    <!-- Butang Export Hardcode -->
-                    <button onclick="exportPortal()" class="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-green-700 flex items-center justify-center gap-2" title="Muat turun versi statik (HTML)">
-                        <i data-lucide="download" class="w-4 h-4"></i> Simpan HTML
+                    <button onclick="openUserManager()" class="flex-1 sm:flex-none bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-slate-700 flex items-center justify-center gap-2 transition-colors">
+                        <i data-lucide="users" class="w-4 h-4"></i> Whitelist
                     </button>
-                    <!-- Butang Export TXT -->
-                    <button onclick="exportPortalTxt()" class="flex-1 sm:flex-none bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-slate-700 flex items-center justify-center gap-2" title="Muat turun sebagai teks Notepad">
-                        <i data-lucide="file-text" class="w-4 h-4"></i> TXT
+                    <button onclick="openEditor()" class="flex-1 sm:flex-none bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-yellow-700 flex items-center justify-center gap-2 transition-colors">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> App
+                    </button>
+                    <button onclick="exportPortal()" class="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-green-700 flex items-center justify-center gap-2 transition-colors" title="Muat turun versi statik">
+                        <i data-lucide="download" class="w-4 h-4"></i> HTML
                     </button>
                 </div>
             </div>
@@ -157,7 +160,7 @@
         </main>
     </div>
 
-    <!-- VIEW 3: Admin Editor View -->
+    <!-- VIEW: Admin Editor (App) -->
     <div id="admin-editor-view" class="view-section hidden min-h-screen bg-slate-100 fixed inset-0 z-[80] overflow-y-auto">
         <div class="max-w-5xl mx-auto bg-white min-h-screen shadow-2xl">
             <header class="bg-slate-800 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-md">
@@ -165,8 +168,8 @@
                     <i data-lucide="edit-3" class="w-5 h-5"></i> Editor Aplikasi
                 </h2>
                 <div class="flex gap-2">
-                    <button onclick="closeEditor()" class="px-4 py-2 text-slate-300 hover:text-white">Batal</button>
-                    <button id="btn-save-app" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold shadow flex items-center gap-2">
+                    <button onclick="closeEditor()" class="px-4 py-2 text-slate-300 hover:text-white transition-colors">Batal</button>
+                    <button id="btn-save-app" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold shadow flex items-center gap-2 transition-colors">
                         <i data-lucide="save" class="w-4 h-4"></i> Simpan
                     </button>
                 </div>
@@ -176,63 +179,189 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-2">Nama Aplikasi</label>
-                        <input type="text" id="edit-app-name" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Contoh: Sistem HRMIS">
+                        <input type="text" id="edit-app-name" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" placeholder="Contoh: Sistem HRMIS">
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-2">Kategori</label>
-                        <select id="edit-app-category" class="w-full p-3 border border-slate-300 rounded-lg bg-white">
-                            <option value="Pentadbiran">Pentadbiran</option>
-                            <option value="Harian">Harian</option>
-                            <option value="Akademik">Akademik</option>
-                            <option value="Staf">Staf</option>
-                            <option value="Lain-lain">Lain-lain</option>
-                        </select>
+                        <input list="category-options" id="edit-app-category" class="w-full p-3 border border-slate-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500 transition-shadow" placeholder="Pilih atau tulis kategori...">
+                        <datalist id="category-options">
+                            <option value="Pentadbiran">
+                            <option value="Harian">
+                            <option value="Akademik">
+                            <option value="Staf">
+                            <option value="Hal Ehwal Murid">
+                            <option value="Kokurikulum">
+                            <option value="Lain-lain">
+                        </datalist>
                     </div>
                 </div>
-
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-2">Deskripsi Ringkas</label>
-                    <input type="text" id="edit-app-desc" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Penerangan pendek fungsi sistem...">
+                    <input type="text" id="edit-app-desc" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" placeholder="Penerangan pendek fungsi sistem...">
                 </div>
-
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-2">Pilih Ikon</label>
-                        <div class="grid grid-cols-6 gap-2 p-2 border rounded-lg h-32 overflow-y-auto" id="icon-selector">
-                            <!-- Icons injected by JS -->
-                        </div>
+                        <div class="grid grid-cols-6 gap-2 p-2 border rounded-lg h-32 overflow-y-auto" id="icon-selector"></div>
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-2">Warna Tema</label>
-                        <div class="flex gap-2 flex-wrap" id="color-selector">
-                            <button class="w-8 h-8 rounded-full bg-blue-50 border-2 border-blue-500" data-color="bg-blue-50" data-text="text-blue-600"></button>
-                            <button class="w-8 h-8 rounded-full bg-green-50 border border-slate-200" data-color="bg-green-50" data-text="text-green-600"></button>
-                            <button class="w-8 h-8 rounded-full bg-purple-50 border border-slate-200" data-color="bg-purple-50" data-text="text-purple-600"></button>
-                            <button class="w-8 h-8 rounded-full bg-orange-50 border border-slate-200" data-color="bg-orange-50" data-text="text-orange-600"></button>
-                            <button class="w-8 h-8 rounded-full bg-pink-50 border border-slate-200" data-color="bg-pink-50" data-text="text-pink-600"></button>
-                            <button class="w-8 h-8 rounded-full bg-indigo-50 border border-slate-200" data-color="bg-indigo-50" data-text="text-indigo-600"></button>
-                        </div>
+                        <div class="flex gap-2 flex-wrap" id="color-selector"></div>
                     </div>
                 </div>
-
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-2 flex justify-between">
-                        <span>Kod HTML Aplikasi (Paste HTML di sini)</span>
+                        <span>Kod HTML Aplikasi</span>
                         <span class="text-xs font-normal text-slate-400">Pastikan tiada tag &lt;html&gt; atau &lt;head&gt;</span>
                     </label>
                     <div class="relative">
-                        <textarea id="edit-app-html" class="w-full h-96 p-4 bg-slate-900 text-green-400 font-mono text-sm rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" spellcheck="false" placeholder="<!-- Paste code HTML sistem anda di sini -->\n<div class='p-8'>\n  <h1>Hello World</h1>\n</div>"></textarea>
+                        <textarea id="edit-app-html" class="w-full h-96 p-4 bg-slate-900 text-green-400 font-mono text-sm rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" spellcheck="false" placeholder="<div class='p-8'>...</div>"></textarea>
                     </div>
-                    <p class="text-xs text-slate-500 mt-2">
-                        <i data-lucide="alert-circle" class="w-3 h-3 inline"></i> 
-                        Amaran: Kod JavaScript dalam HTML ini akan dijalankan. Pastikan kod dari sumber yang dipercayai.
-                    </p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- VIEW 4: Dynamic App Viewer -->
+    <!-- VIEW: Admin Users (Whitelist) -->
+    <div id="admin-users-view" class="view-section hidden min-h-screen bg-slate-100 fixed inset-0 z-[80] overflow-y-auto">
+        <div class="max-w-4xl mx-auto bg-white min-h-screen shadow-2xl">
+            <header class="bg-slate-700 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-md">
+                <h2 class="font-bold text-lg flex items-center gap-2">
+                    <i data-lucide="users" class="w-5 h-5"></i> Whitelist Pengguna
+                </h2>
+                <button onclick="closeUserManager()" class="px-4 py-2 text-slate-200 hover:text-white transition-colors">Tutup</button>
+            </header>
+            
+            <div class="p-8">
+                <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
+                    <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2">
+                        <i data-lucide="user-plus" class="w-4 h-4"></i> Tambah Pengguna
+                    </h3>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <input type="email" id="new-user-email" class="flex-grow p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="alamat.emel@gmail.com">
+                        <select id="new-user-role" class="p-3 border border-slate-300 rounded-lg bg-white outline-none">
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                        <button onclick="whitelistUser()" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 shadow flex items-center justify-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Daftar
+                        </button>
+                    </div>
+                </div>
+                <h3 class="font-bold text-slate-700 mb-4">Senarai Pengguna</h3>
+                <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                            <tr><th class="p-4">Emel</th><th class="p-4">Peranan</th><th class="p-4 text-right">Tindakan</th></tr>
+                        </thead>
+                        <tbody id="whitelist-table-body" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW: Admin School Data (Guru, Kelas, Murid) -->
+    <div id="admin-school-data-view" class="view-section hidden min-h-screen bg-slate-100 fixed inset-0 z-[80] overflow-y-auto">
+        <div class="max-w-6xl mx-auto bg-white min-h-screen shadow-2xl">
+            <header class="bg-blue-800 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-md">
+                <h2 class="font-bold text-lg flex items-center gap-2">
+                    <i data-lucide="database" class="w-5 h-5"></i> Urus Data Sekolah
+                </h2>
+                <button onclick="closeSchoolDataManager()" class="px-4 py-2 text-blue-200 hover:text-white transition-colors">Tutup</button>
+            </header>
+
+            <div class="bg-white border-b border-slate-200 sticky top-16 z-40">
+                <div class="flex overflow-x-auto">
+                    <button onclick="switchSchoolTab('guru')" id="tab-guru" class="tab-btn active px-6 py-4 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-colors whitespace-nowrap">
+                        <i data-lucide="briefcase" class="w-4 h-4 inline mr-2"></i> Senarai Guru
+                    </button>
+                    <button onclick="switchSchoolTab('kelas')" id="tab-kelas" class="tab-btn px-6 py-4 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-colors whitespace-nowrap">
+                        <i data-lucide="grid" class="w-4 h-4 inline mr-2"></i> Senarai Kelas
+                    </button>
+                    <button onclick="switchSchoolTab('murid')" id="tab-murid" class="tab-btn px-6 py-4 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-colors whitespace-nowrap">
+                        <i data-lucide="graduation-cap" class="w-4 h-4 inline mr-2"></i> Senarai Murid
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-6 bg-slate-50 min-h-[calc(100vh-140px)]">
+                
+                <!-- TAB GURU -->
+                <div id="content-guru" class="space-y-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="font-bold text-slate-700 mb-4">Tambah Guru</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <input id="guru-nama" placeholder="Nama Penuh Guru" class="p-3 border rounded-lg w-full">
+                            <input id="guru-jawatan" placeholder="Jawatan (Cth: Guru Besar, GPK)" class="p-3 border rounded-lg w-full">
+                            <button onclick="saveTeacher()" class="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700">Simpan Guru</button>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-100 text-slate-600 font-bold">
+                                <tr><th class="p-4">Nama Guru</th><th class="p-4">Jawatan</th><th class="p-4 text-right">Tindakan</th></tr>
+                            </thead>
+                            <tbody id="table-guru" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB KELAS -->
+                <div id="content-kelas" class="hidden space-y-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="font-bold text-slate-700 mb-4">Tambah Kelas</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <input id="kelas-nama" placeholder="Nama Kelas (Cth: 1 Arif)" class="p-3 border rounded-lg w-full">
+                            <select id="kelas-aliran" class="p-3 border rounded-lg w-full bg-white">
+                                <option value="Perdana">Perdana</option>
+                                <option value="PPKI">PPKI</option>
+                                <option value="Pra Sekolah">Pra Sekolah</option>
+                            </select>
+                            <select id="kelas-guru" class="p-3 border rounded-lg w-full bg-white">
+                                <option value="">Pilih Guru Kelas...</option>
+                            </select>
+                            <button onclick="saveClass()" class="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700">Simpan Kelas</button>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-100 text-slate-600 font-bold">
+                                <tr><th class="p-4">Nama Kelas</th><th class="p-4">Aliran</th><th class="p-4">Guru Kelas</th><th class="p-4 text-right">Tindakan</th></tr>
+                            </thead>
+                            <tbody id="table-kelas" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB MURID -->
+                <div id="content-murid" class="hidden space-y-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="font-bold text-slate-700 mb-4">Daftar Murid</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <input id="murid-nama" placeholder="Nama Penuh Murid" class="p-3 border rounded-lg w-full">
+                            <input id="murid-ic" placeholder="No. MyKid / ID" class="p-3 border rounded-lg w-full">
+                            <select id="murid-kelas" class="p-3 border rounded-lg w-full bg-white">
+                                <option value="">Pilih Kelas...</option>
+                            </select>
+                            <button onclick="saveStudent()" class="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700">Daftar Murid</button>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-100 text-slate-600 font-bold">
+                                <tr><th class="p-4">Nama Murid</th><th class="p-4">MyKid</th><th class="p-4">Kelas</th><th class="p-4 text-right">Tindakan</th></tr>
+                            </thead>
+                            <tbody id="table-murid" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW 5: Dynamic App Viewer -->
     <div id="dynamic-app-view" class="view-section hidden min-h-screen bg-slate-50 flex flex-col">
         <header class="bg-slate-800 text-white shadow-lg sticky top-0 z-50 flex-none">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -242,170 +371,37 @@
                     </button>
                     <h1 class="font-bold text-lg" id="app-viewer-title">Nama Aplikasi</h1>
                 </div>
-                <div class="text-sm bg-slate-700 px-3 py-1 rounded-full text-slate-200" id="app-viewer-category">
-                    App
-                </div>
+                <div class="text-sm bg-slate-700 px-3 py-1 rounded-full text-slate-200" id="app-viewer-category">App</div>
             </div>
         </header>
-        
-        <!-- Dynamic Content Injected Here -->
-        <div id="dynamic-app-container" class="flex-grow bg-white overflow-x-hidden">
-            <!-- Content -->
+        <div id="dynamic-app-container" class="flex-grow bg-white overflow-x-hidden"></div>
+    </div>
+
+    <!-- DELETE CONFIRMATION MODAL -->
+    <div id="delete-confirm-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in-up">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-200">
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                <i data-lucide="alert-triangle" class="w-8 h-8 text-red-600"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Padam Item?</h3>
+            <p class="text-slate-500 text-sm mb-6">Tindakan ini tidak boleh dikembalikan.</p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="closeDeleteModal()" class="flex-1 px-5 py-2.5 rounded-xl border hover:bg-slate-50">Batal</button>
+                <button onclick="confirmDelete()" id="confirm-delete-btn" class="flex-1 px-5 py-2.5 rounded-xl bg-red-600 text-white hover:bg-red-700 shadow-lg">Ya, Padam</button>
+            </div>
         </div>
     </div>
 
     <!-- JavaScript Logic -->
     <script type="module">
-        // =================================================================
-        // E-KEHADIRAN HARDCODED APP
-        // =================================================================
-        const eKehadiranHTML = `
-            <div class="p-6 max-w-lg mx-auto">
-                <div class="bg-white rounded-xl shadow-lg p-6 border-t-4 border-green-500">
-                    <div class="text-center mb-6">
-                        <div class="inline-block p-3 bg-green-100 rounded-full mb-3">
-                            <i data-lucide="check-circle" class="w-8 h-8 text-green-600"></i>
-                        </div>
-                        <h2 class="text-2xl font-bold text-gray-800">Rekod Kehadiran</h2>
-                        <p class="text-sm text-gray-500">Log Masuk Automatik Portal</p>
-                    </div>
-                    
-                    <div class="bg-slate-50 rounded-lg p-4 mb-6 flex items-center gap-3 border border-slate-200">
-                        <div class="p-2 bg-white rounded-full text-blue-600 shadow-sm">
-                            <i data-lucide="user" class="w-6 h-6"></i>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Pengguna Semasa</p>
-                            <p id="att-user-name" class="font-bold text-gray-800 text-sm">Memuatkan...</p>
-                            <p id="att-user-email" class="text-xs text-gray-500 truncate max-w-[200px]">...</p>
-                        </div>
-                    </div>
-
-                    <div class="space-y-3">
-                        <button onclick="recordAttendance('Hadir (Masuk)')" class="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold shadow transition-transform active:scale-95 flex items-center justify-center gap-2 group">
-                            <i data-lucide="log-in" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i> 
-                            Daftar Masuk (Check-In)
-                        </button>
-                        <button onclick="recordAttendance('Hadir (Keluar)')" class="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold shadow transition-transform active:scale-95 flex items-center justify-center gap-2 group">
-                            <i data-lucide="log-out" class="w-5 h-5 group-hover:-translate-x-1 transition-transform"></i> 
-                            Daftar Keluar (Check-Out)
-                        </button>
-                    </div>
-
-                    <div class="mt-8">
-                        <h3 class="font-bold text-gray-700 mb-3 text-sm flex items-center gap-2">
-                             <i data-lucide="clock" class="w-4 h-4"></i> Sejarah Ringkas
-                        </h3>
-                        <div id="att-history" class="space-y-2 text-sm max-h-40 overflow-y-auto">
-                            <p class="text-center text-gray-400 italic text-xs py-2">Rekod akan dipaparkan di sini...</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <script>
-                (function() {
-                    // Gunakan Auth Portal (window.auth)
-                    const user = window.auth.currentUser;
-                    
-                    // UI Update
-                    if (user) {
-                        document.getElementById('att-user-name').innerText = user.displayName || 'Tanpa Nama';
-                        document.getElementById('att-user-email').innerText = user.email;
-                    } else {
-                        document.getElementById('att-user-name').innerText = 'Tidak Log Masuk';
-                        document.getElementById('att-user-email').innerText = 'Sila log masuk portal dahulu.';
-                    }
-
-                    // Re-init Icons
-                    if (window.lucide) window.lucide.createIcons();
-                    
-                    // Fungsi Rekod (Global Scope untuk button onclick)
-                    window.recordAttendance = async (status) => {
-                        if (!user) { alert("Ralat: Sila log masuk portal."); return; }
-                        if (user.isAnonymous) { alert("Mod Tetamu tidak boleh menyimpan rekod."); return; }
-
-                        const btn = event.currentTarget;
-                        const originalContent = btn.innerHTML;
-                        btn.innerHTML = '<span class="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent inline-block"></span> Memproses...';
-                        btn.disabled = true;
-
-                        try {
-                            // Guna fungsi Firebase yang diexpose oleh Portal
-                            // Path: apps_data/kehadiran/logs
-                            await window.addDoc(window.collection(window.db, 'apps_data', 'kehadiran', 'logs'), {
-                                uid: user.uid,
-                                name: user.displayName,
-                                email: user.email,
-                                status: status,
-                                timestamp: window.serverTimestamp(),
-                                userAgent: navigator.userAgent
-                            });
-                            
-                            alert("Berjaya: " + status);
-                            addLogToUI(status, new Date());
-                        } catch (e) {
-                            console.error(e);
-                            alert("Gagal menyimpan rekod: " + e.message);
-                        } finally {
-                            btn.innerHTML = originalContent;
-                            btn.disabled = false;
-                            if (window.lucide) window.lucide.createIcons();
-                        }
-                    };
-
-                    function addLogToUI(status, date) {
-                        const historyContainer = document.getElementById('att-history');
-                        const timeStr = date.toLocaleTimeString('ms-MY', { hour: '2-digit', minute:'2-digit' });
-                        const div = document.createElement('div');
-                        div.className = "flex justify-between items-center p-2 bg-slate-50 rounded border border-slate-100";
-                        div.innerHTML = \`<span>\${status}</span> <span class="text-slate-400 text-xs">\${timeStr}</span>\`;
-                        
-                        // Buang placeholder jika ada
-                        if(historyContainer.innerText.includes('Rekod akan dipaparkan')) historyContainer.innerHTML = '';
-                        historyContainer.prepend(div);
-                    }
-                })();
-            <\/script>
-        `;
-
-        // Masukkan ke dalam array Hardcoded Apps
-        const HARDCODED_APPS = [
-            {
-                id: "app-kehadiran-v1",
-                name: "e-Kehadiran",
-                category: "Harian",
-                description: "Sistem kehadiran staf dan guru. Log masuk automatik menggunakan Portal.",
-                iconName: "calendar-check",
-                colorBg: "bg-green-50",
-                colorText: "text-green-600",
-                createdAt: "2025-01-01T00:00:00Z",
-                html: eKehadiranHTML
-            }
-        ];
-        // =================================================================
+        const HARDCODED_APPS = null; 
 
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { 
-            getAuth, 
-            GoogleAuthProvider, 
-            signInWithPopup, 
-            signInAnonymously, 
-            onAuthStateChanged, 
-            signOut 
+            getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, onAuthStateChanged, signOut 
         } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { 
-            getFirestore, 
-            collection,
-            doc, 
-            setDoc, 
-            addDoc,
-            getDocs,
-            deleteDoc,
-            updateDoc,
-            serverTimestamp,
-            query,
-            orderBy 
+            getFirestore, collection, doc, setDoc, getDoc, addDoc, getDocs, deleteDoc, updateDoc, serverTimestamp, query, orderBy, where
         } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         // --- Configuration ---
@@ -418,25 +414,23 @@
             appId: "1:361982206428:web:e7f4d5ed19238690736f19",
             measurementId: "G-0NH5EJD60N"
         };
-        // KITA TIDAK GUNA 'appId' UNTUK PATH LAGI KERANA ARAHAN PENGGUNA "SEMAK JE"
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // --- EXPOSE FIREBASE TO WINDOW (Untuk Embedded Apps) ---
-        window.db = db;
-        window.auth = auth;
-        window.collection = collection;
-        window.addDoc = addDoc;
-        window.serverTimestamp = serverTimestamp;
+        // --- EXPOSE FIREBASE ---
+        window.db = db; window.auth = auth; window.collection = collection; window.addDoc = addDoc; window.serverTimestamp = serverTimestamp; window.getDocs = getDocs; window.query = query; window.where = where;
 
         // --- State ---
         let currentUser = null;
         let isAdminMode = false;
+        let isSuperAdmin = false;
         let appsData = [];
         let currentEditingId = null;
         let currentSelectedIcon = 'box';
         let currentSelectedColor = { bg: 'bg-blue-50', text: 'text-blue-600' };
+        let appToDeleteId = null;
+        let deleteType = 'app'; // 'app', 'teacher', 'class', 'student'
 
         // --- UI References ---
         const views = {
@@ -444,20 +438,19 @@
             login: document.getElementById('login-view'),
             dashboard: document.getElementById('dashboard-view'),
             editor: document.getElementById('admin-editor-view'),
-            viewer: document.getElementById('dynamic-app-view')
+            viewer: document.getElementById('dynamic-app-view'),
+            userManager: document.getElementById('admin-users-view'),
+            schoolData: document.getElementById('admin-school-data-view')
         };
         const adminBanner = document.getElementById('admin-banner');
         
         // --- Functions ---
-
-        function toggleLoading(show) {
-            if (show) {
-                views.loading.classList.remove('hidden');
-                views.loading.classList.remove('opacity-0');
-            } else {
-                views.loading.classList.add('opacity-0');
-                setTimeout(() => views.loading.classList.add('hidden'), 300);
-            }
+        function toggleLoading(show, message = "Memproses...") {
+            const el = views.loading;
+            const msgEl = document.getElementById('loading-text');
+            if(msgEl) msgEl.innerText = message;
+            if (show) { el.classList.remove('hidden', 'opacity-0'); } 
+            else { el.classList.add('opacity-0'); setTimeout(() => el.classList.add('hidden'), 300); }
         }
 
         function switchView(viewName) {
@@ -466,11 +459,9 @@
             if (window.lucide) window.lucide.createIcons();
         }
 
-        window.backToDashboard = () => {
-            switchView('dashboard');
-        };
+        window.backToDashboard = () => switchView('dashboard');
 
-        // --- CORE: App Renderer & Script Executor ---
+        // --- CORE: App Renderer ---
         function runEmbeddedScripts(container) {
             const scripts = container.querySelectorAll('script');
             scripts.forEach(oldScript => {
@@ -484,196 +475,347 @@
         async function openApp(appId) {
             const app = appsData.find(a => a.id === appId);
             if (!app) return;
-
             document.getElementById('app-viewer-title').innerText = app.name;
             document.getElementById('app-viewer-category').innerText = app.category;
-
             const container = document.getElementById('dynamic-app-container');
             container.innerHTML = app.html;
-
-            try {
-                runEmbeddedScripts(container);
-            } catch (e) {
-                console.error("Script execution error:", e);
-            }
-
+            try { runEmbeddedScripts(container); } catch (e) { console.error("Script error:", e); }
             switchView('viewer');
         }
 
-        // --- FIRESTORE: Fetch & Render Apps ---
-        async function fetchApps() {
-            // Gabungkan HARDCODED_APPS dengan data dari Firestore
-            // Default apps dari Hardcoded
-            let combinedApps = [...(HARDCODED_APPS || [])];
+        // --- SCHOOL DATA MANAGER LOGIC (GURU/KELAS/MURID) ---
+        window.openSchoolDataManager = () => {
+            switchView('schoolData');
+            switchSchoolTab('guru'); // Default tab
+        };
+        window.closeSchoolDataManager = () => switchView('dashboard');
 
-            const grid = document.getElementById('systems-grid');
-            // Tunjuk loading jika tiada hardcoded apps
-            if (combinedApps.length === 0) {
-                 grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400 mb-2 mx-auto"></div><p>Memuatkan senarai aplikasi...</p></div>';
-            }
+        window.switchSchoolTab = (tab) => {
+            // UI Tabs
+            ['guru','kelas','murid'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.remove('active', 'border-b-2', 'border-blue-600', 'text-blue-600');
+                document.getElementById(`content-${t}`).classList.add('hidden');
+            });
+            document.getElementById(`tab-${tab}`).classList.add('active', 'border-b-2', 'border-blue-600', 'text-blue-600');
+            document.getElementById(`content-${tab}`).classList.remove('hidden');
 
+            // Load Data
+            if(tab === 'guru') loadTeachers();
+            if(tab === 'kelas') loadClasses(); // Need teachers for dropdown
+            if(tab === 'murid') loadStudents(); // Need classes for dropdown
+        };
+
+        // --- TEACHERS CRUD ---
+        async function loadTeachers() {
+            const tbody = document.getElementById('table-guru');
+            tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center">Memuatkan...</td></tr>';
             try {
-                // Tarik dari Firebase (DIRECT ROOT COLLECTION 'apps')
+                const snap = await getDocs(query(collection(db, 'teachers'), orderBy('name')));
+                tbody.innerHTML = snap.empty ? '<tr><td colspan="3" class="p-4 text-center">Tiada data.</td></tr>' : '';
+                
+                // Helper for Dropdown in Classes Tab
+                const classTeacherSelect = document.getElementById('kelas-guru');
+                if(classTeacherSelect) {
+                    classTeacherSelect.innerHTML = '<option value="">Pilih Guru Kelas...</option>';
+                    snap.forEach(d => {
+                        const t = d.data();
+                        classTeacherSelect.innerHTML += `<option value="${d.id}">${t.name}</option>`;
+                    });
+                }
+
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 border-b border-slate-100">
+                            <td class="p-4 font-medium">${d.name}</td>
+                            <td class="p-4">${d.position}</td>
+                            <td class="p-4 text-right">
+                                <button onclick="deleteItem('teacher', '${doc.id}')" class="text-red-500 p-2 hover:bg-red-50 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            </td>
+                        </tr>`;
+                });
+                if(window.lucide) window.lucide.createIcons();
+            } catch(e) { console.error(e); }
+        }
+
+        window.saveTeacher = async () => {
+            const name = document.getElementById('guru-nama').value.trim();
+            const position = document.getElementById('guru-jawatan').value.trim();
+            if(!name) return alert("Sila isi nama guru.");
+            toggleLoading(true, "Menyimpan Guru...");
+            try {
+                await addDoc(collection(db, 'teachers'), { name, position, createdAt: serverTimestamp() });
+                document.getElementById('guru-nama').value = '';
+                document.getElementById('guru-jawatan').value = '';
+                await loadTeachers();
+            } catch(e) { alert("Ralat menyimpan."); }
+            toggleLoading(false);
+        };
+
+        // --- CLASSES CRUD ---
+        async function loadClasses() {
+            // Ensure teachers dropdown is populated first
+            if(document.getElementById('kelas-guru').options.length <= 1) await loadTeachers();
+
+            const tbody = document.getElementById('table-kelas');
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Memuatkan...</td></tr>';
+            try {
+                const snap = await getDocs(query(collection(db, 'classes'), orderBy('name')));
+                tbody.innerHTML = snap.empty ? '<tr><td colspan="4" class="p-4 text-center">Tiada data.</td></tr>' : '';
+                
+                // Helper for Dropdown in Student Tab
+                const studentClassSelect = document.getElementById('murid-kelas');
+                if(studentClassSelect) {
+                    studentClassSelect.innerHTML = '<option value="">Pilih Kelas...</option>';
+                    snap.forEach(d => {
+                        const c = d.data();
+                        studentClassSelect.innerHTML += `<option value="${d.id}">${c.name}</option>`;
+                    });
+                }
+
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 border-b border-slate-100">
+                            <td class="p-4 font-medium">${d.name}</td>
+                            <td class="p-4"><span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">${d.level}</span></td>
+                            <td class="p-4 text-slate-500">${d.teacherName || '-'}</td>
+                            <td class="p-4 text-right">
+                                <button onclick="deleteItem('class', '${doc.id}')" class="text-red-500 p-2 hover:bg-red-50 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            </td>
+                        </tr>`;
+                });
+                if(window.lucide) window.lucide.createIcons();
+            } catch(e) { console.error(e); }
+        }
+
+        window.saveClass = async () => {
+            const name = document.getElementById('kelas-nama').value.trim();
+            const level = document.getElementById('kelas-aliran').value;
+            const teacherId = document.getElementById('kelas-guru').value;
+            const teacherSelect = document.getElementById('kelas-guru');
+            const teacherName = teacherSelect.options[teacherSelect.selectedIndex].text;
+
+            if(!name) return alert("Sila isi nama kelas.");
+            toggleLoading(true, "Menyimpan Kelas...");
+            try {
+                await addDoc(collection(db, 'classes'), { 
+                    name, level, teacherId, teacherName: teacherId ? teacherName : '', createdAt: serverTimestamp() 
+                });
+                document.getElementById('kelas-nama').value = '';
+                await loadClasses();
+            } catch(e) { alert("Ralat menyimpan."); }
+            toggleLoading(false);
+        };
+
+        // --- STUDENTS CRUD ---
+        async function loadStudents() {
+            if(document.getElementById('murid-kelas').options.length <= 1) await loadClasses();
+
+            const tbody = document.getElementById('table-murid');
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Memuatkan...</td></tr>';
+            try {
+                const snap = await getDocs(query(collection(db, 'students'), orderBy('name')));
+                tbody.innerHTML = snap.empty ? '<tr><td colspan="4" class="p-4 text-center">Tiada data.</td></tr>' : '';
+                
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 border-b border-slate-100">
+                            <td class="p-4 font-medium">${d.name}</td>
+                            <td class="p-4 font-mono text-xs">${d.ic}</td>
+                            <td class="p-4 text-slate-500">${d.className || '-'}</td>
+                            <td class="p-4 text-right">
+                                <button onclick="deleteItem('student', '${doc.id}')" class="text-red-500 p-2 hover:bg-red-50 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            </td>
+                        </tr>`;
+                });
+                if(window.lucide) window.lucide.createIcons();
+            } catch(e) { console.error(e); }
+        }
+
+        window.saveStudent = async () => {
+            const name = document.getElementById('murid-nama').value.trim();
+            const ic = document.getElementById('murid-ic').value.trim();
+            const classId = document.getElementById('murid-kelas').value;
+            const classSelect = document.getElementById('murid-kelas');
+            const className = classSelect.options[classSelect.selectedIndex].text;
+
+            if(!name || !classId) return alert("Nama dan Kelas wajib diisi.");
+            toggleLoading(true, "Mendaftar Murid...");
+            try {
+                await addDoc(collection(db, 'students'), { 
+                    name, ic, classId, className, createdAt: serverTimestamp() 
+                });
+                document.getElementById('murid-nama').value = '';
+                document.getElementById('murid-ic').value = '';
+                await loadStudents();
+            } catch(e) { alert("Ralat menyimpan."); }
+            toggleLoading(false);
+        };
+
+        // --- USER MANAGEMENT (WHITELIST) ---
+        async function checkWhitelist(user) {
+            if (user.isAnonymous) return { allowed: true, role: 'guest' };
+            const userRef = doc(db, 'whitelist', user.email);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+                const userData = userSnap.data();
+                return { allowed: true, role: userData.role || 'user' };
+            } else {
+                const q = query(collection(db, 'whitelist'));
+                const snap = await getDocs(q);
+                if (snap.empty) {
+                    await setDoc(userRef, { role: 'admin', createdAt: serverTimestamp() });
+                    return { allowed: true, role: 'admin' };
+                }
+                return { allowed: false, role: null };
+            }
+        }
+
+        window.openUserManager = async () => { switchView('userManager'); fetchWhitelistedUsers(); };
+        window.closeUserManager = () => switchView('dashboard');
+
+        async function fetchWhitelistedUsers() {
+            const tbody = document.getElementById('whitelist-table-body');
+            tbody.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-slate-400">Memuatkan...</td></tr>';
+            try {
+                const q = query(collection(db, 'whitelist'));
+                const snapshot = await getDocs(q);
+                if (snapshot.empty) { tbody.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-slate-400">Tiada pengguna.</td></tr>'; return; }
+                tbody.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const email = doc.id;
+                    const role = data.role === 'admin' ? '<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">ADMIN</span>' : '<span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">USER</span>';
+                    const isSelf = currentUser && currentUser.email === email;
+                    const deleteBtn = isSelf ? '<span class="text-xs text-slate-400">Diri Sendiri</span>' : `<button onclick="removeUser('${email}')" class="text-red-500 hover:text-red-700 p-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button>`;
+                    tbody.innerHTML += `<tr class="hover:bg-slate-50"><td class="p-4 border-b font-mono text-xs sm:text-sm text-slate-700">${email}</td><td class="p-4 border-b">${role}</td><td class="p-4 border-b text-right">${deleteBtn}</td></tr>`;
+                });
+                if (window.lucide) window.lucide.createIcons();
+            } catch (e) { tbody.innerHTML = '<tr><td colspan="3" class="text-center p-4">Ralat.</td></tr>'; }
+        }
+
+        window.whitelistUser = async () => {
+            const email = document.getElementById('new-user-email').value.trim();
+            const role = document.getElementById('new-user-role').value;
+            if (!email || !email.includes('@')) return alert("Emel tidak sah.");
+            toggleLoading(true, "Mendaftar...");
+            try {
+                await setDoc(doc(db, 'whitelist', email), { role: role, addedBy: currentUser.email, createdAt: serverTimestamp() });
+                document.getElementById('new-user-email').value = '';
+                await fetchWhitelistedUsers();
+                toggleLoading(false);
+            } catch (e) { console.error(e); alert("Gagal."); toggleLoading(false); }
+        };
+
+        window.removeUser = async (email) => {
+            if(!confirm(`Buang akses ${email}?`)) return;
+            toggleLoading(true);
+            try { await deleteDoc(doc(db, 'whitelist', email)); await fetchWhitelistedUsers(); toggleLoading(false); } catch (e) { alert("Gagal."); toggleLoading(false); }
+        };
+
+        // --- FIRESTORE: Fetch Apps ---
+        async function fetchApps() {
+            let combinedApps = [...(HARDCODED_APPS || [])];
+            const grid = document.getElementById('systems-grid');
+            if (combinedApps.length === 0) grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400 mb-2 mx-auto"></div><p>Memuatkan senarai aplikasi...</p></div>';
+            try {
                 const q = query(collection(db, 'apps'), orderBy('createdAt', 'desc'));
                 const querySnapshot = await getDocs(q);
-                
-                querySnapshot.forEach((doc) => {
-                    // Elak duplikasi ID jika sama dengan hardcoded
-                    if (!combinedApps.find(a => a.id === doc.id)) {
-                        combinedApps.push({ id: doc.id, ...doc.data() });
-                    }
-                });
-
-                appsData = combinedApps;
-                renderAppGrid();
-
-            } catch (error) {
-                console.error("Error fetching apps:", error);
-                // Jika error, sekurang-kurangnya tunjuk hardcoded apps
-                appsData = combinedApps;
-                renderAppGrid();
-                
-                // Show toast/error somewhere discreetly
-                // grid.innerHTML += `<div class="col-span-full text-center text-red-500 text-xs">Gagal menyambung ke database. Hanya aplikasi offline dipaparkan.</div>`;
-            }
+                querySnapshot.forEach((doc) => { if (!combinedApps.find(a => a.id === doc.id)) combinedApps.push({ id: doc.id, ...doc.data() }); });
+                appsData = combinedApps; renderAppGrid();
+            } catch (error) { console.error("Error fetching apps:", error); appsData = combinedApps; renderAppGrid(); }
         }
 
         function renderAppGrid() {
             const grid = document.getElementById('systems-grid');
-            
             if (appsData.length === 0) {
-                grid.innerHTML = `
-                    <div class="col-span-full py-12 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">
-                        <i data-lucide="box" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
-                        <p>Tiada aplikasi dijumpai.</p>
-                        ${isAdminMode ? '<p class="text-sm text-blue-500 mt-2">Klik "Tambah App Baru" untuk bermula.</p>' : ''}
-                    </div>
-                `;
+                grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-300 animate-fade-in-up"><i data-lucide="box" class="w-12 h-12 mx-auto mb-2 opacity-50"></i><p>Tiada aplikasi dijumpai.</p>${isAdminMode ? '<p class="text-sm text-blue-500 mt-2 font-medium">Klik "Tambah App" untuk bermula.</p>' : ''}</div>`;
                 if (window.lucide) window.lucide.createIcons();
                 return;
             }
-
             grid.innerHTML = appsData.map(app => `
-                <div class="group bg-white rounded-xl border border-slate-200 p-6 hover:shadow-lg hover:border-blue-300 transition-all duration-300 flex flex-col relative overflow-hidden">
+                <div class="group bg-white rounded-xl border border-slate-200 p-6 hover:shadow-lg hover:border-blue-300 transition-all duration-300 flex flex-col relative overflow-hidden animate-fade-in-up">
                     <div class="absolute top-0 right-0 w-24 h-24 ${app.colorBg || 'bg-blue-50'} rounded-bl-full -mr-4 -mt-4 opacity-50 transition-transform group-hover:scale-110"></div>
-                    
-                    <div class="flex items-start justify-between mb-4 relative z-10">
-                        <div class="p-3 rounded-xl ${app.colorBg || 'bg-blue-50'}">
-                            <i data-lucide="${app.iconName || 'box'}" class="w-8 h-8 ${app.colorText || 'text-blue-600'}"></i>
-                        </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-1 rounded-full">
-                            ${app.category}
-                        </span>
-                    </div>
-                    
-                    <div class="relative z-10 flex-grow">
-                        <h4 class="font-bold text-slate-800 text-lg group-hover:text-blue-700 transition-colors">
-                            ${app.name}
-                        </h4>
-                        <p class="text-slate-500 text-sm mt-2 leading-relaxed line-clamp-2">
-                            ${app.description}
-                        </p>
-                    </div>
-                    
+                    <div class="flex items-start justify-between mb-4 relative z-10"><div class="p-3 rounded-xl ${app.colorBg || 'bg-blue-50'}"><i data-lucide="${app.iconName || 'box'}" class="w-8 h-8 ${app.colorText || 'text-blue-600'}"></i></div><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-1 rounded-full">${app.category}</span></div>
+                    <div class="relative z-10 flex-grow"><h4 class="font-bold text-slate-800 text-lg group-hover:text-blue-700 transition-colors">${app.name}</h4><p class="text-slate-500 text-sm mt-2 leading-relaxed line-clamp-2">${app.description}</p></div>
                     <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-blue-600 font-medium text-sm relative z-10">
-                        <button onclick="openApp('${app.id}')" class="hover:underline flex items-center gap-1">
-                            Buka App <i data-lucide="arrow-right-circle" class="w-4 h-4"></i>
-                        </button>
-                        
-                        ${isAdminMode ? `
-                            <div class="flex gap-2">
-                                <button onclick="editApp('${app.id}')" class="p-1 text-slate-400 hover:text-blue-600" title="Edit">
-                                    <i data-lucide="edit-2" class="w-4 h-4"></i>
-                                </button>
-                                <button onclick="deleteApp('${app.id}')" class="p-1 text-slate-400 hover:text-red-600" title="Padam">
-                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                        ` : ''}
+                        <button onclick="openApp('${app.id}')" class="hover:underline flex items-center gap-1">Buka App <i data-lucide="arrow-right-circle" class="w-4 h-4"></i></button>
+                        ${isAdminMode ? `<div class="flex gap-2"><button onclick="editApp('${app.id}')" class="p-1 text-slate-400 hover:text-blue-600 transition-colors"><i data-lucide="edit-2" class="w-4 h-4"></i></button><button onclick="deleteItem('app', '${app.id}')" class="p-1 text-slate-400 hover:text-red-600 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>` : ''}
                     </div>
-                </div>
-            `).join('');
-            
+                </div>`).join('');
             if (window.lucide) window.lucide.createIcons();
         }
 
         // --- ADMIN: Editor Logic ---
         const availableIcons = ['box', 'user', 'calendar', 'file-text', 'shield-check', 'settings', 'book-open', 'activity', 'alert-circle', 'archive', 'bar-chart', 'bell', 'briefcase', 'calculator', 'camera', 'check-circle', 'clipboard', 'clock', 'cloud', 'code', 'database', 'flag', 'folder', 'gift', 'globe', 'home', 'image', 'info', 'layers', 'layout', 'link', 'lock', 'mail', 'map', 'message-circle', 'monitor', 'moon', 'music', 'package', 'pie-chart', 'play', 'printer', 'save', 'search', 'send', 'server', 'share', 'smartphone', 'star', 'sun', 'table', 'tag', 'target', 'terminal', 'tool', 'trash', 'truck', 'tv', 'upload', 'video', 'wifi', 'zap'];
+        const themeColors = [{ bg: 'bg-blue-50', text: 'text-blue-600' }, { bg: 'bg-green-50', text: 'text-green-600' }, { bg: 'bg-purple-50', text: 'text-purple-600' }, { bg: 'bg-orange-50', text: 'text-orange-600' }, { bg: 'bg-pink-50', text: 'text-pink-600' }, { bg: 'bg-indigo-50', text: 'text-indigo-600' }, { bg: 'bg-red-50', text: 'text-red-600' }, { bg: 'bg-yellow-50', text: 'text-yellow-600' }, { bg: 'bg-teal-50', text: 'text-teal-600' }, { bg: 'bg-cyan-50', text: 'text-cyan-600' }, { bg: 'bg-gray-100', text: 'text-gray-700' }];
 
         function initEditor() {
             const iconContainer = document.getElementById('icon-selector');
-            iconContainer.innerHTML = availableIcons.map(icon => `
-                <button onclick="selectIcon('${icon}')" class="p-2 rounded hover:bg-slate-100 flex justify-center items-center ${icon === 'box' ? 'bg-blue-100 ring-2 ring-blue-500' : ''}" id="icon-btn-${icon}">
-                    <i data-lucide="${icon}" class="w-5 h-5 text-slate-600"></i>
-                </button>
-            `).join('');
-            
-            document.querySelectorAll('#color-selector button').forEach(btn => {
-                btn.onclick = () => {
-                    document.querySelectorAll('#color-selector button').forEach(b => b.classList.remove('ring-2', 'ring-offset-2', 'ring-slate-400'));
-                    btn.classList.add('ring-2', 'ring-offset-2', 'ring-slate-400');
-                    currentSelectedColor = { 
-                        bg: btn.dataset.color, 
-                        text: btn.dataset.text 
-                    };
-                }
-            });
+            iconContainer.innerHTML = availableIcons.map(icon => `<button onclick="selectIcon('${icon}')" class="p-2 rounded hover:bg-slate-100 flex justify-center items-center ${icon === 'box' ? 'bg-blue-100 ring-2 ring-blue-500' : ''}" id="icon-btn-${icon}"><i data-lucide="${icon}" class="w-5 h-5 text-slate-600"></i></button>`).join('');
+            const colorContainer = document.getElementById('color-selector');
+            colorContainer.innerHTML = themeColors.map((theme, idx) => `<button onclick="selectThemeColor(${idx})" class="w-8 h-8 rounded-full ${theme.bg} border-2 ${idx === 0 ? 'border-blue-500' : 'border-transparent'} transition-transform hover:scale-110" id="theme-btn-${idx}"><div class="w-2 h-2 rounded-full ${theme.text} bg-current mx-auto opacity-50"></div></button>`).join('');
             if (window.lucide) window.lucide.createIcons();
         }
 
         window.selectIcon = (iconName) => {
             currentSelectedIcon = iconName;
-            document.querySelectorAll('[id^="icon-btn-"]').forEach(btn => {
-                btn.classList.remove('bg-blue-100', 'ring-2', 'ring-blue-500');
-            });
+            document.querySelectorAll('[id^="icon-btn-"]').forEach(btn => btn.classList.remove('bg-blue-100', 'ring-2', 'ring-blue-500'));
             document.getElementById(`icon-btn-${iconName}`).classList.add('bg-blue-100', 'ring-2', 'ring-blue-500');
         };
 
+        window.selectThemeColor = (idx) => {
+            currentSelectedColor = themeColors[idx];
+            document.querySelectorAll('[id^="theme-btn-"]').forEach(btn => { btn.classList.remove('border-blue-500', 'border-2'); btn.classList.add('border-transparent'); });
+            const btn = document.getElementById(`theme-btn-${idx}`);
+            btn.classList.remove('border-transparent'); btn.classList.add('border-blue-500', 'border-2');
+        }
+
         window.openEditor = () => {
             currentEditingId = null; 
-            document.getElementById('edit-app-name').value = '';
-            document.getElementById('edit-app-desc').value = '';
-            document.getElementById('edit-app-html').value = '';
-            document.getElementById('edit-app-category').value = 'Pentadbiran';
-            selectIcon('box');
-            switchView('editor');
+            document.getElementById('edit-app-name').value = ''; document.getElementById('edit-app-desc').value = ''; document.getElementById('edit-app-html').value = ''; document.getElementById('edit-app-category').value = '';
+            selectIcon('box'); switchView('editor');
         };
-        
-        window.closeEditor = () => {
-            switchView('dashboard');
-        };
+        window.closeEditor = () => switchView('dashboard');
 
         window.editApp = (id) => {
-            const app = appsData.find(a => a.id === id);
-            if (!app) return;
+            const app = appsData.find(a => a.id === id); if (!app) return;
             currentEditingId = id;
-            document.getElementById('edit-app-name').value = app.name;
-            document.getElementById('edit-app-desc').value = app.description;
-            document.getElementById('edit-app-html').value = app.html;
-            document.getElementById('edit-app-category').value = app.category;
-            selectIcon(app.iconName || 'box');
-            switchView('editor');
+            document.getElementById('edit-app-name').value = app.name; document.getElementById('edit-app-desc').value = app.description; document.getElementById('edit-app-html').value = app.html; document.getElementById('edit-app-category').value = app.category;
+            selectIcon(app.iconName || 'box'); switchView('editor');
         };
 
-        window.deleteApp = async (id) => {
-            // Jika ia adalah hardcoded app, tidak boleh padam
-            if (HARDCODED_APPS.find(a => a.id === id)) {
-                alert("Aplikasi sistem (Hardcoded) tidak boleh dipadam dari sini.");
-                return;
-            }
+        // --- UNIVERSAL DELETE LOGIC ---
+        window.deleteItem = (type, id) => {
+            if (type === 'app' && HARDCODED_APPS && HARDCODED_APPS.find(a => a.id === id)) return alert("Aplikasi hardcoded tidak boleh dipadam.");
+            appToDeleteId = id; deleteType = type;
+            document.getElementById('delete-confirm-modal').classList.remove('hidden');
+        };
 
-            if(!confirm("Adakah anda pasti mahu memadam aplikasi ini?")) return;
-            toggleLoading(true);
+        window.closeDeleteModal = () => { appToDeleteId = null; document.getElementById('delete-confirm-modal').classList.add('hidden'); };
+
+        window.confirmDelete = async () => {
+            if (!appToDeleteId) return;
+            const btn = document.getElementById('confirm-delete-btn'); btn.innerHTML = 'Memadam...'; btn.disabled = true;
             try {
-                // DELETE DARI ROOT COLLECTION 'apps'
-                await deleteDoc(doc(db, 'apps', id));
-                await fetchApps();
-                toggleLoading(false);
-            } catch(e) {
-                console.error(e);
-                alert("Gagal memadam: " + e.message);
-                toggleLoading(false);
-            }
+                let collectionName = '';
+                if(deleteType === 'app') collectionName = 'apps';
+                else if(deleteType === 'teacher') collectionName = 'teachers';
+                else if(deleteType === 'class') collectionName = 'classes';
+                else if(deleteType === 'student') collectionName = 'students';
+
+                await deleteDoc(doc(db, collectionName, appToDeleteId));
+                
+                if(deleteType === 'app') await fetchApps();
+                else if(deleteType === 'teacher') await loadTeachers();
+                else if(deleteType === 'class') await loadClasses();
+                else if(deleteType === 'student') await loadStudents();
+
+                closeDeleteModal();
+            } catch(e) { console.error(e); alert("Gagal memadam."); } 
+            finally { btn.innerHTML = 'Ya, Padam'; btn.disabled = false; }
         };
 
         // --- Save Logic ---
@@ -682,242 +824,71 @@
             const desc = document.getElementById('edit-app-desc').value;
             const html = document.getElementById('edit-app-html').value;
             const category = document.getElementById('edit-app-category').value;
-            
-            if (!name || !html) {
-                alert("Nama dan Kod HTML wajib diisi.");
-                return;
-            }
-            toggleLoading(true);
-            
-            const appPayload = {
-                name,
-                description: desc,
-                html,
-                category,
-                iconName: currentSelectedIcon,
-                colorBg: currentSelectedColor.bg,
-                colorText: currentSelectedColor.text,
-                updatedAt: serverTimestamp()
-            };
-            
+            if (!name || !html) { alert("Nama dan Kod HTML wajib diisi."); return; }
+            toggleLoading(true, "Menyimpan...");
+            const appPayload = { name, description: desc, html, category, iconName: currentSelectedIcon, colorBg: currentSelectedColor.bg, colorText: currentSelectedColor.text, updatedAt: serverTimestamp() };
             try {
-                // SIMPAN TERUS KE ROOT COLLECTION 'apps'
                 const collectionRef = collection(db, 'apps');
-                if (currentEditingId) {
-                    await updateDoc(doc(collectionRef, currentEditingId), appPayload);
-                } else {
-                    appPayload.createdAt = serverTimestamp();
-                    await addDoc(collectionRef, appPayload);
-                }
-                await fetchApps();
-                switchView('dashboard');
-            } catch (error) {
-                console.error("Save failed:", error);
-                alert("Gagal menyimpan aplikasi: " + error.message);
-            } finally {
-                toggleLoading(false);
-            }
+                if (currentEditingId) { await updateDoc(doc(collectionRef, currentEditingId), appPayload); } else { appPayload.createdAt = serverTimestamp(); await addDoc(collectionRef, appPayload); }
+                await fetchApps(); switchView('dashboard');
+            } catch (error) { console.error("Save failed:", error); alert("Gagal: " + error.message); } finally { toggleLoading(false); }
         };
         
-        // --- EXPORT / HARDCODE LOGIC ---
+        // --- EXPORT LOGIC ---
         window.exportPortal = () => {
-            if(appsData.length === 0) {
-                alert("Tiada aplikasi untuk disimpan. Sila tambah aplikasi dahulu.");
-                return;
-            }
-            
-            if(!confirm("Adakah anda mahu muat turun fail HTML portal ini dengan data aplikasi tertanam (hardcoded)? Fail baru ini akan berfungsi walaupun tanpa sambungan Firestore.")) return;
-
-            // 1. Dapatkan kod sumber semasa
-            let htmlContent = document.documentElement.outerHTML;
-
-            // 2. Sediakan data hardcoded (Convert array appsData ke string JSON)
-            // Kita perlu sanitasi sikit untuk elak script tag rosak string
-            const appsJson = JSON.stringify(appsData).replace(/<\/script>/g, '<\\/script>');
-
-            // 3. Cari titik suntikan dan ganti null dengan data sebenar
-            // NOTE: Kita perlu replace seluruh blok eKehadiran + HARDCODED_APPS jika sudah ada
-            // Untuk simple logic, kita assume user sedang run file ini.
-            // Kita replace variable HARDCODED_APPS sedia ada.
-            
-            // Regex match untuk replace isi kandungan HARDCODED_APPS
-            // const HARDCODED_APPS = [ ... ];
-            
-            // Cara selamat: Gantikan seluruh assignment
-            // Cari text 'const HARDCODED_APPS =' sehingga '; // ================================================================='
-            
-            // SIMPLIFICATION: Kita hanya inject data ke dalam variable const HARDCODED_APPS = ...
-            // Jika ia sudah ada data (seperti sekarang), kita replace keseluruhan array.
-            
-            // Dapatkan index start
-            const startMarker = 'const HARDCODED_APPS = ';
-            const endMarker = '; // =================================================================';
-            
-            const startIndex = htmlContent.indexOf(startMarker);
-            const endIndex = htmlContent.indexOf(endMarker, startIndex);
-            
-            if (startIndex !== -1 && endIndex !== -1) {
-                const newAssignment = startMarker + appsJson;
-                htmlContent = htmlContent.substring(0, startIndex) + newAssignment + htmlContent.substring(endIndex);
-                
-                 // 4. Trigger muat turun
-                const blob = new Blob([htmlContent], { type: 'text/html' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'PortalSKMasjidTanah_Hardcoded.html';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-                alert("Fail berjaya dimuat turun!");
-            } else {
-                alert("Ralat: Tidak menjumpai titik suntikan data dalam kod.");
-            }
-        };
-
-        // --- EXPORT TXT LOGIC ---
-        window.exportPortalTxt = () => {
-             if(appsData.length === 0) {
-                alert("Tiada aplikasi untuk disimpan.");
-                return;
-            }
-            
+            if(!confirm("Muat turun fail HTML portal?")) return;
             let htmlContent = document.documentElement.outerHTML;
             const appsJson = JSON.stringify(appsData).replace(/<\/script>/g, '<\\/script>');
-            
-            const startMarker = 'const HARDCODED_APPS = ';
-            const endMarker = '; // =================================================================';
-            
-            const startIndex = htmlContent.indexOf(startMarker);
-            const endIndex = htmlContent.indexOf(endMarker, startIndex);
-
-             if (startIndex !== -1 && endIndex !== -1) {
-                const newAssignment = startMarker + appsJson;
-                htmlContent = htmlContent.substring(0, startIndex) + newAssignment + htmlContent.substring(endIndex);
-                
-                const blob = new Blob([htmlContent], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'PortalSKMasjidTanah_Hardcoded.txt';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                alert("Fail teks berjaya dimuat turun!");
-            } else {
-                alert("Ralat injection point.");
-            }
+            const newContent = htmlContent.replace('const HARDCODED_APPS = null', `const HARDCODED_APPS = ${appsJson}`);
+            const blob = new Blob([newContent], { type: 'text/html' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'PortalSKMasjidTanah_Hardcoded.html'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
         };
 
-        // --- Auth & Init ---
-
-        function handleLoginSuccess(user) {
+        // --- AUTH & INIT ---
+        async function handleLoginSuccess(user) {
             currentUser = user;
+            toggleLoading(true, "Memeriksa akses...");
+            const access = await checkWhitelist(user);
+            if (!access.allowed) { await signOut(auth); toggleLoading(false); alert("Akses Ditolak."); document.getElementById('login-error').classList.remove('hidden'); return; }
+            isSuperAdmin = (access.role === 'admin');
             document.getElementById('user-name').innerText = user.displayName || 'Pengguna';
             document.getElementById('user-email').innerText = user.email || 'Mod Tetamu';
+            document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'User'}&background=0D8ABC&color=fff`;
             
-            const avatarUrl = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'User'}&background=0D8ABC&color=fff`;
-            document.getElementById('user-avatar').src = avatarUrl;
-            
-            document.getElementById('btn-admin-toggle').classList.remove('hidden');
+            const adminBtn = document.getElementById('btn-admin-toggle');
+            if (isSuperAdmin) adminBtn.classList.remove('hidden'); else adminBtn.classList.add('hidden');
 
             switchView('dashboard');
             fetchApps();
-            
-            // Simpan profil pengguna ke root collection 'users' (Optional)
-            if (!user.isAnonymous) {
-                try {
-                    // PATH DIPERMUDAHKAN: 'users/{uid}'
-                    setDoc(doc(db, 'users', user.uid), {
-                        email: user.email,
-                        displayName: user.displayName,
-                        photoURL: user.photoURL,
-                        lastLogin: serverTimestamp()
-                    }, { merge: true });
-                } catch (e) { console.log("User profile save skipped", e); }
-            }
-
             const now = new Date();
-            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            const dateString = new Intl.DateTimeFormat('ms-MY', dateOptions).format(now);
-            document.getElementById('current-date').innerText = dateString;
-            
-            const hour = now.getHours();
-            let greeting = "Selamat Pagi";
-            if (hour >= 12 && hour < 15) greeting = "Selamat Tengah Hari";
-            else if (hour >= 15) greeting = "Selamat Petang";
-            
-            const welcomeEl = document.getElementById('welcome-text');
-            const firstName = user.displayName ? user.displayName.split(' ')[0] : 'Cikgu/Tuan';
-            welcomeEl.innerText = `${greeting}, ${firstName}!`;
-            
+            document.getElementById('welcome-text').innerText = `Selamat Datang, ${user.displayName ? user.displayName.split(' ')[0] : 'Cikgu'}!`;
             toggleLoading(false);
         }
 
         document.getElementById('btn-admin-toggle').onclick = () => {
+            if (!isSuperAdmin) return;
             isAdminMode = !isAdminMode;
             const btn = document.getElementById('btn-admin-toggle');
-            
-            if (isAdminMode) {
-                btn.classList.add('bg-blue-600', 'text-white');
-                btn.classList.remove('bg-blue-900/50', 'text-blue-200');
-                adminBanner.classList.remove('hidden');
-            } else {
-                btn.classList.remove('bg-blue-600', 'text-white');
-                btn.classList.add('bg-blue-900/50', 'text-blue-200');
-                adminBanner.classList.add('hidden');
-            }
+            if (isAdminMode) { btn.classList.add('bg-blue-600', 'text-white'); btn.classList.remove('bg-blue-900/50', 'text-blue-200'); adminBanner.classList.remove('hidden'); } 
+            else { btn.classList.remove('bg-blue-600', 'text-white'); btn.classList.add('bg-blue-900/50', 'text-blue-200'); adminBanner.classList.add('hidden'); }
             renderAppGrid();
         };
 
-        // --- Event Listeners ---
-        document.getElementById('btn-google-login').onclick = async () => {
-            toggleLoading(true);
-            try {
-                await signInWithPopup(auth, new GoogleAuthProvider());
-            } catch (err) {
-                console.error(err);
-                toggleLoading(false);
-            }
-        };
+        document.getElementById('btn-google-login').onclick = async () => { toggleLoading(true); try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (err) { console.error(err); toggleLoading(false); } };
+        document.getElementById('btn-guest-login').onclick = async () => { toggleLoading(true); try { await signInAnonymously(auth); } catch (err) { console.error(err); toggleLoading(false); } };
+        document.getElementById('btn-logout').onclick = async () => { toggleLoading(true); try { await signOut(auth); isAdminMode = false; isSuperAdmin = false; } catch(e) {} };
 
-        document.getElementById('btn-guest-login').onclick = async () => {
-            toggleLoading(true);
-            try {
-                await signInAnonymously(auth);
-            } catch (err) {
-                console.error(err);
-                toggleLoading(false);
-            }
-        };
-
-        document.getElementById('btn-logout').onclick = async () => {
-            toggleLoading(true);
-            try { await signOut(auth); } catch(e) {}
-        };
-
-        // --- Init ---
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                handleLoginSuccess(user);
-            } else {
-                switchView('login');
-                document.getElementById('login-view').classList.add('flex');
-                toggleLoading(false);
-            }
-        });
+        onAuthStateChanged(auth, (user) => { if (user) handleLoginSuccess(user); else { switchView('login'); document.getElementById('login-view').classList.add('flex'); toggleLoading(false); } });
         
         initEditor();
 
-        window.openApp = openApp;
-        window.editApp = editApp;
-        window.deleteApp = deleteApp;
-        window.openEditor = openEditor;
-        window.closeEditor = closeEditor;
-        window.selectIcon = selectIcon;
+        // Expose
+        window.openApp = openApp; window.editApp = editApp; window.deleteItem = deleteItem;
+        window.openEditor = openEditor; window.closeEditor = closeEditor; window.selectIcon = selectIcon; window.selectThemeColor = selectThemeColor;
+        window.closeDeleteModal = closeDeleteModal; window.confirmDelete = confirmDelete;
+        window.openUserManager = openUserManager; window.closeUserManager = closeUserManager; window.whitelistUser = whitelistUser; window.removeUser = removeUser;
+        window.exportPortal = exportPortal;
+        window.openSchoolDataManager = openSchoolDataManager; window.closeSchoolDataManager = closeSchoolDataManager; window.switchSchoolTab = switchSchoolTab;
+        window.saveTeacher = saveTeacher; window.saveClass = saveClass; window.saveStudent = saveStudent;
 
     </script>
 </body>
