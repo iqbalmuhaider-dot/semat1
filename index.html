@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MainApp - Portal Sekolah</title>
+    <title>SkolaHub - SK Masjid Tanah</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -46,7 +46,7 @@
         import { createRoot } from 'react-dom/client';
         import { initializeApp } from 'firebase/app';
         import { 
-          getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously 
+          getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged 
         } from 'firebase/auth';
         import { 
           getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, writeBatch, updateDoc, getDoc, setDoc, getDocs, where, orderBy 
@@ -57,7 +57,7 @@
           BookOpen, Calculator, FlaskConical, Languages, 
           Trophy, Users, Palette, Utensils, Bus, Library, 
           MonitorPlay, Code2, GraduationCap, ShieldCheck, 
-          Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2, Calendar, ChevronLeft, Flag, MapPin, CalendarDays, ClipboardList, Clock, AlertTriangle, FileText, Printer, Check
+          Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2, Calendar, ChevronLeft, Flag, MapPin, CalendarDays, ClipboardList, Clock, AlertTriangle, FileText, Printer, Check, Settings
         } from 'lucide-react';
 
         // --- KONFIGURASI FIREBASE ---
@@ -76,7 +76,7 @@
         const db = getFirestore(app);
         const googleProvider = new GoogleAuthProvider();
 
-        // --- ICONS (STRUKTUR DIBAIKI) ---
+        // --- ICONS ---
         const ICONS = {
           umum: { 
             dashboard: { i: LayoutDashboard, color: 'text-blue-600', bg: 'bg-blue-50' }, 
@@ -116,6 +116,38 @@
             { start: '2026-12-05', end: '2026-12-31', type: 'holiday', title: 'Cuti Akhir Persekolahan' },
         ];
 
+        // --- SENARAI TUGASAN RASMI (DEFAULT) ---
+        const DEFAULT_TASKS = {
+            pentadbiran: [
+                "Guru Besar", "GPK Pentadbiran", "GPK HEM", "GPK Kokurikulum", "Guru Data", "Guru Bimbingan & Kaunseling", 
+                "Penyelaras ICT", "Guru Perpustakaan & Media (GPM)", "Penyelaras Prasekolah", "Penyelaras PPKI", 
+                "Penyelaras Bestari / Delima", "Pegawai Aset"
+            ],
+            kurikulum: [
+                "Setiausaha Kurikulum", "Setiausaha Peperiksaan / UASA", "Penyelaras PBD", "Penyelaras Jadual Waktu",
+                "Penyelaras Transisi Tahun 1", "Penyelaras Pemulihan Khas", "Penyelaras TS25 / PAK21", "Penyelaras KBAT / i-Think",
+                "Penyelaras HIP", "Penyelaras PLAN", "Penyelaras SPLKPM",
+                "KP Bahasa Melayu", "KP Bahasa Inggeris", "KP Matematik", "KP Sains", "KP Pendidikan Islam", 
+                "KP Pendidikan Moral / B. Arab", "KP Sejarah", "KP RBT", "KP PSV / Muzik", "KP PJPK"
+            ],
+            hem: [
+                "Setiausaha HEM", "Penyelaras APDM / IDME", "Penyelaras SPBT", "Penyelaras RMT & Susu (PSS)", "Penyelaras Kantin",
+                "Penyelaras 3K (Kebersihan, Kesihatan, Keselamatan)", "Penyelaras Disiplin & Pengawas", "Penyelaras BAP / KWAPM",
+                "Penyelaras PPDa", "Penyelaras Kebajikan & Bantuan", "Penyelaras Penempatan (Ting 1 / SBP)"
+            ],
+            kokurikulum: [
+                "Setiausaha Kokurikulum", "Setiausaha Sukan", "Penyelaras PAJSK", "Penyelaras Unit Beruniform", 
+                "Penyelaras Kelab & Persatuan", "Penyelaras Sukan & Permainan", "Penyelaras Rumah Sukan",
+                "Guru Penasihat Pengakap", "Guru Penasihat TKRS", "Guru Penasihat PPIM", "Guru Penasihat Tunas Puteri",
+                "Guru Penasihat B. Melayu / Kebudayaan", "Guru Penasihat B. Inggeris", "Guru Penasihat Agama Islam", "Guru Penasihat STEM / Doktor Muda", "Guru Penasihat Rukun Negara",
+                "Guru Penasihat Bola Sepak", "Guru Penasihat Bola Jaring", "Guru Penasihat Bola Baling", "Guru Penasihat Ping Pong", "Guru Penasihat Olahraga"
+            ],
+            kelas: [
+                "Guru Kelas Tahun 1", "Guru Kelas Tahun 2", "Guru Kelas Tahun 3", "Guru Kelas Tahun 4", "Guru Kelas Tahun 5", "Guru Kelas Tahun 6",
+                "Guru Kelas Prasekolah", "Guru Kelas PPKI"
+            ]
+        };
+
         // --- KOMPONEN UTAMA ---
         function MainApp() {
           const [user, setUser] = useState(null); 
@@ -134,12 +166,6 @@
             const unsub = onAuthStateChanged(auth, async (currentUser) => {
               if (currentUser) {
                 try {
-                    // DEMO
-                    if (currentUser.isAnonymous) {
-                         const demoRole = localStorage.getItem('demo_role') || 'guru';
-                         const demoData = { name: "Pengguna Demo ("+demoRole+")", email: "demo@sekolah.edu", role: demoRole, createdAt: new Date().toISOString() };
-                         setUser(currentUser); setUserData(demoData); syncToLocalStorage(currentUser, demoRole); setLoading(false); return;
-                    }
                     // SUPER ADMIN
                     if (currentUser.uid === "eNs6hJfU3CXVjpfRmYiBBRCzPI03") {
                          const ref = doc(db, 'portal_users', currentUser.uid);
@@ -195,11 +221,10 @@
           }, [user, userData]);
 
           const handleLogin = async () => { try { await signInWithPopup(auth, googleProvider); } catch (e) { console.error(e); alert("Gagal log masuk."); } };
-          const handleDemoLogin = async (role) => { try { localStorage.setItem('demo_role', role); await signInAnonymously(auth); } catch (e) { console.error(e); } }
           const handleLogout = async () => { await signOut(auth); };
 
           if (loading) return <div className="h-screen flex flex-col items-center justify-center bg-slate-50 text-indigo-600"><Loader2 className="w-10 h-10 animate-spin mb-4"/><span className="font-medium animate-pulse">Menyemak kelayakan...</span></div>;
-          if (!user) return <LoginScreen onGoogleLogin={handleLogin} onDemoLogin={handleDemoLogin} />;
+          if (!user) return <LoginScreen onGoogleLogin={handleLogin} />;
           if (!userData) return <div className="h-screen flex items-center justify-center">Memuatkan data...</div>;
 
           return (
@@ -212,7 +237,7 @@
                    {(() => {
                       // Guard clauses
                       if (view === 'builder' && userData.role !== 'admin') return <AccessDenied />;
-                      if (['students','teachers'].includes(view) && !['admin', 'pentadbir'].includes(userData.role)) return <AccessDenied />;
+                      if (['students','teachers','agihan'].includes(view) && !['admin', 'pentadbir'].includes(userData.role)) return <AccessDenied />;
 
                       switch(view) {
                         case 'dashboard': return <Dashboard userData={userData} apps={apps} students={students} teachers={teachers} tasks={tasks} setView={setView} />;
@@ -221,6 +246,7 @@
                         case 'tasks': return <TaskManager userData={userData} tasks={tasks} currentUid={user.uid} />;
                         case 'reports': return <WeeklyReportManager userData={userData} reports={reports} teachers={teachers} currentUid={user.uid} />;
                         case 'builder': return <AppBuilder apps={apps} />;
+                        case 'agihan': return <AgihanTugasManager teachers={teachers} canEdit={['admin', 'pentadbir'].includes(userData.role)} />;
                         case 'students': return <DataTable type="student" data={students} currentUserRole={userData.role} />;
                         case 'teachers': return <DataTable type="teacher" data={teachers} currentUserRole={userData.role} />;
                         default: return <Dashboard userData={userData} apps={apps} students={students} teachers={teachers} tasks={tasks} setView={setView} />;
@@ -230,6 +256,206 @@
               </div>
             </div>
           );
+        }
+
+        // --- AGIHAN TUGAS MANAGER (DENGAN POP-UP MODAL & EDIT/PADAM) ---
+        function AgihanTugasManager({ teachers, canEdit }) {
+            const [activeTab, setActiveTab] = useState('pentadbiran');
+            const [assignments, setAssignments] = useState({});
+            const [taskStructure, setTaskStructure] = useState(DEFAULT_TASKS);
+            const [loading, setLoading] = useState(true);
+            const [editMode, setEditMode] = useState(false);
+            
+            // State untuk Pop-up
+            const [showAddModal, setShowAddModal] = useState(false);
+            const [newTaskName, setNewTaskName] = useState("");
+            const [showDeleteModal, setShowDeleteModal] = useState(false);
+            const [taskToDelete, setTaskToDelete] = useState(null);
+
+            useEffect(() => {
+                const unsubAssign = onSnapshot(collection(db, 'portal_assignments'), (snap) => {
+                    const data = {};
+                    snap.docs.forEach(doc => { data[doc.id] = doc.data(); });
+                    setAssignments(data);
+                });
+
+                const fetchStructure = async () => {
+                    const docRef = doc(db, 'portal_settings', 'agihan_tugas_structure');
+                    const snap = await getDoc(docRef);
+                    if (snap.exists()) {
+                        setTaskStructure(snap.data().structure);
+                    } else {
+                        await setDoc(docRef, { structure: DEFAULT_TASKS });
+                        setTaskStructure(DEFAULT_TASKS);
+                    }
+                    setLoading(false);
+                };
+                fetchStructure();
+                return () => unsubAssign();
+            }, []);
+
+            const saveStructure = async (newStructure) => {
+                setTaskStructure(newStructure);
+                try { await setDoc(doc(db, 'portal_settings', 'agihan_tugas_structure'), { structure: newStructure }); } 
+                catch (e) { console.error(e); alert("Gagal menyimpan perubahan struktur."); }
+            };
+
+            const handleAssign = async (category, taskName, teacherId) => {
+                if (!canEdit) return alert("Anda tiada akses untuk mengedit.");
+                const teacher = teachers.find(t => t.id === teacherId);
+                const teacherName = teacher ? teacher.name : '';
+                const docId = `${category}_${taskName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                try {
+                    await setDoc(doc(db, 'portal_assignments', docId), {
+                        category, taskName, teacherId, teacherName, updatedAt: new Date().toISOString()
+                    });
+                } catch (e) { console.error("Error assigning:", e); alert("Ralat semasa menyimpan."); }
+            };
+
+            // LOGIC BARU: TAMBAH JAWATAN
+            const openAddModal = () => {
+                setNewTaskName("");
+                setShowAddModal(true);
+            };
+
+            const confirmAddTask = async () => {
+                if (!newTaskName.trim()) return alert("Sila masukkan nama jawatan.");
+                const newStruct = { ...taskStructure };
+                if (!newStruct[activeTab]) newStruct[activeTab] = [];
+                newStruct[activeTab] = [...newStruct[activeTab], newTaskName];
+                await saveStructure(newStruct);
+                setShowAddModal(false);
+            };
+
+            // LOGIC BARU: PADAM JAWATAN
+            const openDeleteModal = (taskName) => {
+                setTaskToDelete(taskName);
+                setShowDeleteModal(true);
+            };
+
+            const confirmDeleteTask = async () => {
+                if (!taskToDelete) return;
+                const newStruct = { ...taskStructure };
+                newStruct[activeTab] = newStruct[activeTab].filter(t => t !== taskToDelete);
+                await saveStructure(newStruct);
+                setShowDeleteModal(false);
+                setTaskToDelete(null);
+            };
+
+            const categories = [
+                { id: 'pentadbiran', label: 'Pentadbiran' },
+                { id: 'kurikulum', label: 'Kurikulum' },
+                { id: 'hem', label: 'Hal Ehwal Murid' },
+                { id: 'kokurikulum', label: 'Kokurikulum' },
+                { id: 'kelas', label: 'Guru Kelas' },
+            ];
+
+            return (
+                <div className="space-y-6 h-full flex flex-col relative">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Briefcase className="w-6 h-6 text-indigo-600"/> Agihan Tugas Guru 2026</h2>
+                        <div className="flex gap-2 items-center">
+                            {canEdit && (
+                                <button onClick={() => setEditMode(!editMode)} className={`text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 transition-colors ${editMode ? 'bg-amber-100 text-amber-700 border border-amber-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                    {editMode ? <CheckSquare className="w-3 h-3"/> : <Settings className="w-3 h-3"/>}
+                                    {editMode ? 'Selesai Edit' : 'Urus Senarai Tugas'}
+                                </button>
+                            )}
+                            <div className="text-xs text-slate-500 bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full font-medium border border-emerald-100 flex items-center gap-1"><Save className="w-3 h-3"/> Auto-Save</div>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2 overflow-x-auto pb-2 border-b border-slate-200">
+                        {categories.map(cat => (
+                            <button key={cat.id} onClick={() => setActiveTab(cat.id)} className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${activeTab === cat.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'}`}>
+                                {cat.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className={`bg-white border ${editMode ? 'border-amber-300' : 'border-slate-200'} rounded-xl shadow-sm flex-1 overflow-hidden flex flex-col relative`}>
+                        {editMode && <div className="absolute top-0 left-0 right-0 bg-amber-50 text-amber-800 text-[10px] py-1 text-center font-bold border-b border-amber-200 z-10">MOD SUNTINGAN AKTIF - Anda boleh tambah atau padam nama jawatan</div>}
+                        
+                        <div className="overflow-y-auto flex-1 p-6">
+                            {loading ? (
+                                <div className="flex justify-center items-center h-full text-slate-400"><Loader2 className="w-8 h-8 animate-spin"/></div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                                    {(taskStructure[activeTab] || []).map((task, idx) => {
+                                        const docId = `${activeTab}_${task.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                                        const assignedData = assignments[docId] || {};
+                                        return (
+                                            <div key={idx} className="flex flex-col gap-1 border-b border-slate-100 pb-3 last:border-0 group">
+                                                <div className="flex justify-between items-center">
+                                                    <label className={`text-sm font-bold ${editMode ? 'text-indigo-700' : 'text-slate-700'}`}>{task}</label>
+                                                    {editMode && (
+                                                        <button onClick={() => openDeleteModal(task)} className="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50" title="Padam Jawatan Ini"><Trash2 className="w-4 h-4"/></button>
+                                                    )}
+                                                </div>
+                                                {!editMode && (
+                                                    <div className="relative">
+                                                        <select className="w-full p-2 border border-slate-200 rounded-lg text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-100 transition-all cursor-pointer hover:bg-white appearance-none" value={assignedData.teacherId || ""} onChange={(e) => handleAssign(activeTab, task, e.target.value)} disabled={!canEdit}>
+                                                            <option value="">-- Belum Dilantik --</option>
+                                                            {teachers.map(t => (<option key={t.id} value={t.id}>{t.name}</option>))}
+                                                        </select>
+                                                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400"><ChevronRight className="w-4 h-4 rotate-90"/></div>
+                                                    </div>
+                                                )}
+                                                {!editMode && assignedData.updatedAt && (<span className="text-[10px] text-slate-400 text-right italic">Dikemaskini: {new Date(assignedData.updatedAt).toLocaleDateString()}</span>)}
+                                            </div>
+                                        );
+                                    })}
+                                    {editMode && (
+                                        <button onClick={openAddModal} className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-indigo-200 rounded-xl text-indigo-500 font-bold hover:bg-indigo-50 hover:border-indigo-300 transition-all"><Plus className="w-5 h-5"/> Tambah Jawatan Baru</button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* MODAL TAMBAH JAWATAN */}
+                    {showAddModal && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
+                            <div className="bg-white p-6 rounded-xl w-96 shadow-2xl">
+                                <h3 className="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2"><Plus className="w-5 h-5 text-indigo-600"/> Tambah Jawatan Baru</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-bold uppercase text-slate-500 mb-1 block">Nama Jawatan</label>
+                                        <input 
+                                            autoFocus
+                                            className="w-full border border-slate-300 p-2.5 rounded-lg text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                            placeholder="Contoh: Penyelaras Bilik Khas"
+                                            value={newTaskName}
+                                            onChange={e => setNewTaskName(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="bg-indigo-50 p-3 rounded-lg text-xs text-indigo-700">
+                                        Jawatan ini akan ditambah ke dalam kategori <b>{categories.find(c => c.id === activeTab)?.label}</b>.
+                                    </div>
+                                </div>
+                                <div className="flex justify-end gap-2 mt-6">
+                                    <button onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+                                    <button onClick={confirmAddTask} className="px-4 py-2 rounded-lg text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 shadow-md">Simpan</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL PADAM JAWATAN */}
+                    {showDeleteModal && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
+                            <div className="bg-white p-6 rounded-xl w-96 shadow-2xl">
+                                <h3 className="font-bold text-lg mb-2 text-red-600 flex items-center gap-2"><AlertTriangle className="w-5 h-5"/> Padam Jawatan?</h3>
+                                <p className="text-slate-600 mb-6 text-sm">Adakah anda pasti mahu memadam jawatan <b>"{taskToDelete}"</b>? Data lantikan guru untuk jawatan ini (jika ada) akan kekal dalam sejarah tetapi jawatan ini akan hilang dari senarai.</p>
+                                <div className="flex justify-end gap-2">
+                                    <button onClick={() => setShowDeleteModal(false)} className="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+                                    <button onClick={confirmDeleteTask} className="px-4 py-2 rounded-lg text-sm font-bold bg-red-600 text-white hover:bg-red-700 shadow-md">Ya, Padam</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
         }
 
         // --- WEEKLY REPORT MANAGER ---
@@ -516,23 +742,17 @@
           return (
             <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 animate-fade-in">
                  <div className="max-w-md w-full bg-white p-10 rounded-2xl shadow-xl border border-slate-100 text-center">
-                    <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600"><Lock className="w-8 h-8"/></div>
-                    <h2 className="text-2xl font-bold text-slate-800 mb-2">Selamat Datang</h2>
-                    <p className="text-slate-500 mb-8">Portal Sekolah Digital</p>
+                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-100">
+                        <img src="https://i.postimg.cc/k4N1mPR1/semat-04.png" alt="Logo Sekolah" className="w-14 h-14 object-contain"/>
+                    </div>
+                    <h2 className="text-2xl font-bold text-slate-800 mb-1">SkolaHub</h2>
+                    <p className="text-slate-500 mb-8 font-medium">SK Masjid Tanah (Integ)</p>
                     <button onClick={onGoogleLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all group shadow-sm mb-6">
                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6" alt="Google" />
                        <span className="font-bold text-slate-700">Log Masuk Google</span>
                     </button>
-                    <div className="border-t border-slate-100 pt-6">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Mod Demo (Semakan)</p>
-                        <div className="grid grid-cols-2 gap-2 mb-2">
-                             <button onClick={() => onDemoLogin('admin')} className="p-2 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold hover:bg-indigo-100">Admin (Sistem)</button>
-                             <button onClick={() => onDemoLogin('pentadbir')} className="p-2 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100">Pentadbir (Semakan)</button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                             <button onClick={() => onDemoLogin('guru')} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold hover:bg-emerald-100">Guru</button>
-                             <button onClick={() => onDemoLogin('murid')} className="p-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100">Murid</button>
-                        </div>
+                    <div className="text-xs text-slate-400 mt-6">
+                        Sistem Pengurusan Sekolah Digital v2.0
                     </div>
                  </div>
             </div>
@@ -546,13 +766,20 @@
              { id: 'takwim', l: 'Takwim', i: CalendarDays },
              { id: 'tasks', l: 'Tugasan', i: ClipboardList },
              { id: 'reports', l: 'Laporan', i: FileText },
+             { id: 'agihan', l: 'Agihan Tugas', i: Briefcase, access: ['admin', 'pentadbir'] },
              { id: 'builder', l: 'Bina App', i: Code2, access: ['admin'] },
              { id: 'students', l: 'Data Murid', i: GraduationCap, access: ['admin', 'pentadbir'] },
              { id: 'teachers', l: 'Data Guru', i: Users, access: ['admin', 'pentadbir'] },
           ];
           return (
              <aside className="w-20 md:w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 z-20 no-print">
-                <div className="h-16 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-100"><div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">S</div><span className="ml-3 font-bold text-xl text-slate-800 hidden md:block">SistemApp</span></div>
+                <div className="h-20 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-100 gap-3">
+                    <img src="https://i.postimg.cc/k4N1mPR1/semat-04.png" className="w-10 h-10 object-contain" alt="Logo"/>
+                    <div className="hidden md:block">
+                        <span className="block font-bold text-lg text-slate-800 leading-tight">SkolaHub</span>
+                        <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">SK Masjid Tanah</span>
+                    </div>
+                </div>
                 <div className="p-4 border-b border-slate-100 flex items-center gap-3">
                    <img src={userData.photo || "https://ui-avatars.com/api/?name="+userData.name} className="w-10 h-10 rounded-full border border-slate-200" alt="Avatar"/>
                    <div className="hidden md:block overflow-hidden"><p className="text-sm font-bold text-slate-700 truncate">{userData.name}</p><p className="text-xs text-slate-500 uppercase font-bold tracking-wider">{userData.role}</p></div>
