@@ -11,10 +11,10 @@
     <!-- Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Babel (Untuk compile React dalam browser) -->
+    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Import Map: Membolehkan import module berfungsi dalam HTML -->
+    <!-- Import Map -->
     <script type="importmap">
     {
       "imports": {
@@ -30,6 +30,12 @@
 
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background-color: white; }
+            .print-container { padding: 0; margin: 0; border: none; box-shadow: none; }
+        }
     </style>
 </head>
 <body>
@@ -40,10 +46,10 @@
         import { createRoot } from 'react-dom/client';
         import { initializeApp } from 'firebase/app';
         import { 
-          getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged 
+          getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously 
         } from 'firebase/auth';
         import { 
-          getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, writeBatch, updateDoc, getDoc, setDoc, getDocs, where 
+          getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, writeBatch, updateDoc, getDoc, setDoc, getDocs, where, orderBy 
         } from 'firebase/firestore';
         import { 
           LayoutDashboard, LogOut, ChevronRight, X, Search, 
@@ -51,7 +57,7 @@
           BookOpen, Calculator, FlaskConical, Languages, 
           Trophy, Users, Palette, Utensils, Bus, Library, 
           MonitorPlay, Code2, GraduationCap, ShieldCheck, 
-          Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2
+          Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2, Calendar, ChevronLeft, Flag, MapPin, CalendarDays, ClipboardList, Clock, AlertTriangle, FileText, Printer, Check
         } from 'lucide-react';
 
         // --- KONFIGURASI FIREBASE ---
@@ -70,175 +76,131 @@
         const db = getFirestore(app);
         const googleProvider = new GoogleAuthProvider();
 
-        // --- Pustaka Ikon ---
+        // --- ICONS (STRUKTUR DIBAIKI) ---
         const ICONS = {
-          umum: {
-            dashboard: { i: LayoutDashboard, color: 'text-blue-600', bg: 'bg-blue-50' },
-            portal: { i: Globe, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-            admin: { i: ShieldCheck, color: 'text-slate-600', bg: 'bg-slate-100' },
+          umum: { 
+            dashboard: { i: LayoutDashboard, color: 'text-blue-600', bg: 'bg-blue-50' }, 
+            portal: { i: Globe, color: 'text-indigo-600', bg: 'bg-indigo-50' }, 
+            admin: { i: ShieldCheck, color: 'text-slate-600', bg: 'bg-slate-100' } 
           },
-          akademik: {
-            buku: { i: BookOpen, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            math: { i: Calculator, color: 'text-violet-600', bg: 'bg-violet-50' },
-            sains: { i: FlaskConical, color: 'text-teal-600', bg: 'bg-teal-50' },
-            bahasa: { i: Languages, color: 'text-rose-600', bg: 'bg-rose-50' },
+          akademik: { 
+            buku: { i: BookOpen, color: 'text-emerald-600', bg: 'bg-emerald-50' }, 
+            math: { i: Calculator, color: 'text-violet-600', bg: 'bg-violet-50' }, 
+            sains: { i: FlaskConical, color: 'text-teal-600', bg: 'bg-teal-50' }, 
+            bahasa: { i: Languages, color: 'text-rose-600', bg: 'bg-rose-50' } 
           },
-          koko: {
-            sukan: { i: Trophy, color: 'text-orange-600', bg: 'bg-orange-50' },
-            seni: { i: Palette, color: 'text-pink-600', bg: 'bg-pink-50' },
-            kelab: { i: Users, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+          koko: { 
+            sukan: { i: Trophy, color: 'text-orange-600', bg: 'bg-orange-50' }, 
+            seni: { i: Palette, color: 'text-pink-600', bg: 'bg-pink-50' }, 
+            kelab: { i: Users, color: 'text-cyan-600', bg: 'bg-cyan-50' }
           },
-          fasiliti: {
-            kantin: { i: Utensils, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-            bas: { i: Bus, color: 'text-blue-800', bg: 'bg-blue-100' },
-            ps: { i: Library, color: 'text-amber-700', bg: 'bg-amber-50' },
+          fasiliti: { 
+            kantin: { i: Utensils, color: 'text-yellow-600', bg: 'bg-yellow-50' }, 
+            bas: { i: Bus, color: 'text-blue-800', bg: 'bg-blue-100' }, 
+            ps: { i: Library, color: 'text-amber-700', bg: 'bg-amber-50' } 
           }
         };
+        
         const ALL_ICONS = {};
         Object.values(ICONS).forEach(cat => Object.assign(ALL_ICONS, cat));
+
+        // --- DATA TAKWIM KPM 2026 (KUMPULAN B) ---
+        const KPM_EVENTS = [
+            { start: '2026-01-12', end: '2026-03-20', type: 'school', title: 'Sesi Persekolahan Penggal 1' },
+            { start: '2026-03-21', end: '2026-03-29', type: 'holiday', title: 'Cuti Penggal 1' },
+            { start: '2026-03-30', end: '2026-05-22', type: 'school', title: 'Sambungan Penggal 1' },
+            { start: '2026-05-23', end: '2026-06-07', type: 'holiday', title: 'Cuti Pertengahan Tahun' },
+            { start: '2026-06-08', end: '2026-08-28', type: 'school', title: 'Sesi Persekolahan Penggal 2' },
+            { start: '2026-08-29', end: '2026-09-06', type: 'holiday', title: 'Cuti Penggal 2' },
+            { start: '2026-09-07', end: '2026-12-04', type: 'school', title: 'Sesi Persekolahan Penggal 3' },
+            { start: '2026-12-05', end: '2026-12-31', type: 'holiday', title: 'Cuti Akhir Persekolahan' },
+        ];
 
         // --- KOMPONEN UTAMA ---
         function MainApp() {
           const [user, setUser] = useState(null); 
           const [userData, setUserData] = useState(null); 
           const [loading, setLoading] = useState(true);
-          const [view, setView] = useState('dashboard'); // Lifted State for Navigation
+          const [view, setView] = useState('dashboard');
           
           const [apps, setApps] = useState([]);
           const [students, setStudents] = useState([]);
           const [teachers, setTeachers] = useState([]);
+          const [tasks, setTasks] = useState([]);
+          const [reports, setReports] = useState([]);
 
-          // 1. LOGIK AUTH & SECURITY (KEMASKINI)
+          // 1. LOGIK AUTH
           useEffect(() => {
             const unsub = onAuthStateChanged(auth, async (currentUser) => {
               if (currentUser) {
                 try {
-                    // A. SUPER ADMIN BYPASS
+                    // DEMO
+                    if (currentUser.isAnonymous) {
+                         const demoRole = localStorage.getItem('demo_role') || 'guru';
+                         const demoData = { name: "Pengguna Demo ("+demoRole+")", email: "demo@sekolah.edu", role: demoRole, createdAt: new Date().toISOString() };
+                         setUser(currentUser); setUserData(demoData); syncToLocalStorage(currentUser, demoRole); setLoading(false); return;
+                    }
+                    // SUPER ADMIN
                     if (currentUser.uid === "eNs6hJfU3CXVjpfRmYiBBRCzPI03") {
                          const ref = doc(db, 'portal_users', currentUser.uid);
-                         const superData = { 
-                             name: currentUser.displayName || "Super Admin", 
-                             email: currentUser.email, 
-                             photo: currentUser.photoURL, 
-                             role: 'admin',
-                             isSuperAdmin: true,
-                             createdAt: new Date().toISOString()
-                         };
-                         // Force update/create super admin
+                         const superData = { name: currentUser.displayName || "Super Admin", email: currentUser.email, photo: currentUser.photoURL, role: 'admin', isSuperAdmin: true, createdAt: new Date().toISOString() };
                          await setDoc(ref, superData, { merge: true });
-                         
-                         setUser(currentUser);
-                         setUserData(superData);
-                         syncToLocalStorage(currentUser, 'admin');
-                         setLoading(false);
-                         return; // Keluar dari function, akses diberi
+                         setUser(currentUser); setUserData(superData); syncToLocalStorage(currentUser, 'admin'); setLoading(false); return;
                     }
-
-                    // B. SEMAK USER SEDIA ADA
+                    // USER BIASA
                     const userRef = doc(db, 'portal_users', currentUser.uid);
                     const userSnap = await getDoc(userRef);
-
                     if (userSnap.exists()) {
-                        // User lama yang sah
                         const data = userSnap.data();
-                        setUser(currentUser);
-                        setUserData(data);
-                        syncToLocalStorage(currentUser, data.role);
-                        setLoading(false);
+                        setUser(currentUser); setUserData(data); syncToLocalStorage(currentUser, data.role); setLoading(false);
                     } else {
-                        // C. USER BARU - SEMAK WHITELIST (SENARAI GURU)
                         const q = query(collection(db, 'portal_teachers'), where("email", "==", currentUser.email));
                         const querySnapshot = await getDocs(q);
-
                         if (!querySnapshot.empty) {
-                            // E-mel wujud dalam database guru! Benarkan masuk.
                             const teacherInfo = querySnapshot.docs[0].data();
-                            
-                            // Tentukan role (default guru, tapi jika data kata admin, bagi admin)
-                            const assignedRole = (teacherInfo.role && teacherInfo.role.toLowerCase() === 'admin') ? 'admin' : 'guru';
+                            // Logic Role Assignment from Teacher DB
+                            let assignedRole = 'guru';
+                            if (teacherInfo.role && teacherInfo.role.toLowerCase().includes('admin')) assignedRole = 'admin';
+                            else if (teacherInfo.role && teacherInfo.role.toLowerCase().includes('pentadbir')) assignedRole = 'pentadbir';
 
-                            const newUserData = {
-                                name: teacherInfo.name, // Guna nama rasmi dari DB
-                                email: currentUser.email,
-                                photo: currentUser.photoURL,
-                                role: assignedRole,
-                                createdAt: new Date().toISOString()
-                            };
-
-                            await setDoc(userRef, newUserData);
-                            setUser(currentUser);
-                            setUserData(newUserData);
-                            syncToLocalStorage(currentUser, assignedRole);
-                            setLoading(false);
+                            const newUserData = { name: teacherInfo.name, email: currentUser.email, photo: currentUser.photoURL, role: assignedRole, createdAt: new Date().toISOString() };
+                            await setDoc(userRef, newUserData); setUser(currentUser); setUserData(newUserData); syncToLocalStorage(currentUser, assignedRole); setLoading(false);
                         } else {
-                            // D. AKSES DITOLAK
-                            await signOut(auth);
-                            setUser(null);
-                            setUserData(null);
-                            localStorage.removeItem('portal_current_user');
-                            alert("AKSES DITOLAK: E-mel anda tidak didaftarkan dalam sistem oleh Admin.");
-                            setLoading(false);
+                            await signOut(auth); setUser(null); setUserData(null); localStorage.removeItem('portal_current_user'); alert("AKSES DITOLAK: E-mel tidak berdaftar."); setLoading(false);
                         }
                     }
-                } catch(e) {
-                    console.error("Auth Error:", e);
-                    alert("Ralat Sistem: " + e.message);
-                    await signOut(auth);
-                    setLoading(false);
-                }
-              } else {
-                setUser(null);
-                setUserData(null);
-                localStorage.removeItem('portal_current_user');
-                setLoading(false);
-              }
+                } catch(e) { console.error(e); alert("Ralat: " + e.message); await signOut(auth); setLoading(false); }
+              } else { setUser(null); setUserData(null); localStorage.removeItem('portal_current_user'); setLoading(false); }
             });
             return () => unsub();
           }, []);
 
-          const syncToLocalStorage = (u, r) => {
-             localStorage.setItem('portal_current_user', JSON.stringify({
-                name: u.displayName,
-                email: u.email,
-                role: r,
-                photo: u.photoURL
-             }));
-          };
+          const syncToLocalStorage = (u, r) => { localStorage.setItem('portal_current_user', JSON.stringify({ name: u.isAnonymous?"Demo":u.displayName, email: u.email, role: r, photo: u.photoURL })); };
 
           useEffect(() => {
             if (!user || !userData) return;
+            window.PortalAPI = { currentUser: user, saveData: async (colName, data) => { try { await addDoc(collection(db, colName), { ...data, createdAt: new Date().toISOString(), createdBy: user.uid }); return { success: true }; } catch(e) { return { success: false, error: e }; } } };
             
-            window.PortalAPI = { 
-               currentUser: user, 
-               saveData: async (colName, data) => {
-                 try {
-                    await addDoc(collection(db, colName), { ...data, createdAt: new Date().toISOString(), createdBy: user.uid });
-                    return { success: true };
-                 } catch(e) { return { success: false, error: e }; }
-               }
-            };
-
             const unsubApps = onSnapshot(query(collection(db, 'portal_apps')), s => setApps(s.docs.map(d => ({id: d.id, ...d.data()}))));
+            const unsubTasks = onSnapshot(query(collection(db, 'portal_tasks'), orderBy('deadline', 'asc')), s => setTasks(s.docs.map(d => ({id: d.id, ...d.data()}))));
+            const unsubReports = onSnapshot(query(collection(db, 'portal_reports'), orderBy('date', 'desc')), s => setReports(s.docs.map(d => ({id: d.id, ...d.data()}))));
+            
             let unsubStud = () => {}, unsubTeach = () => {};
-            if (userData.role === 'admin' || userData.role === 'guru') {
+            // Admin & Pentadbir & Guru perlu data ini (Pentadbir view only)
+            if (['admin', 'pentadbir', 'guru'].includes(userData.role)) {
                unsubStud = onSnapshot(query(collection(db, 'portal_students')), s => setStudents(s.docs.map(d => ({id: d.id, ...d.data()}))));
                unsubTeach = onSnapshot(query(collection(db, 'portal_teachers')), s => setTeachers(s.docs.map(d => ({id: d.id, ...d.data()}))));
             }
-            return () => { unsubApps(); unsubStud(); unsubTeach(); };
+            return () => { unsubApps(); unsubTasks(); unsubStud(); unsubTeach(); unsubReports(); };
           }, [user, userData]);
 
-          const handleLogin = async () => {
-             try { await signInWithPopup(auth, googleProvider); } 
-             catch (error) { console.error(error); alert("Gagal log masuk."); }
-          };
-
+          const handleLogin = async () => { try { await signInWithPopup(auth, googleProvider); } catch (e) { console.error(e); alert("Gagal log masuk."); } };
+          const handleDemoLogin = async (role) => { try { localStorage.setItem('demo_role', role); await signInAnonymously(auth); } catch (e) { console.error(e); } }
           const handleLogout = async () => { await signOut(auth); };
 
           if (loading) return <div className="h-screen flex flex-col items-center justify-center bg-slate-50 text-indigo-600"><Loader2 className="w-10 h-10 animate-spin mb-4"/><span className="font-medium animate-pulse">Menyemak kelayakan...</span></div>;
-
-          if (!user) return <LoginScreen onGoogleLogin={handleLogin} />;
-
-          if (!userData) return <div className="h-screen flex items-center justify-center">Memuatkan data pengguna...</div>;
+          if (!user) return <LoginScreen onGoogleLogin={handleLogin} onDemoLogin={handleDemoLogin} />;
+          if (!userData) return <div className="h-screen flex items-center justify-center">Memuatkan data...</div>;
 
           return (
             <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
@@ -247,16 +209,21 @@
               <div className="flex-1 flex flex-col h-full overflow-hidden relative">
                 <Header userData={userData} view={view} />
                 <main className="flex-1 overflow-y-auto p-6 md:p-8 scroll-smooth">
-                   {/* Router Logic Direct */}
                    {(() => {
-                      if (['students','teachers','builder'].includes(view) && userData.role !== 'admin') return <AccessDenied />;
+                      // Guard clauses
+                      if (view === 'builder' && userData.role !== 'admin') return <AccessDenied />;
+                      if (['students','teachers'].includes(view) && !['admin', 'pentadbir'].includes(userData.role)) return <AccessDenied />;
+
                       switch(view) {
-                        case 'dashboard': return <Dashboard role={userData.role} apps={apps} students={students} teachers={teachers} setView={setView} />;
+                        case 'dashboard': return <Dashboard userData={userData} apps={apps} students={students} teachers={teachers} tasks={tasks} setView={setView} />;
                         case 'apps': return <AppGallery apps={apps} />;
+                        case 'takwim': return <TakwimManager canEdit={['admin', 'pentadbir'].includes(userData.role)} role={userData.role} currentUid={user.uid} />;
+                        case 'tasks': return <TaskManager userData={userData} tasks={tasks} currentUid={user.uid} />;
+                        case 'reports': return <WeeklyReportManager userData={userData} reports={reports} teachers={teachers} currentUid={user.uid} />;
                         case 'builder': return <AppBuilder apps={apps} />;
-                        case 'students': return <DataTable type="student" data={students} />;
-                        case 'teachers': return <DataTable type="teacher" data={teachers} />;
-                        default: return <Dashboard role={userData.role} apps={apps} students={students} teachers={teachers} setView={setView} />;
+                        case 'students': return <DataTable type="student" data={students} currentUserRole={userData.role} />;
+                        case 'teachers': return <DataTable type="teacher" data={teachers} currentUserRole={userData.role} />;
+                        default: return <Dashboard userData={userData} apps={apps} students={students} teachers={teachers} tasks={tasks} setView={setView} />;
                       }
                    })()}
                 </main>
@@ -265,55 +232,335 @@
           );
         }
 
-        // --- SUB COMPONENTS (SAMA SEPERTI REACT ASAL) ---
+        // --- WEEKLY REPORT MANAGER ---
+        function WeeklyReportManager({ userData, reports, teachers, currentUid }) {
+            const [mode, setMode] = useState('list'); 
+            const [formData, setFormData] = useState(null);
+            const [expandedWeeks, setExpandedWeeks] = useState({});
+            const [reportToDelete, setReportToDelete] = useState(null);
 
-        function LoginScreen({ onGoogleLogin }) {
+            const suggestions = [
+                "Perhimpunan Rasmi Mingguan dijalankan.",
+                "Nyanyian lagu Negaraku, Melaka Maju Jaya & Sekolah.",
+                "Bacaan Doa dan Ikrar Rukun Negara.",
+                "Ucapan Guru Bertugas Mingguan.",
+                "Ucapan Guru Besar / Pentadbir.",
+                "Sesi PdP berjalan lancar mengikut jadual.",
+                "Program NILAM di dataran perhimpunan.",
+                "Senamrobik / Aktiviti 1M1S dijalankan.",
+                "Waktu rehat terkawal dan murid beratur tertib.",
+                "Semua murid bersurai dalam keadaan baik."
+            ];
+            
+            const initialForm = {
+                week: '', date: new Date().toISOString().split('T')[0], day: '',
+                teachersOnDuty: [{ name: userData.name, note: 'Hadir' }], 
+                teachersAbsent: [],
+                activities: '',
+                attendance: { d1: '', d2: '', d3: '', d4: '', d5: '', d6: '', pk: '', pra: '' },
+                checks: {
+                    kantin: { level: 'Baik', comment: '' },
+                    makanan: { level: 'Baik', comment: '' },
+                    sekolah: { level: 'Baik', comment: '' },
+                    tandas: { level: 'Baik', comment: '' }
+                },
+                health: '', other: '',
+                preparedBy: userData.name,
+                verifiedBy: '', verifiedAt: null, verifiedId: null 
+            };
+
+            const groupedReports = reports.reduce((acc, r) => {
+                const w = r.week ? r.week.toString() : 'Lain-lain';
+                if (!acc[w]) acc[w] = [];
+                acc[w].push(r);
+                return acc;
+            }, {});
+
+            const sortedWeeks = Object.keys(groupedReports).sort((a, b) => {
+                if(a === 'Lain-lain') return 1;
+                if(b === 'Lain-lain') return -1;
+                return parseInt(b) - parseInt(a);
+            });
+
+            const toggleWeek = (weekNum) => {
+                setExpandedWeeks(prev => ({...prev, [weekNum]: !prev[weekNum]}));
+            };
+
+            const handleAddNew = () => { setFormData(initialForm); setMode('form'); };
+
+            const handleDuplicate = (originalReport) => {
+                const { id, createdAt, createdBy, verifiedBy, verifiedAt, verifiedId, ...cleanData } = originalReport;
+                const newData = {
+                    ...cleanData,
+                    date: new Date().toISOString().split('T')[0],
+                    preparedBy: userData.name
+                };
+                setFormData(newData);
+                setMode('form');
+                alert("Laporan disalin. Sila kemaskini Tarikh dan Hari sebelum simpan.");
+            };
+
+            const handleSave = async () => {
+                if(!formData.week || !formData.date) return alert("Sila isi Minggu dan Tarikh.");
+                const dataToSave = { ...formData, teachersAbsent: formData.teachersAbsent || [] };
+                
+                if (formData.id) {
+                    await updateDoc(doc(db, 'portal_reports', formData.id), { ...dataToSave, updatedAt: new Date().toISOString() });
+                    alert("Laporan dikemaskini.");
+                } else {
+                    await addDoc(collection(db, 'portal_reports'), { ...dataToSave, createdBy: currentUid, createdAt: new Date().toISOString() });
+                    alert("Laporan disimpan!");
+                }
+                setMode('list');
+            };
+
+            const handleVerify = async () => {
+                if(confirm("Sahkan laporan ini sebagai Pentadbir?")) {
+                    const verifierName = userData.name || userData.email || "Pentadbir";
+                    const verifiedData = { verifiedBy: verifierName, verifiedAt: new Date().toISOString(), verifiedId: currentUid };
+                    setFormData(prev => ({ ...prev, ...verifiedData }));
+                    if (formData.id) {
+                        try {
+                            await updateDoc(doc(db, 'portal_reports', formData.id), verifiedData);
+                            alert("Laporan telah disahkan oleh " + verifierName + ".");
+                        } catch (e) {
+                            console.error("Ralat pengesahan:", e);
+                            alert("Ralat sistem: Gagal mengemaskini status pengesahan.");
+                        }
+                    } else {
+                        alert("Status disahkan. Sila tekan butang 'Simpan Laporan' untuk merekodkan data baru ini.");
+                    }
+                }
+            };
+
+            const requestDelete = (id, ownerId, e) => {
+                if(e) e.stopPropagation();
+                if(userData.role !== 'admin' && ownerId !== currentUid) return alert("Anda tiada hak memadam laporan ini.");
+                setReportToDelete(id);
+            };
+
+            const executeDeleteReport = async () => {
+                if (reportToDelete) {
+                    try {
+                        await deleteDoc(doc(db, 'portal_reports', reportToDelete));
+                        setReportToDelete(null); 
+                    } catch (error) {
+                        console.error("Gagal memadam:", error);
+                        alert("Ralat semasa memadam laporan.");
+                    }
+                }
+            };
+
+            const handlePrint = () => { window.print(); };
+
+            const insertSuggestion = (text) => {
+                setFormData(prev => ({ ...prev, activities: prev.activities ? prev.activities + '\n• ' + text : '• ' + text }));
+            };
+
+            if(mode === 'list') return (
+                <div className="space-y-6 h-full flex flex-col relative">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><FileText className="w-6 h-6 text-indigo-600"/> Arkib Laporan Mingguan</h2>
+                        <button onClick={handleAddNew} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold shadow-md hover:bg-indigo-700 flex items-center gap-2"><Plus className="w-4 h-4"/> Laporan Baru</button>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+                        {sortedWeeks.length === 0 ? (
+                            <div className="p-12 text-center border-2 border-dashed border-slate-200 rounded-xl text-slate-400">
+                                <p className="mb-2">Tiada laporan direkodkan.</p>
+                                <button onClick={handleAddNew} className="text-indigo-600 font-bold hover:underline">Buat Laporan Pertama</button>
+                            </div>
+                        ) : (
+                            sortedWeeks.map(weekNum => {
+                                const weekReports = groupedReports[weekNum];
+                                const isOpen = expandedWeeks[weekNum];
+                                return (
+                                    <div key={weekNum} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden transition-all">
+                                        <div onClick={() => toggleWeek(weekNum)} className={`p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition-colors ${isOpen ? 'bg-indigo-50/50 border-b border-indigo-100' : ''}`}>
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-sm ${isOpen ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{weekNum === 'Lain-lain' ? '?' : weekNum}</div>
+                                                <div><h3 className={`font-bold text-lg ${isOpen ? 'text-indigo-900' : 'text-slate-700'}`}>Minggu {weekNum === 'Lain-lain' ? 'Umum' : weekNum}</h3><p className="text-xs text-slate-500 font-medium">{weekReports.length} Laporan Harian</p></div>
+                                            </div>
+                                            <ChevronRight className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`}/>
+                                        </div>
+                                        {isOpen && (
+                                            <div className="bg-slate-50/50 divide-y divide-slate-100 animate-fade-in">
+                                                 <div className="grid grid-cols-12 px-4 py-2 bg-slate-100/50 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                                    <div className="col-span-2">Hari / Tarikh</div>
+                                                    <div className="col-span-4">Guru Bertugas</div>
+                                                    <div className="col-span-3">Status</div>
+                                                    <div className="col-span-3 text-right">Tindakan</div>
+                                                 </div>
+                                                {weekReports.map(r => (
+                                                    <div key={r.id} className="grid grid-cols-12 px-4 py-3 items-center hover:bg-white transition-colors text-sm border-l-4 border-transparent hover:border-indigo-500">
+                                                        <div className="col-span-2"><span className="block font-bold text-slate-700">{r.day || '-'}</span><span className="text-xs text-slate-500 font-mono">{new Date(r.date).toLocaleDateString('ms-MY')}</span></div>
+                                                        <div className="col-span-4 text-slate-600 text-xs line-clamp-2">{r.teachersOnDuty.map(t=>t.name).join(', ')}</div>
+                                                        <div className="col-span-3">{r.verifiedBy ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200"><CheckCircle className="w-3 h-3"/> Disahkan</span> : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold border border-amber-200"><Clock className="w-3 h-3"/> Pending</span>}</div>
+                                                        <div className="col-span-3 text-right flex justify-end gap-2">
+                                                            <button onClick={()=>handleDuplicate(r)} className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded" title="Salin"><ClipboardList className="w-4 h-4"/></button>
+                                                            <button onClick={()=>{setFormData({...initialForm, ...r}); setMode('form');}} className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded" title="Edit"><Edit3 className="w-4 h-4"/></button>
+                                                            {(userData.role === 'admin' || r.createdBy === currentUid) && (
+                                                                <button onClick={(e)=>requestDelete(r.id, r.createdBy, e)} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded" title="Padam"><Trash2 className="w-4 h-4"/></button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                    {reportToDelete && (
+                        <ConfirmModal title="Padam Laporan?" msg="Adakah anda pasti mahu memadam laporan ini? Tindakan ini tidak boleh diundur." onConfirm={executeDeleteReport} onCancel={() => setReportToDelete(null)} />
+                    )}
+                </div>
+            );
+
+            return (
+                <div className="max-w-4xl mx-auto space-y-6">
+                    <div className="flex justify-between items-center no-print sticky top-0 bg-[#F8FAFC] py-4 z-20 border-b border-slate-200">
+                        <button onClick={()=>setMode('list')} className="text-slate-500 hover:text-indigo-600 font-bold flex items-center gap-1 bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-sm"><ChevronLeft className="w-4 h-4"/> Kembali ke Senarai</button>
+                        <div className="flex gap-2">
+                             {(userData.role === 'pentadbir' || userData.role === 'admin') && !formData.verifiedBy && (
+                                <button onClick={handleVerify} className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-emerald-700 flex items-center gap-2 animate-pulse"><CheckCircle className="w-4 h-4"/> Sahkan</button>
+                             )}
+                            <button onClick={handlePrint} className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg font-bold hover:bg-slate-200 flex items-center gap-2"><Printer className="w-4 h-4"/> Cetak</button>
+                            <button onClick={handleSave} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg hover:bg-indigo-700 flex items-center gap-2"><Save className="w-4 h-4"/> Simpan Laporan</button>
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-8 md:p-12 shadow-lg border border-slate-200 print-container" id="report-print">
+                        <div className="text-center border-b-2 border-slate-800 pb-4 mb-6">
+                            <h1 className="text-2xl font-bold uppercase tracking-wide">SK Masjid Tanah (Integ)</h1>
+                            <p className="text-sm text-slate-600">78300 Masjid Tanah, Melaka</p>
+                            <h2 className="text-xl font-bold mt-4 uppercase underline decoration-2 underline-offset-4">Laporan Harian Guru Bertugas</h2>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4 mb-6 border border-slate-300 p-4 rounded-lg bg-slate-50/50">
+                            <div><label className="text-xs font-bold uppercase text-slate-500 block mb-1">Hari</label><select className="w-full bg-transparent font-bold border-b border-slate-300 outline-none" value={formData.day} onChange={e=>setFormData({...formData, day:e.target.value})}><option value="">Pilih Hari</option><option>Isnin</option><option>Selasa</option><option>Rabu</option><option>Khamis</option><option>Jumaat</option></select></div>
+                            <div><label className="text-xs font-bold uppercase text-slate-500 block mb-1">Tarikh</label><input type="date" className="w-full bg-transparent font-bold border-b border-slate-300 outline-none" value={formData.date} onChange={e=>setFormData({...formData, date:e.target.value})}/></div>
+                            <div><label className="text-xs font-bold uppercase text-slate-500 block mb-1">Minggu</label><input type="number" className="w-full bg-transparent font-bold border-b border-slate-300 outline-none" placeholder="Contoh: 41" value={formData.week} onChange={e=>setFormData({...formData, week:e.target.value})}/></div>
+                        </div>
+
+                        <div className="mb-6">
+                            <div className="flex justify-between items-center mb-2"><h3 className="font-bold text-sm uppercase bg-slate-100 px-2 py-1 inline-block">Guru Bertugas</h3><button onClick={()=>setFormData({...formData, teachersOnDuty: [...formData.teachersOnDuty, {name:'', note:''}]})} className="text-xs text-blue-600 hover:underline no-print">+ Tambah Guru</button></div>
+                            <table className="w-full text-sm border-collapse border border-slate-300 mb-6">
+                                <thead><tr className="bg-slate-100"><th className="border border-slate-300 p-2 w-10">Bil</th><th className="border border-slate-300 p-2">Nama Guru</th><th className="border border-slate-300 p-2 w-1/3">Catatan / Kawasan</th><th className="border border-slate-300 p-2 w-10 no-print"></th></tr></thead>
+                                <tbody>
+                                    {formData.teachersOnDuty.map((t, idx) => (
+                                        <tr key={idx}>
+                                            <td className="border border-slate-300 p-2 text-center">{idx+1}</td>
+                                            <td className="border border-slate-300 p-2"><select className="w-full outline-none bg-transparent" value={t.name} onChange={(e)=>{const newT = [...formData.teachersOnDuty]; newT[idx].name = e.target.value; setFormData({...formData, teachersOnDuty: newT});}}><option value="">Pilih Guru</option>{teachers.map(teacher => <option key={teacher.id} value={teacher.name}>{teacher.name}</option>)}</select></td>
+                                            <td className="border border-slate-300 p-2"><input className="w-full outline-none bg-transparent" placeholder="Pintu Pagar / Kantin / Dewan" value={t.note} onChange={(e)=>{const newT = [...formData.teachersOnDuty]; newT[idx].note = e.target.value; setFormData({...formData, teachersOnDuty: newT});}}/></td>
+                                            <td className="border border-slate-300 p-2 text-center no-print"><button onClick={()=>{const newT = formData.teachersOnDuty.filter((_, i) => i !== idx); setFormData({...formData, teachersOnDuty: newT});}} className="text-red-500 hover:bg-red-50 p-1 rounded"><X size={14}/></button></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            
+                            <div className="flex justify-between items-center mb-2 mt-4"><h3 className="font-bold text-sm uppercase bg-red-50 text-red-700 px-2 py-1 inline-block">Guru Tidak Hadir</h3><button onClick={()=>setFormData({...formData, teachersAbsent: [...(formData.teachersAbsent||[]), {name:'', note:''}]})} className="text-xs text-blue-600 hover:underline no-print">+ Tambah Guru Tidak Hadir</button></div>
+                            <table className="w-full text-sm border-collapse border border-slate-300">
+                                <thead><tr className="bg-red-50"><th className="border border-slate-300 p-2 w-10">Bil</th><th className="border border-slate-300 p-2">Nama Guru</th><th className="border border-slate-300 p-2 w-1/3">Sebab</th><th className="border border-slate-300 p-2 w-10 no-print"></th></tr></thead>
+                                <tbody>
+                                    {(formData.teachersAbsent || []).length === 0 ? <tr><td colSpan="4" className="border border-slate-300 p-2 text-center text-slate-400 italic">Tiada guru tidak hadir.</td></tr> : (formData.teachersAbsent || []).map((t, idx) => (
+                                        <tr key={idx}>
+                                            <td className="border border-slate-300 p-2 text-center">{idx+1}</td>
+                                            <td className="border border-slate-300 p-2"><select className="w-full outline-none bg-transparent" value={t.name} onChange={(e)=>{const newT = [...(formData.teachersAbsent||[])]; newT[idx].name = e.target.value; setFormData({...formData, teachersAbsent: newT});}}><option value="">Pilih Guru</option>{teachers.map(teacher => <option key={teacher.id} value={teacher.name}>{teacher.name}</option>)}</select></td>
+                                            <td className="border border-slate-300 p-2"><input className="w-full outline-none bg-transparent" placeholder="MC / CRK / Kursus" value={t.note} onChange={(e)=>{const newT = [...(formData.teachersAbsent||[])]; newT[idx].note = e.target.value; setFormData({...formData, teachersAbsent: newT});}}/></td>
+                                            <td className="border border-slate-300 p-2 text-center no-print"><button onClick={()=>{const newT = (formData.teachersAbsent||[]).filter((_, i) => i !== idx); setFormData({...formData, teachersAbsent: newT});}} className="text-red-500 hover:bg-red-50 p-1 rounded"><X size={14}/></button></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="mb-6">
+                            <h3 className="font-bold text-sm uppercase bg-slate-100 px-2 py-1 inline-block mb-2">Aktiviti Harian / Laporan Perhimpunan</h3>
+                            <div className="mb-2 flex flex-wrap gap-1 no-print bg-indigo-50 p-2 rounded border border-indigo-100"><span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wide mr-2 self-center">Cadangan (Klik untuk masukkan):</span>{suggestions.map((text, i) => (<button key={i} onClick={() => insertSuggestion(text)} className="bg-white hover:bg-indigo-600 hover:text-white text-indigo-700 text-[10px] px-2 py-1 rounded border border-indigo-200 shadow-sm transition-colors">+ {text.split(' ').slice(0, 3).join(' ')}...</button>))}</div>
+                            <textarea className="w-full border border-slate-300 rounded p-3 text-sm h-32 resize-none focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="1. Murid masuk ke kelas dengan tertib..." value={formData.activities} onChange={e=>setFormData({...formData, activities:e.target.value})}></textarea>
+                        </div>
+
+                        <div className="mb-6">
+                            <h3 className="font-bold text-sm uppercase bg-slate-100 px-2 py-1 inline-block mb-2">Kehadiran Murid</h3>
+                            <div className="grid grid-cols-8 border border-slate-300 text-center text-sm">{['D1','D2','D3','D4','D5','D6','PK','PRA'].map(cls => (<div key={cls} className="border-r border-slate-300 last:border-r-0"><div className="bg-slate-100 font-bold p-1 border-b border-slate-300">{cls}</div><input className="w-full p-2 text-center outline-none" placeholder="0/0" value={formData.attendance[cls.toLowerCase()]} onChange={e=>setFormData({...formData, attendance: {...formData.attendance, [cls.toLowerCase()]: e.target.value}})}/></div>))}</div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-6 mb-6">
+                            {Object.entries({kantin:'Kantin Sekolah', makanan:'Kualiti Makanan', sekolah:'Persekitaran Sekolah', tandas:'Kebersihan Tandas'}).map(([key, label]) => (
+                                <div key={key} className="border border-slate-300 rounded p-3">
+                                    <h4 className="font-bold text-xs uppercase mb-2 text-slate-700">{label}</h4>
+                                    <select className="w-full border border-slate-300 rounded p-2 text-sm mb-2 outline-none bg-white focus:border-indigo-500" value={formData.checks[key].level} onChange={e=>setFormData({...formData, checks: {...formData.checks, [key]: {...formData.checks[key], level: e.target.value}}})}><option value="Cemerlang">Cemerlang</option><option value="Baik">Baik</option><option value="Sederhana">Sederhana</option><option value="Lemah">Lemah</option></select>
+                                    <input className="w-full text-xs border-b border-slate-200 outline-none py-1 italic text-slate-500" placeholder="Komen / Catatan..." value={formData.checks[key].comment} onChange={e=>setFormData({...formData, checks: {...formData.checks, [key]: {...formData.checks[key], comment: e.target.value}}})}/>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-6 mb-8">
+                            <div><h3 className="font-bold text-sm uppercase bg-slate-100 px-2 py-1 inline-block mb-2">Murid Ke Klinik / Sakit</h3><textarea className="w-full border border-slate-300 rounded p-2 text-sm h-20 resize-none outline-none" value={formData.health} onChange={e=>setFormData({...formData, health:e.target.value})} placeholder="Senarai nama murid..."></textarea></div>
+                            <div><h3 className="font-bold text-sm uppercase bg-slate-100 px-2 py-1 inline-block mb-2">Hal-hal Lain</h3><textarea className="w-full border border-slate-300 rounded p-2 text-sm h-20 resize-none outline-none" value={formData.other} onChange={e=>setFormData({...formData, other:e.target.value})} placeholder="Catatan tambahan..."></textarea></div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-12 mt-12 pt-4">
+                            <div className="text-center"><p className="text-sm font-bold border-b border-black mb-1 pb-1">{formData.preparedBy}</p><p className="text-xs text-slate-500 uppercase">Disediakan Oleh (Guru Bertugas)</p></div>
+                            <div className="text-center"><p className="text-sm font-bold border-b border-black mb-1 pb-1 text-slate-900 min-h-[20px]">{formData.verifiedBy || '.'}</p><p className="text-xs text-slate-500 uppercase">Disahkan Oleh (Pentadbir) {formData.verifiedAt && <span className="block text-[10px] normal-case mt-1 text-emerald-600">(Disahkan pada {new Date(formData.verifiedAt).toLocaleDateString()})</span>}</p></div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- COMPONENTS ---
+
+        function LoginScreen({ onGoogleLogin, onDemoLogin }) {
           return (
-            <div className="min-h-screen flex bg-white animate-fade-in">
-              <div className="hidden lg:flex w-5/12 bg-slate-900 p-12 flex-col justify-between relative overflow-hidden">
-                 <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600 rounded-full blur-[80px] opacity-20 -translate-y-1/2 translate-x-1/2"></div>
-                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600 rounded-full blur-[80px] opacity-20 translate-y-1/2 -translate-x-1/2"></div>
-                 <div className="relative z-10"><div className="flex items-center gap-3 mb-6"><div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg"><LayoutDashboard className="w-6 h-6"/></div><span className="text-xl font-bold text-white tracking-tight">MainApp</span></div><h1 className="text-4xl font-bold text-white leading-tight mb-4">Portal Sekolah<br/>Selamat & Pintar</h1><p className="text-slate-400 text-lg">Log masuk menggunakan akaun Google rasmi anda.</p></div>
-                 <div className="relative z-10 text-xs text-slate-600">Sistem dijana oleh Firebase Auth</div>
-              </div>
-              <div className="w-full lg:w-7/12 flex items-center justify-center p-8 bg-slate-50">
-                 <div className="max-w-md w-full bg-white p-10 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 text-center">
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 animate-fade-in">
+                 <div className="max-w-md w-full bg-white p-10 rounded-2xl shadow-xl border border-slate-100 text-center">
                     <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600"><Lock className="w-8 h-8"/></div>
                     <h2 className="text-2xl font-bold text-slate-800 mb-2">Selamat Datang</h2>
-                    <p className="text-slate-500 mb-8">Akses akaun anda dengan selamat.</p>
-                    <button onClick={onGoogleLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all group shadow-sm">
+                    <p className="text-slate-500 mb-8">Portal Sekolah Digital</p>
+                    <button onClick={onGoogleLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all group shadow-sm mb-6">
                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6" alt="Google" />
-                       <span className="font-bold text-slate-700">Teruskan dengan Google</span>
+                       <span className="font-bold text-slate-700">Log Masuk Google</span>
                     </button>
-                    <p className="mt-6 text-xs text-slate-400 max-w-xs mx-auto">
-                       Hanya e-mel yang didaftarkan oleh Admin sahaja dibenarkan akses.
-                    </p>
+                    <div className="border-t border-slate-100 pt-6">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Mod Demo (Semakan)</p>
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                             <button onClick={() => onDemoLogin('admin')} className="p-2 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold hover:bg-indigo-100">Admin (Sistem)</button>
+                             <button onClick={() => onDemoLogin('pentadbir')} className="p-2 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100">Pentadbir (Semakan)</button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                             <button onClick={() => onDemoLogin('guru')} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold hover:bg-emerald-100">Guru</button>
+                             <button onClick={() => onDemoLogin('murid')} className="p-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100">Murid</button>
+                        </div>
+                    </div>
                  </div>
-              </div>
             </div>
           );
         }
 
         function Sidebar({ userData, view, setView, logout }) {
           const menus = [
-             { id: 'dashboard', l: 'Utama', i: LayoutDashboard, admin: false },
-             { id: 'apps', l: 'Aplikasi', i: MonitorPlay, admin: false },
-             { id: 'builder', l: 'Bina App', i: Code2, admin: true },
-             { id: 'students', l: 'Data Murid', i: GraduationCap, admin: true },
-             { id: 'teachers', l: 'Data Guru', i: Users, admin: true },
+             { id: 'dashboard', l: 'Utama', i: LayoutDashboard },
+             { id: 'apps', l: 'Aplikasi', i: MonitorPlay },
+             { id: 'takwim', l: 'Takwim', i: CalendarDays },
+             { id: 'tasks', l: 'Tugasan', i: ClipboardList },
+             { id: 'reports', l: 'Laporan', i: FileText },
+             { id: 'builder', l: 'Bina App', i: Code2, access: ['admin'] },
+             { id: 'students', l: 'Data Murid', i: GraduationCap, access: ['admin', 'pentadbir'] },
+             { id: 'teachers', l: 'Data Guru', i: Users, access: ['admin', 'pentadbir'] },
           ];
           return (
-             <aside className="w-20 md:w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 z-20">
+             <aside className="w-20 md:w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 z-20 no-print">
                 <div className="h-16 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-100"><div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">S</div><span className="ml-3 font-bold text-xl text-slate-800 hidden md:block">SistemApp</span></div>
                 <div className="p-4 border-b border-slate-100 flex items-center gap-3">
                    <img src={userData.photo || "https://ui-avatars.com/api/?name="+userData.name} className="w-10 h-10 rounded-full border border-slate-200" alt="Avatar"/>
                    <div className="hidden md:block overflow-hidden"><p className="text-sm font-bold text-slate-700 truncate">{userData.name}</p><p className="text-xs text-slate-500 uppercase font-bold tracking-wider">{userData.role}</p></div>
                 </div>
-                <nav className="p-2 md:p-4 space-y-1 flex-1">
+                <nav className="p-2 md:p-4 space-y-1 flex-1 overflow-y-auto">
                    {menus.map(m => {
-                      if (m.admin && userData.role !== 'admin') return null;
-                      const active = view === m.id;
-                      return <button key={m.id} onClick={() => setView(m.id)} title={m.l} className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${active ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}><m.i className={`w-5 h-5 ${active ? 'text-indigo-600' : 'text-slate-400'}`} /><span className="hidden md:block">{m.l}</span></button>
+                      if (m.access && !m.access.includes(userData.role)) return null;
+                      return <button key={m.id} onClick={() => setView(m.id)} title={m.l} className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${view === m.id ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}><m.i className={`w-5 h-5 ${view === m.id ? 'text-indigo-600' : 'text-slate-400'}`} /><span className="hidden md:block">{m.l}</span></button>
                    })}
                 </nav>
                 <div className="p-4 border-t border-slate-100"><button onClick={logout} className="flex items-center justify-center md:justify-start gap-3 text-slate-400 hover:text-red-600 hover:bg-red-50 text-sm font-medium w-full px-3 py-3 rounded-lg transition-colors"><LogOut className="w-5 h-5" /><span className="hidden md:block">Keluar</span></button></div>
@@ -323,129 +570,309 @@
 
         function Header({ userData, view }) {
            return (
-              <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm z-10">
+              <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm z-10 no-print">
                  <h2 className="font-bold text-lg capitalize text-slate-800 flex items-center gap-2">{view}</h2>
                  <span className="text-xs font-bold uppercase text-white bg-indigo-600 px-3 py-1 rounded-full tracking-wider shadow-sm">{userData.role}</span>
               </header>
            )
         }
 
-        function Dashboard({ role, apps, students, teachers, setView }) {
-          const showStats = role === 'admin' || role === 'guru';
+        function Dashboard({ userData, apps, students, teachers, tasks, setView }) {
+          const role = userData.role;
+          const showStats = ['admin', 'pentadbir', 'guru'].includes(role);
           const stats = [
             { label: 'Aplikasi', val: apps.length, i: LayoutDashboard, c: 'text-blue-600', b: 'bg-blue-50' },
             { label: 'Murid', val: showStats ? students.length : '-', i: GraduationCap, c: 'text-emerald-600', b: 'bg-emerald-50' },
             { label: 'Guru', val: showStats ? teachers.length : '-', i: Users, c: 'text-indigo-600', b: 'bg-indigo-50' },
           ];
+
           return (
             <div className="max-w-6xl mx-auto space-y-8 animate-fade-in">
-               <div className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm"><h2 className="text-2xl font-bold text-slate-800 mb-2">Hai, {role}!</h2><p className="text-slate-500">Selamat datang ke papan pemuka.</p></div>
+               <div className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm"><h2 className="text-2xl font-bold text-slate-800 mb-2">Hai, {userData.name}!</h2><p className="text-slate-500">Selamat datang ke papan pemuka.</p></div>
                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">{stats.map((s, i) => (<div key={i} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4"><div className={`w-14 h-14 rounded-full flex items-center justify-center ${s.b} ${s.c}`}><s.i className="w-7 h-7" /></div><div><p className="text-sm font-medium text-slate-500">{s.label}</p><h3 className="text-3xl font-bold text-slate-800">{s.val}</h3></div></div>))}</div>
-               <div>
-                  <div className="flex items-center justify-between mb-6"><h3 className="text-lg font-bold text-slate-800">Aplikasi</h3><button onClick={() => setView('apps')} className="text-sm text-indigo-600 hover:underline">Lihat Semua</button></div>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">{apps.slice(0, 4).map(app => (<div key={app.id} onClick={() => setView('apps')} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md cursor-pointer"><h4 className="font-bold text-slate-800 mb-1">{app.title}</h4><p className="text-sm text-slate-500 line-clamp-2">{app.desc}</p></div>))}</div>
+               
+               <div className="bg-white rounded-xl border border-slate-200 p-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-bold text-slate-800 flex items-center gap-2"><Clock className="w-5 h-5 text-indigo-600"/> Tugasan Semasa</h3>
+                        <button onClick={()=>setView('tasks')} className="text-xs text-indigo-600 hover:underline">Lihat Semua</button>
+                    </div>
+                    {tasks.length === 0 ? <p className="text-slate-400 text-sm">Tiada tugasan aktif.</p> : 
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {tasks.slice(0, 6).map(task => {
+                                const diff = new Date(task.deadline) - new Date();
+                                const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                                const isUrgent = days <= 3 && days >= 0;
+                                const isAdminTask = ['admin','pentadbir','Guru Besar'].includes(task.assignedByRole);
+                                return (
+                                    <div key={task.id} className={`p-4 rounded-lg border ${isUrgent ? 'border-red-200 bg-red-50' : 'border-slate-100 bg-slate-50'} relative`}>
+                                        {isAdminTask && <span className="absolute top-2 right-2 text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full">Arahan Pentadbir</span>}
+                                        <h4 className="font-bold text-slate-800 text-sm mb-1">{task.title}</h4>
+                                        <p className="text-xs text-slate-500 mb-3">Oleh: {task.assignedBy}</p>
+                                        <div className="flex items-center gap-2 text-xs font-bold">
+                                            <Clock className={`w-3 h-3 ${isUrgent ? 'text-red-500' : 'text-slate-400'}`}/>
+                                            <span className={isUrgent ? 'text-red-600' : 'text-slate-600'}>{days < 0 ? 'Tamat Tempoh' : `${days} hari lagi`}</span>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    }
                </div>
+
+               <div>
+                  <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-bold text-slate-800">Aplikasi Pilihan</h3><button onClick={() => setView('apps')} className="text-sm text-indigo-600 hover:underline">Lihat Semua</button></div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">{apps.slice(0, 4).map(app => (<div key={app.id} onClick={() => setView('apps')} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md cursor-pointer"><h4 className="font-bold text-slate-800 mb-1">{app.title}</h4><p className="text-sm text-slate-500 line-clamp-2">{app.desc}</p></div>))}</div>
+               </div>
+
+               <TakwimManager canEdit={['admin', 'pentadbir', 'guru'].includes(role)} role={role} currentUid={userData.uid} />
             </div>
           );
         }
 
-        // --- DATA TABLES ---
-        function DataTable({ type, data }) {
-          const [newRec, setNewRec] = useState({});
-          const col = type === 'student' ? 'portal_students' : 'portal_teachers';
-          const add = async (e) => { e.preventDefault(); if(newRec.name) { await addDoc(collection(db, col), newRec); setNewRec({}); } };
-          const del = async (id) => { if(confirm("Padam?")) await deleteDoc(doc(db, col, id)); };
-          return (<div className="grid lg:grid-cols-4 gap-8"><div className="bg-white p-6 rounded-xl border border-slate-200 h-fit"><h3 className="font-bold mb-4">Daftar {type}</h3><form onSubmit={add} className="space-y-4"><input className="inp" required value={newRec.name||''} onChange={e=>setNewRec({...newRec, name:e.target.value})} placeholder="Nama"/>{type==='student'?<input className="inp" required value={newRec.class||''} onChange={e=>setNewRec({...newRec, class:e.target.value})} placeholder="Kelas"/>:<><input className="inp" required value={newRec.email||''} onChange={e=>setNewRec({...newRec, email:e.target.value})} placeholder="Email"/><input className="inp" required value={newRec.role||''} onChange={e=>setNewRec({...newRec, role:e.target.value})} placeholder="Jawatan"/></>}<button className="w-full bg-slate-900 text-white py-2 rounded-lg font-bold">Simpan</button></form></div><div className="lg:col-span-3 bg-white rounded-xl border border-slate-200 overflow-hidden"><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-slate-500 uppercase text-xs font-bold"><tr><th className="p-4">Nama</th><th className="p-4">Info</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody className="divide-y divide-slate-100">{data.map(d=>(<tr key={d.id} className="hover:bg-slate-50"><td className="p-4 font-bold text-slate-700">{d.name}</td><td className="p-4 text-slate-500">{type==='student'?d.class:d.email}</td><td className="p-4 text-right"><button onClick={()=>del(d.id)} className="text-red-500"><Trash2 className="w-4 h-4"/></button></td></tr>))}</tbody></table></div></div>);
+        function TaskManager({ userData, tasks, currentUid }) {
+            const isStaff = ['admin', 'pentadbir', 'guru'].includes(userData.role);
+            const [form, setForm] = useState({ title: '', deadline: '', assignTo: 'Semua Guru' });
+            
+            const addTask = async () => { 
+                if(!form.title || !form.deadline) return alert("Sila isi maklumat."); 
+                // Pentadbir/Admin dianggap sebagai 'Guru Besar' / 'Pentadbir' untuk label
+                const assignedByRole = ['admin', 'pentadbir'].includes(userData.role) ? 'Guru Besar' : 'Guru';
+                await addDoc(collection(db, 'portal_tasks'), { 
+                    ...form, 
+                    assignedBy: userData.name, 
+                    assignedByRole, 
+                    createdAt: new Date().toISOString(), 
+                    createdBy: currentUid 
+                }); 
+                setForm({ title: '', deadline: '', assignTo: 'Semua Guru' }); 
+                alert("Tugasan dihantar."); 
+            };
+            
+            const deleteTask = async (id) => { if(confirm("Padam tugasan?")) await deleteDoc(doc(db, 'portal_tasks', id)); }
+            
+            return (<div className="grid lg:grid-cols-3 gap-6 h-[calc(100vh-140px)]"><div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col"><div className="p-4 border-b border-slate-100 bg-slate-50 font-bold text-slate-700">Senarai Tugasan</div><div className="flex-1 overflow-y-auto p-4 space-y-3">{tasks.map(task => { const isGB = task.assignedByRole === 'Guru Besar'; const canDelete = userData.role === 'admin' || task.createdBy === currentUid; return (<div key={task.id} className={`p-4 rounded-xl border flex justify-between items-start ${isGB ? 'bg-indigo-50 border-indigo-100' : 'bg-white border-slate-100'}`}><div><div className="flex items-center gap-2 mb-1">{isGB && <span className="bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase">PENTADBIR</span>}<span className="text-xs text-slate-500 font-medium">Kepada: {task.assignTo}</span></div><h4 className="font-bold text-slate-800 text-lg">{task.title}</h4><p className="text-xs text-slate-500 mt-1">Oleh: {task.assignedBy} • Tarikh Akhir: <b>{new Date(task.deadline).toLocaleDateString('ms-MY')}</b></p></div>{canDelete && <button onClick={()=>deleteTask(task.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button>}</div>)})}</div></div>{isStaff && (<div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 h-fit"><h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><Plus className="w-5 h-5 text-indigo-600"/> Tambah Tugasan</h3><div className="space-y-4"><div><label className="lbl">Arahan / Tugasan</label><textarea className="inp h-24 resize-none" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} placeholder="Contoh: Hantar RPH sebelum Jumaat"/></div><div><label className="lbl">Tarikh Akhir (Deadline)</label><input type="date" className="inp w-full" value={form.deadline} onChange={e=>setForm({...form, deadline:e.target.value})}/></div><div><label className="lbl">Sasaran</label><select className="inp w-full" value={form.assignTo} onChange={e=>setForm({...form, assignTo:e.target.value})}><option>Semua Guru</option><option>Ketua Panitia</option><option>Semua Murid</option><option>Pengawas</option></select></div><button onClick={addTask} className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-bold shadow-md hover:bg-indigo-700 transition">Hantar Arahan</button></div></div>)}</div>)
         }
 
-        // --- APP BUILDER ---
+        function TakwimManager({ canEdit, role, currentUid }) {
+            const [view, setView] = useState('month'); const [date, setDate] = useState(new Date(2026, 0, 1)); const [events, setEvents] = useState([]); const [selectedDate, setSelectedDate] = useState(null); const [newEvent, setNewEvent] = useState({ title: '', unit: '' });
+            useEffect(() => { const unsub = onSnapshot(query(collection(db, 'portal_events')), s => { setEvents(s.docs.map(d => ({ id: d.id, ...d.data() }))); }); return () => unsub(); }, []);
+            const allEvents = [...KPM_EVENTS, ...events];
+            const handleCellClick = (d) => { if (canEdit) { setSelectedDate(d); setNewEvent({ title: '', unit: '' }); } };
+            const addEvent = async () => { if(!newEvent.title) return alert("Sila isi nama program."); const dateStr = selectedDate.toISOString().split('T')[0]; await addDoc(collection(db, 'portal_events'), { title: newEvent.title, unit: newEvent.unit, start: dateStr, end: dateStr, type: 'event', createdBy: currentUid }); setSelectedDate(null); };
+            const deleteEvent = async (id, e) => { e.stopPropagation(); if(confirm("Padam aktiviti ini?")) await deleteDoc(doc(db, 'portal_events', id)); }
+            const getEventForDate = (d) => { const dStr = d.toISOString().split('T')[0]; return allEvents.filter(e => dStr >= e.start && dStr <= (e.end || e.start)); };
+            const renderMonth = (targetDate) => { const year = targetDate.getFullYear(); const month = targetDate.getMonth(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const firstDay = new Date(year, month, 1).getDay(); const blanks = Array(firstDay).fill(null); const days = Array.from({length: daysInMonth}, (_, i) => i + 1); return (<div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><div className="flex justify-between mb-4 items-center"><button onClick={()=>setDate(new Date(year, month-1, 1))}><ChevronLeft/></button><h3 className="font-bold text-lg uppercase text-slate-700">{targetDate.toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' })}</h3><button onClick={()=>setDate(new Date(year, month+1, 1))}><ChevronRight/></button></div><div className="grid grid-cols-7 gap-1 mb-2 text-center text-xs font-bold text-slate-400">{['A','I','S','R','K','J','S'].map(d=><div key={d}>{d}</div>)}</div><div className="grid grid-cols-7 gap-1">{blanks.map((_,i)=><div key={i}></div>)}{days.map(d => { const currentDay = new Date(year, month, d); const dailyEvents = getEventForDate(currentDay); const isSchool = dailyEvents.some(e => e.type === 'school'); const bgClass = isSchool ? 'bg-emerald-50' : 'bg-white hover:bg-slate-50'; return (<div key={d} onClick={() => handleCellClick(currentDay)} className={`min-h-[80px] border border-slate-100 rounded p-1 text-xs relative cursor-pointer transition-colors ${bgClass}`}><span className={`font-bold block mb-1 ${isSchool ? 'text-emerald-700' : 'text-slate-700'}`}>{d}</span><div className="space-y-1">{dailyEvents.map((ev, idx) => { if (ev.type === 'school') return null; const isHoliday = ev.type === 'holiday'; const canDelete = ev.type === 'event' && (role === 'admin' || ev.createdBy === currentUid); return (<div key={idx} className={`p-1 rounded text-[10px] leading-tight group relative ${isHoliday ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>{ev.title}{canDelete && (<button onClick={(e)=>deleteEvent(ev.id, e)} className="hidden group-hover:block absolute top-0 right-0 bg-red-500 text-white rounded-full p-0.5"><X size={8}/></button>)}</div>) })}</div></div>) })}</div></div>) };
+            return (<div className="space-y-6"><div className="flex justify-between items-center"><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><CalendarDays className="w-6 h-6 text-indigo-600"/> Takwim Sekolah</h3></div>{renderMonth(date)}<div className="flex gap-4 text-xs font-medium justify-center text-slate-600"><span className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-50 border border-emerald-200 rounded"></div> Sesi Sekolah</span><span className="flex items-center gap-2"><div className="w-3 h-3 bg-yellow-100 border border-yellow-200 rounded"></div> Cuti</span><span className="flex items-center gap-2"><div className="w-3 h-3 bg-blue-100 border border-blue-200 rounded"></div> Aktiviti</span></div>{selectedDate && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in"><div className="bg-white p-6 rounded-xl w-80 shadow-2xl"><h3 className="font-bold text-lg mb-4 text-slate-800">Tambah Aktiviti</h3><p className="text-xs text-slate-500 mb-4 font-mono">{selectedDate.toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p><div className="space-y-3"><div><label className="lbl">Nama Program</label><input autoFocus className="inp w-full" value={newEvent.title} onChange={e=>setNewEvent({...newEvent, title:e.target.value})} placeholder="Contoh: Mesyuarat Guru"/></div><div><label className="lbl">Unit / Panitia</label><input className="inp w-full" value={newEvent.unit} onChange={e=>setNewEvent({...newEvent, unit:e.target.value})} placeholder="Contoh: Kurikulum"/></div></div><div className="flex justify-end gap-2 mt-6"><button onClick={()=>setSelectedDate(null)} className="px-4 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-100">Batal</button><button onClick={addEvent} className="px-4 py-2 rounded text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700">Simpan</button></div></div></div>)}</div>)
+        }
+
         function AppBuilder({ apps }) {
           const [form, setForm] = useState({ title: '', desc: '', iconKey: 'portal', category: 'umum', type: 'link', content: '' });
           const [confirmDel, setConfirmDel] = useState(null);
           const handleSave = async () => { if(!form.title) return; await addDoc(collection(db, 'portal_apps'), form); setForm({...form, title:''}); alert("Disimpan!"); };
           const executeDelete = async () => { if(confirmDel) { await deleteDoc(doc(db, 'portal_apps', confirmDel)); setConfirmDel(null); } };
-          return (<div className="grid lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-8 bg-white rounded-xl border border-slate-200 p-6">
-                <h3 className="font-bold mb-4">Bina App</h3>
-                <div className="space-y-4">
-                    <input className="inp" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} placeholder="Tajuk"/>
-                    <textarea className="inp h-20" value={form.desc} onChange={e=>setForm({...form, desc:e.target.value})} placeholder="Deskripsi"/>
-                    <div className="flex gap-2">
-                        <button onClick={()=>setForm({...form, type:'link'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='link'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>Link</button>
-                        <button onClick={()=>setForm({...form, type:'html'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='html'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>HTML</button>
-                    </div>
-                    {form.type==='link'?<input className="inp" value={form.content} onChange={e=>setForm({...form, content:e.target.value})} placeholder="URL..."/>:<textarea className="inp h-40 font-mono text-xs bg-slate-900 text-green-400" value={form.content} onChange={e=>setForm({...form, content:e.target.value})} placeholder="HTML Code..."/>}
-                    
-                    {/* ICON SELECTOR */}
-                    <div className="flex gap-3 overflow-x-auto pb-4 pt-1">
-                        {Object.entries(ALL_ICONS).map(([k, d]) => (
-                            <button key={k} onClick={() => setForm({...form, iconKey: k})} className={`p-3 rounded-xl border transition-all flex-shrink-0 ${form.iconKey === k ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`} title={k}>
-                                <d.i className={`w-6 h-6 ${d.color}`}/>
-                            </button>
-                        ))}
-                    </div>
-
-                    <button onClick={handleSave} className="bg-indigo-600 text-white w-full py-2 rounded-lg font-bold">Terbitkan</button>
-                </div>
-            </div>
-            <div className="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-4">
-                <h3 className="font-bold text-sm mb-4">Senarai</h3>
-                {apps.map(a=>(
-                    <div key={a.id} className="flex justify-between items-center p-2 hover:bg-slate-50 border-b border-slate-100 last:border-0">
-                        <span className="text-sm font-bold truncate w-40">{a.title}</span>
-                        <button onClick={()=>setConfirmDel(a.id)} className="text-red-500"><Trash2 className="w-4 h-4"/></button>
-                    </div>
-                ))}
-            </div>
-            {confirmDel && <ConfirmModal title="Padam?" msg="Tiada undo." onConfirm={executeDelete} onCancel={()=>setConfirmDel(null)}/>}
-          </div>);
+          return (<div className="grid lg:grid-cols-12 gap-8"><div className="lg:col-span-8 bg-white rounded-xl border border-slate-200 p-6"><h3 className="font-bold mb-4">Bina App</h3><div className="space-y-4"><input className="inp" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} placeholder="Tajuk"/><textarea className="inp h-20" value={form.desc} onChange={e=>setForm({...form, desc:e.target.value})} placeholder="Deskripsi"/><div className="flex gap-2"><button onClick={()=>setForm({...form, type:'link'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='link'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>Link</button><button onClick={()=>setForm({...form, type:'html'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='html'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>HTML</button></div>{form.type==='link'?<input className="inp" value={form.content} onChange={e=>setForm({...form, content:e.target.value})} placeholder="URL..."/>:<textarea className="inp h-40 font-mono text-xs bg-slate-900 text-green-400" value={form.content} onChange={e=>setForm({...form, content:e.target.value})} placeholder="HTML Code..."/>}<div className="flex gap-3 overflow-x-auto pb-4 pt-1">{Object.entries(ALL_ICONS).map(([k, d]) => (<button key={k} onClick={() => setForm({...form, iconKey: k})} className={`p-3 rounded-xl border transition-all flex-shrink-0 ${form.iconKey === k ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`} title={k}><d.i className={`w-6 h-6 ${d.color}`}/></button>))}</div><button onClick={handleSave} className="bg-indigo-600 text-white w-full py-2 rounded-lg font-bold">Terbitkan</button></div></div><div className="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-4"><h3 className="font-bold text-sm mb-4">Senarai</h3>{apps.map(a=>(<div key={a.id} className="flex justify-between items-center p-2 hover:bg-slate-50 border-b border-slate-100 last:border-0"><span className="text-sm font-bold truncate w-40">{a.title}</span><button onClick={()=>setConfirmDel(a.id)} className="text-red-500"><Trash2 className="w-4 h-4"/></button></div>))}</div>{confirmDel && <ConfirmModal title="Padam?" msg="Tiada undo." onConfirm={executeDelete} onCancel={()=>setConfirmDel(null)}/>}</div>);
         }
 
         function AppGallery({ apps }) {
           const [sel, setSel] = useState(null);
+          if(sel) return (<div className="h-[80vh] bg-white rounded-xl border border-slate-200 flex flex-col"><div className="p-4 border-b flex justify-between"><button onClick={()=>setSel(null)} className="flex items-center gap-1 font-bold text-slate-600"><ChevronRight className="rotate-180 w-4 h-4"/> Kembali</button><h3 className="font-bold">{sel.title}</h3>{sel.type==='link' && <a href={sel.content} target="_blank" className="text-blue-600 text-xs font-bold flex items-center gap-1">Tab Baru <ExternalLink className="w-3 h-3"/></a>}</div><div className="flex-1 relative bg-white">{sel.type === 'html' ? <iframe srcDoc={sel.content} className="w-full h-full border-none" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"/> : <iframe src={sel.content} className="w-full h-full border-none"/>}</div></div>);
+          return (<div className="grid grid-cols-2 md:grid-cols-4 gap-4">{apps.map(a=>(<div key={a.id} onClick={()=>setSel(a)} className="bg-white p-4 rounded-xl border hover:shadow-md cursor-pointer flex flex-col h-40 justify-between"><div className="flex justify-between"><div className={`p-2 rounded-lg ${ALL_ICONS[a.iconKey]?.bg || 'bg-slate-100'}`}>{React.createElement(ALL_ICONS[a.iconKey]?.i || Globe, { className: `w-6 h-6 ${ALL_ICONS[a.iconKey]?.color || 'text-slate-600'}` })}</div></div><div><h4 className="font-bold truncate">{a.title}</h4><p className="text-xs text-slate-500 line-clamp-2">{a.desc}</p></div></div>))}</div>);
+        }
+
+        function DataTable({ type, data, currentUserRole }) {
+          // Hanya Admin boleh edit. Pentadbir hanya view.
+          const isReadOnly = currentUserRole === 'pentadbir';
+
+          const [newRec, setNewRec] = useState({});
+          const [csvFile, setCsvFile] = useState(null);
+          const [uploading, setUploading] = useState(false);
+          const [editingId, setEditingId] = useState(null);
+          const [selectedIds, setSelectedIds] = useState([]);
           
-          if(sel) return (
-            <div className="h-[80vh] bg-white rounded-xl border border-slate-200 flex flex-col">
-                <div className="p-4 border-b flex justify-between">
-                    <button onClick={()=>setSel(null)} className="flex items-center gap-1 font-bold text-slate-600"><ChevronRight className="rotate-180 w-4 h-4"/> Kembali</button>
-                    <h3 className="font-bold">{sel.title}</h3>
-                    {sel.type==='link' && <a href={sel.content} target="_blank" className="text-blue-600 text-xs font-bold flex items-center gap-1">Tab Baru <ExternalLink className="w-3 h-3"/></a>}
-                </div>
-                <div className="flex-1 relative bg-white">
-                    {sel.type === 'html' ? (
-                        <iframe 
-                            srcDoc={sel.content} 
-                            className="w-full h-full border-none" 
-                            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
-                            title="SubApp Preview"
-                        />
-                    ) : (
-                        <iframe 
-                            src={sel.content} 
-                            className="w-full h-full border-none" 
-                            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
-                            title="External Link"
-                        />
-                    )}
-                </div>
-            </div>
-          );
+          const col = type === 'student' ? 'portal_students' : 'portal_teachers';
+
+          const save = async (e) => { 
+              e.preventDefault(); 
+              if (isReadOnly) return alert("Anda tiada akses untuk menyunting.");
+              if(newRec.name) {
+                  const payload = { ...newRec };
+                  if (type === 'teacher') {
+                      payload.role = payload.role || 'guru';
+                      payload.position = payload.position || 'GAB';
+                  } else {
+                      payload.class = payload.class || 'Umum';
+                  }
+                  
+                  try {
+                      if (editingId) {
+                          await updateDoc(doc(db, col, editingId), { ...payload, updatedAt: new Date().toISOString() });
+                          alert("Data berjaya dikemaskini.");
+                          setEditingId(null);
+                      } else {
+                          await addDoc(collection(db, col), { ...payload, createdAt: new Date().toISOString() }); 
+                          alert("Data berjaya disimpan.");
+                      }
+                      setNewRec({}); 
+                  } catch(e) { console.error(e); alert("Ralat menyimpan data."); }
+              } 
+          };
+
+          const del = async (id) => { 
+              if (isReadOnly) return;
+              if(confirm("Adakah anda pasti mahu memadam data ini?")) await deleteDoc(doc(db, col, id)); 
+          };
+
+          const handleBulkDelete = async () => {
+              if (isReadOnly) return;
+              if (selectedIds.length === 0) return;
+              if (confirm(`Adakah anda pasti mahu memadam ${selectedIds.length} rekod terpilih? Tindakan ini tidak boleh diundur.`)) {
+                  try {
+                      const batch = writeBatch(db);
+                      selectedIds.forEach(id => { const ref = doc(db, col, id); batch.delete(ref); });
+                      await batch.commit(); setSelectedIds([]); alert("Rekod berjaya dipadam.");
+                  } catch(e) { console.error(e); alert("Gagal memadam rekod."); }
+              }
+          };
+
+          const toggleSelectAll = () => {
+              if (isReadOnly) return;
+              if (selectedIds.length === data.length) setSelectedIds([]);
+              else setSelectedIds(data.map(d => d.id));
+          };
+
+          const toggleSelect = (id) => {
+              if (isReadOnly) return;
+              if (selectedIds.includes(id)) setSelectedIds(prev => prev.filter(i => i !== id));
+              else setSelectedIds(prev => [...prev, id]);
+          };
+
+          const startEdit = (rec) => { if (isReadOnly) return; setNewRec(rec); setEditingId(rec.id); };
+          const cancelEdit = () => { setNewRec({}); setEditingId(null); };
+
+          const handleCsvUpload = async () => {
+              if (isReadOnly) return alert("Anda tiada akses untuk memuat naik data.");
+              if (!csvFile) return alert("Sila pilih fail CSV dahulu.");
+              setUploading(true);
+              const reader = new FileReader();
+              reader.onload = async (e) => {
+                  try {
+                      const text = e.target.result; const lines = text.split('\n'); const batch = writeBatch(db); let count = 0;
+                      lines.forEach((line, index) => {
+                          if (index === 0 || !line.trim()) return; 
+                          const cols = line.split(',').map(c => c.trim());
+                          if (cols.length < 2) return; 
+                          const ref = doc(collection(db, col)); let data = {};
+                          if (type === 'teacher') {
+                              const name = cols[0]; const email = cols[1]; const roleRaw = cols[2] ? cols[2].toLowerCase() : 'guru'; const position = cols[3] || 'GAB';
+                              if (!name || !email) return;
+                              // LOGIC ROLE BARU
+                              let sysRole = 'guru';
+                              if (roleRaw.includes('admin')) sysRole = 'admin';
+                              else if (roleRaw.includes('pentadbir')) sysRole = 'pentadbir';
+                              
+                              data = { name, email, role: sysRole, position, createdAt: new Date().toISOString() };
+                          } else {
+                              const name = cols[0]; const className = cols[1] || 'Umum'; if (!name) return;
+                              data = { name, class: className, createdAt: new Date().toISOString() };
+                          }
+                          batch.set(ref, data); count++;
+                      });
+                      if (count > 0) { await batch.commit(); alert(`${count} rekod berjaya dimuat naik!`); setCsvFile(null); document.getElementById('csvInput').value = ""; } else { alert("Tiada data sah ditemui dalam fail CSV."); }
+                  } catch (err) { console.error(err); alert("Ralat memproses fail."); }
+                  setUploading(false);
+              };
+              reader.readAsText(csvFile);
+          };
 
           return (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {apps.map(a=>(
-                    <div key={a.id} onClick={()=>setSel(a)} className="bg-white p-4 rounded-xl border hover:shadow-md cursor-pointer flex flex-col h-40 justify-between">
-                        <div className="flex justify-between">
-                            <div className={`p-2 rounded-lg ${ALL_ICONS[a.iconKey]?.bg || 'bg-slate-100'}`}>
-                                {React.createElement(ALL_ICONS[a.iconKey]?.i || Globe, { className: `w-6 h-6 ${ALL_ICONS[a.iconKey]?.color || 'text-slate-600'}` })}
-                            </div>
+            <div className="grid lg:grid-cols-12 gap-8 h-[calc(100vh-100px)]">
+                {/* SIDEBAR FORM & CSV (Only for Admin) */}
+                { !isReadOnly && (
+                <div className="lg:col-span-4 space-y-6 overflow-y-auto pr-2">
+                    <div className={`bg-white p-6 rounded-xl border shadow-sm transition-colors ${editingId ? 'border-amber-300 bg-amber-50' : 'border-slate-200'}`}>
+                        <h3 className={`font-bold mb-4 flex items-center gap-2 ${editingId ? 'text-amber-700' : 'text-slate-800'}`}>
+                           {editingId ? <Edit3 className="w-5 h-5"/> : <Plus className="w-5 h-5 text-indigo-600"/>} 
+                           {editingId ? 'Kemaskini Data' : `Daftar ${type === 'teacher' ? 'Guru' : 'Murid'} Baru`}
+                        </h3>
+                        <form onSubmit={save} className="space-y-3">
+                            <div><label className="lbl">Nama Penuh</label><input className="inp" required value={newRec.name||''} onChange={e=>setNewRec({...newRec, name:e.target.value})} placeholder="Contoh: Ali bin Abu"/></div>
+                            {type === 'student' ? (
+                                <div><label className="lbl">Kelas</label><input className="inp" required value={newRec.class||''} onChange={e=>setNewRec({...newRec, class:e.target.value})} placeholder="Contoh: 6 Cerdik"/></div>
+                            ) : (
+                                <>
+                                    <div><label className="lbl">Alamat Emel</label><input className="inp" type="email" required value={newRec.email||''} onChange={e=>setNewRec({...newRec, email:e.target.value})} placeholder="nama@sekolah.edu.my"/></div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div><label className="lbl">Akses Sistem</label><select className="inp" value={newRec.role||'guru'} onChange={e=>setNewRec({...newRec, role:e.target.value})}><option value="guru">Guru Biasa</option><option value="pentadbir">Pentadbir (Semakan)</option><option value="admin">Admin Sistem</option></select></div>
+                                        <div><label className="lbl">Jawatan</label><select className="inp" value={newRec.position||'GAB'} onChange={e=>setNewRec({...newRec, position:e.target.value})}><option value="GAB">GAB</option><option value="GB">Guru Besar</option><option value="GPK">GPK</option><option value="Kaunselor">Kaunselor</option></select></div>
+                                    </div>
+                                </>
+                            )}
+                            <div className="flex gap-2 mt-4">{editingId && (<button type="button" onClick={cancelEdit} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-2.5 rounded-lg font-bold transition-all">Batal</button>)}<button type="submit" className={`flex-1 text-white py-2.5 rounded-lg font-bold shadow-md transition-all flex justify-center items-center gap-2 ${editingId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}><Save className="w-4 h-4"/> {editingId ? 'Kemaskini' : 'Simpan'}</button></div>
+                        </form>
+                    </div>
+                    {!editingId && (
+                        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                             <div className="absolute top-0 right-0 p-2 opacity-10"><FileSpreadsheet className="w-24 h-24 text-green-600"/></div>
+                             <h3 className="font-bold mb-2 flex items-center gap-2 text-slate-800"><FileSpreadsheet className="w-5 h-5 text-green-600"/> Import CSV (Pukal)</h3>
+                             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 mb-4 text-xs text-slate-600 space-y-1"><p className="font-bold text-slate-800">Format Fail:</p>{type === 'teacher' ? (<><div className="font-mono bg-slate-200 p-1 rounded text-[10px]">Nama,Email,Role,Jawatan</div><ul className="list-disc list-inside pl-1 text-[10px]"><li><b>Role:</b> Admin, Pentadbir, Guru</li><li><b>Jawatan:</b> GB, GPK, GAB</li></ul></>) : (<div className="font-mono bg-slate-200 p-1 rounded text-[10px]">Nama,Kelas</div>)}</div>
+                             <div className="space-y-3"><input id="csvInput" type="file" accept=".csv" onChange={(e) => setCsvFile(e.target.files[0])} className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer bg-slate-50 rounded-lg border border-slate-200"/><button onClick={handleCsvUpload} disabled={uploading || !csvFile} className={`w-full py-2.5 rounded-lg font-bold flex justify-center items-center gap-2 transition-all text-sm ${uploading || !csvFile ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white shadow-md'}`}>{uploading ? <Loader2 className="w-4 h-4 animate-spin"/> : <FileSpreadsheet className="w-4 h-4"/>} {uploading ? 'Sedang Memproses...' : 'Muat Naik CSV'}</button></div>
                         </div>
-                        <div>
-                            <h4 className="font-bold truncate">{a.title}</h4>
-                            <p className="text-xs text-slate-500 line-clamp-2">{a.desc}</p>
+                    )}
+                </div>
+                )}
+
+                {/* TABLE DISPLAY */}
+                <div className={`${isReadOnly ? 'col-span-12' : 'lg:col-span-8'} bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full`}>
+                    <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
+                        <div className="flex items-center gap-4">
+                            <div><h3 className="font-bold text-slate-800 text-lg">Senarai {type === 'teacher' ? 'Guru' : 'Murid'}</h3><p className="text-xs text-slate-500">Jumlah: <b>{data.length}</b> rekod berdaftar</p></div>
+                            {!isReadOnly && selectedIds.length > 0 && (<button onClick={handleBulkDelete} className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-red-100 transition animate-fade-in border border-red-200"><Trash2 className="w-3 h-3"/> Padam {selectedIds.length} Terpilih</button>)}
                         </div>
                     </div>
-                ))}
+                    <div className="overflow-y-auto flex-1">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-white text-slate-500 uppercase text-[10px] font-bold sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th className="p-4 bg-slate-50 border-b w-10 text-center">{!isReadOnly && <button onClick={toggleSelectAll} className="text-slate-400 hover:text-indigo-600">{selectedIds.length > 0 && selectedIds.length === data.length ? <CheckSquare className="w-4 h-4 text-indigo-600"/> : <Square className="w-4 h-4"/>}</button>}</th>
+                                    <th className="p-4 bg-slate-50 border-b w-10">Bil</th>
+                                    <th className="p-4 bg-slate-50 border-b">Nama</th>
+                                    {type === 'teacher' && <th className="p-4 bg-slate-50 border-b">Jawatan</th>}
+                                    <th className="p-4 bg-slate-50 border-b">Info / Hubungan</th>
+                                    {!isReadOnly && <th className="p-4 bg-slate-50 border-b text-right">Tindakan</th>}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {data.length === 0 ? (
+                                    <tr><td colSpan="6" className="p-12 text-center text-slate-400 italic bg-slate-50/50"><div className="flex flex-col items-center gap-2"><div className="p-3 bg-slate-100 rounded-full"><Search className="w-6 h-6 text-slate-300"/></div><span>Tiada data direkodkan.</span></div></td></tr>
+                                ) : (
+                                    data.map((d, idx)=>(
+                                    <tr key={d.id} className={`hover:bg-indigo-50/30 group transition-colors ${selectedIds.includes(d.id) ? 'bg-indigo-50' : ''}`}>
+                                        <td className="p-4 text-center">{!isReadOnly && <button onClick={()=>toggleSelect(d.id)} className="text-slate-300 hover:text-indigo-600">{selectedIds.includes(d.id) ? <CheckSquare className="w-4 h-4 text-indigo-600"/> : <Square className="w-4 h-4"/>}</button>}</td>
+                                        <td className="p-4 text-slate-400 text-xs font-mono">{idx + 1}</td>
+                                        <td className="p-4">
+                                            <div className="font-bold text-slate-700">{d.name}</div>
+                                            {type === 'teacher' && (
+                                                <div className="flex gap-1 mt-1">
+                                                    {d.role === 'admin' && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold uppercase inline-block tracking-wider">Admin</span>}
+                                                    {d.role === 'pentadbir' && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold uppercase inline-block tracking-wider">Pentadbir</span>}
+                                                </div>
+                                            )}
+                                        </td>
+                                        {type === 'teacher' && (
+                                            <td className="p-4"><span className={`text-[10px] font-bold px-2 py-1 rounded border uppercase ${d.position === 'GB' ? 'bg-purple-50 text-purple-700 border-purple-200' : d.position === 'GPK' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>{d.position || 'GAB'}</span></td>
+                                        )}
+                                        <td className="p-4 text-slate-500 text-xs">
+                                            {type==='student' ? (
+                                                <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 w-fit px-2 py-1 rounded border border-emerald-100 font-bold"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> {d.class}</div>
+                                            ) : (<div className="flex items-center gap-2 font-mono text-slate-500"><div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> {d.email}</div>)}
+                                        </td>
+                                        {!isReadOnly && <td className="p-4 text-right flex justify-end gap-1"><button onClick={()=>startEdit(d)} className="text-slate-300 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-all" title="Edit"><Edit3 className="w-4 h-4"/></button><button onClick={()=>del(d.id)} className="text-slate-300 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-all" title="Padam"><Trash2 className="w-4 h-4"/></button></td>}
+                                    </tr>
+                                )))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
           );
         }
