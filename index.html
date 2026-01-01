@@ -1,494 +1,338 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged 
-} from 'firebase/auth';
-import { 
-  getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, writeBatch, updateDoc, getDoc, setDoc, getDocs 
-} from 'firebase/firestore';
-import { 
-  LayoutDashboard, LogOut, ChevronRight, X, Search, 
-  Link as LinkIcon, ExternalLink, Lock, FileSpreadsheet, Plus, Trash2,
-  BookOpen, Calculator, FlaskConical, Languages, 
-  Trophy, Users, Palette, Utensils, Bus, Library, 
-  MonitorPlay, Code2, GraduationCap, ShieldCheck, 
-  Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SistemApp - Portal Sekolah</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Babel (Penting untuk JSX) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-// --- KONFIGURASI FIREBASE ---
-const firebaseConfig = {
-  apiKey: "AIzaSyDlx-fjKX3XZyECCfbz7-wl1kyfZSElI6Q",
-  authDomain: "sistemapp.firebaseapp.com",
-  projectId: "sistemapp",
-  storageBucket: "sistemapp.firebasestorage.app",
-  messagingSenderId: "412733274428",
-  appId: "1:412733274428:web:394977e1390b4d016ec639",
-  measurementId: "G-DMP5MRMP5P"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const googleProvider = new GoogleAuthProvider();
-
-// --- Pustaka Ikon ---
-const ICONS = {
-  umum: {
-    dashboard: { i: LayoutDashboard, color: 'text-blue-600', bg: 'bg-blue-50' },
-    portal: { i: Globe, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-    admin: { i: ShieldCheck, color: 'text-slate-600', bg: 'bg-slate-100' },
-  },
-  akademik: {
-    buku: { i: BookOpen, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    math: { i: Calculator, color: 'text-violet-600', bg: 'bg-violet-50' },
-    sains: { i: FlaskConical, color: 'text-teal-600', bg: 'bg-teal-50' },
-    bahasa: { i: Languages, color: 'text-rose-600', bg: 'bg-rose-50' },
-  },
-  koko: {
-    sukan: { i: Trophy, color: 'text-orange-600', bg: 'bg-orange-50' },
-    seni: { i: Palette, color: 'text-pink-600', bg: 'bg-pink-50' },
-    kelab: { i: Users, color: 'text-cyan-600', bg: 'bg-cyan-50' },
-  },
-  fasiliti: {
-    kantin: { i: Utensils, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-    bas: { i: Bus, color: 'text-blue-800', bg: 'bg-blue-100' },
-    ps: { i: Library, color: 'text-amber-700', bg: 'bg-amber-50' },
-  }
-};
-const ALL_ICONS = {};
-Object.values(ICONS).forEach(cat => Object.assign(ALL_ICONS, cat));
-
-// --- KOMPONEN UTAMA ---
-export default function MainApp() {
-  const [user, setUser] = useState(null); // Firebase User Object
-  const [userData, setUserData] = useState(null); // Firestore User Data (Role, etc)
-  const [loading, setLoading] = useState(true);
-  
-  // Data
-  const [apps, setApps] = useState([]);
-  const [students, setStudents] = useState([]);
-  const [teachers, setTeachers] = useState([]);
-
-  // 1. Auth Listener & Role Check
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        // Semak Role dalam Firestore
-        const userRef = doc(db, 'portal_users', currentUser.uid);
-        const userSnap = await getDoc(userRef);
-
-        if (userSnap.exists()) {
-          // User lama: Ambil data
-          const data = userSnap.data();
-          setUserData(data);
-          syncToLocalStorage(currentUser, data.role);
-        } else {
-          // User baru: Tentukan Role (First User = Admin)
-          const usersColl = collection(db, 'portal_users');
-          const snapshot = await getDocs(usersColl);
-          
-          let newRole = 'guru'; // Default
-          if (snapshot.empty) {
-             newRole = 'admin'; // First user is Admin
-             alert("Tahniah! Anda adalah pengguna pertama. Anda telah dilantik sebagai ADMIN.");
-          }
-
-          const newUserData = {
-             name: currentUser.displayName,
-             email: currentUser.email,
-             photo: currentUser.photoURL,
-             role: newRole,
-             createdAt: new Date().toISOString()
-          };
-
-          await setDoc(userRef, newUserData);
-          setUserData(newUserData);
-          syncToLocalStorage(currentUser, newRole);
-        }
-      } else {
-        setUser(null);
-        setUserData(null);
-        localStorage.removeItem('portal_current_user');
+    <!-- Import Map (Penting untuk React & Firebase) -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.292.0",
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
       }
-      setLoading(false);
-    });
-    return () => unsub();
-  }, []);
-
-  // Helper Sync untuk Attendance App
-  const syncToLocalStorage = (u, r) => {
-     localStorage.setItem('portal_current_user', JSON.stringify({
-        name: u.displayName,
-        email: u.email,
-        role: r,
-        photo: u.photoURL
-     }));
-  };
-
-  // 2. Data Fetching
-  useEffect(() => {
-    if (!user || !userData) return;
-    
-    // Global API
-    window.PortalAPI = { 
-       currentUser: user, 
-       saveData: async (colName, data) => {
-         try {
-            await addDoc(collection(db, colName), { ...data, createdAt: new Date().toISOString(), createdBy: user.uid });
-            return { success: true };
-         } catch(e) { return { success: false, error: e }; }
-       }
-    };
-
-    // Listeners
-    const unsubApps = onSnapshot(query(collection(db, 'portal_apps')), s => setApps(s.docs.map(d => ({id: d.id, ...d.data()}))));
-    
-    let unsubStud = () => {}, unsubTeach = () => {};
-    if (userData.role === 'admin' || userData.role === 'guru') {
-       unsubStud = onSnapshot(query(collection(db, 'portal_students')), s => setStudents(s.docs.map(d => ({id: d.id, ...d.data()}))));
-       unsubTeach = onSnapshot(query(collection(db, 'portal_teachers')), s => setTeachers(s.docs.map(d => ({id: d.id, ...d.data()}))));
     }
-    return () => { unsubApps(); unsubStud(); unsubTeach(); };
-  }, [user, userData]);
+    </script>
 
-  const handleLogin = async () => {
-     try {
-        await signInWithPopup(auth, googleProvider);
-     } catch (error) {
-        console.error(error);
-        alert("Gagal log masuk Google: " + error.message);
-     }
-  };
-
-  const handleLogout = async () => {
-     await signOut(auth);
-  };
-
-  if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-slate-50 text-indigo-600">
-        <Loader2 className="w-10 h-10 animate-spin mb-4"/>
-        <span className="font-medium animate-pulse">Memeriksa kelayakan akaun...</span>
-    </div>
-  );
-
-  if (!user) return <LoginScreen onGoogleLogin={handleLogin} />;
-
-  return (
-    <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
-      <style>{styles}</style>
-      <Sidebar userData={userData} view={userData?.role === 'admin' ? 'dashboard' : 'dashboard'} setView={()=>{}} logout={handleLogout} />
-      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-        <Header userData={userData} />
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 scroll-smooth">
-           <ContentRouter userData={userData} apps={apps} students={students} teachers={teachers} />
-        </main>
-      </div>
-    </div>
-  );
-}
-
-// --- ROUTER ---
-function ContentRouter({ userData, apps, students, teachers }) {
-  // State view diuruskan local di sini untuk kesederhanaan, atau boleh diangkat ke atas
-  const [currentView, setCurrentView] = useState('dashboard');
-  
-  // Update view bila Sidebar ditekan (Sidebar perlu access function ini)
-  // *Nota: Dalam struktur kod ini, Sidebar ada di parent. Kita guna event/props.
-  // Untuk fix cepat, saya pass setter melalui context atau prop drilling mudah.
-  // Di sini saya assume Sidebar boleh set view. Saya akan modify struktur App sedikit.
-  
-  // WORKAROUND: Kerana struktur component, saya render content berdasarkan prop 'view' dari App parent
-  // Tapi App parent perlukan state 'view'.
-  
-  // Jom betulkan struktur di App component (Line 132) -> DONE
-  
-  return <DashboardRouter role={userData.role} apps={apps} students={students} teachers={teachers} />;
-}
-
-// Sub-component untuk handle view switching
-function DashboardRouter({ role, apps, students, teachers }) {
-   const [view, setView] = useState('dashboard');
-
-   // Sidebar component perlu di sini supaya boleh setView
-   // Tapi untuk kekalkan UI layout asal, saya render Content shj
-   
-   // FIX: Saya akan pass setView ke Sidebar melalui Context atau Props dari App.
-   // Tapi memandangkan ini Single File, saya ubah suai App() untuk handle view state.
-   // Rujuk App() line 80
-   return null; 
-}
-
-// --- FIX ROUTING LOGIC ---
-// Kerana limitasi single file dan re-render, saya menyatukan semula logik routing di MainApp
-// Sila lihat ContentRouter di bawah yang sebenar
-
-// --- LOGIN SCREEN (GOOGLE) ---
-function LoginScreen({ onGoogleLogin }) {
-  return (
-    <div className="min-h-screen flex bg-white">
-      {/* Kiri */}
-      <div className="hidden lg:flex w-5/12 bg-slate-900 p-12 flex-col justify-between relative overflow-hidden">
-         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600 rounded-full blur-[80px] opacity-20 -translate-y-1/2 translate-x-1/2"></div>
-         <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600 rounded-full blur-[80px] opacity-20 translate-y-1/2 -translate-x-1/2"></div>
-         <div className="relative z-10"><div className="flex items-center gap-3 mb-6"><div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg"><LayoutDashboard className="w-6 h-6"/></div><span className="text-xl font-bold text-white tracking-tight">MainApp</span></div><h1 className="text-4xl font-bold text-white leading-tight mb-4">Portal Sekolah<br/>Selamat & Pintar</h1><p className="text-slate-400 text-lg">Log masuk menggunakan akaun Google rasmi anda.</p></div>
-         <div className="relative z-10 text-xs text-slate-600">Sistem dijana oleh Firebase Auth</div>
-      </div>
-
-      {/* Kanan */}
-      <div className="w-full lg:w-7/12 flex items-center justify-center p-8 bg-slate-50">
-         <div className="max-w-md w-full bg-white p-10 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 text-center">
-            <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600"><Lock className="w-8 h-8"/></div>
-            <h2 className="text-2xl font-bold text-slate-800 mb-2">Selamat Datang</h2>
-            <p className="text-slate-500 mb-8">Akses akaun anda dengan selamat.</p>
-            
-            <button onClick={onGoogleLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all group shadow-sm">
-               <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6" alt="Google" />
-               <span className="font-bold text-slate-700">Teruskan dengan Google</span>
-            </button>
-            
-            <p className="mt-6 text-xs text-slate-400">
-               *Pengguna pertama akan dilantik sebagai Admin secara automatik.
-            </p>
-         </div>
-      </div>
-    </div>
-  );
-}
-
-// --- SIDEBAR (Updated with User Profile) ---
-function Sidebar({ userData, view, setView, logout }) {
-  const menus = [
-     { id: 'dashboard', l: 'Utama', i: LayoutDashboard, admin: false },
-     { id: 'apps', l: 'Aplikasi', i: MonitorPlay, admin: false },
-     { id: 'builder', l: 'Bina App', i: Code2, admin: true },
-     { id: 'students', l: 'Data Murid', i: GraduationCap, admin: true },
-     { id: 'teachers', l: 'Data Guru', i: Users, admin: true },
-  ];
-
-  return (
-     <aside className="w-20 md:w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 z-20">
-        <div className="h-16 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-100">
-           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">S</div>
-           <span className="ml-3 font-bold text-xl text-slate-800 hidden md:block">SistemApp</span>
-        </div>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
         
-        {/* User Info di Sidebar */}
-        <div className="p-4 border-b border-slate-100 flex items-center gap-3">
-           <img src={userData.photo || "https://ui-avatars.com/api/?name="+userData.name} className="w-10 h-10 rounded-full border border-slate-200" alt="Avatar"/>
-           <div className="hidden md:block overflow-hidden">
-              <p className="text-sm font-bold text-slate-700 truncate">{userData.name}</p>
-              <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">{userData.role}</p>
-           </div>
-        </div>
+        /* Loading Spinner */
+        #loading-screen {
+            position: fixed; inset: 0; background: #fff; z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid #e2e8f0;
+            border-top: 4px solid #4f46e5; border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        <nav className="p-2 md:p-4 space-y-1 flex-1">
-           {menus.map(m => {
-              if (m.admin && userData.role !== 'admin') return null;
-              const active = view === m.id;
-              return <button key={m.id} onClick={() => setView(m.id)} title={m.l} className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${active ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 border border-transparent'}`}><m.i className={`w-5 h-5 ${active ? 'text-indigo-600' : 'text-slate-400'}`} /><span className="hidden md:block">{m.l}</span></button>
-           })}
-        </nav>
-        <div className="p-4 border-t border-slate-100"><button onClick={logout} className="flex items-center justify-center md:justify-start gap-3 text-slate-400 hover:text-red-600 hover:bg-red-50 text-sm font-medium w-full px-3 py-3 rounded-lg transition-colors"><LogOut className="w-5 h-5" /><span className="hidden md:block">Log Keluar</span></button></div>
-     </aside>
-  )
-}
+        /* Custom UI */
+        .lbl { display: block; font-size: 0.75rem; font-weight: 700; color: #64748b; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .inp { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; font-size: 0.875rem; outline: none; transition: all; background-color: #f8fafc; color: #1e293b; }
+        .inp:focus { background-color: white; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+        
+        /* Error Box */
+        #error-box { display: none; position: fixed; bottom: 20px; right: 20px; background: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 15px; border-radius: 8px; max-width: 400px; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 0.85rem; }
+    </style>
+</head>
+<body>
 
-function Header({ userData, view }) {
-   return (
-      <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm z-10">
-         <h2 className="font-bold text-lg capitalize text-slate-800 flex items-center gap-2">Portal {userData.role}</h2>
-         <div className="flex items-center gap-3">
-            <span className="text-xs font-bold uppercase text-white bg-indigo-600 px-3 py-1 rounded-full tracking-wider shadow-sm">{userData.role}</span>
-         </div>
-      </header>
-   )
-}
-
-// --- CONTENT AREA (Reused from previous version) ---
-// Note: I'm injecting the view logic here directly into App render to simplify state management
-// so we don't need a separate ContentRouter component in the new structure.
-
-// --- DASHBOARD ---
-function Dashboard({ role, apps, students, teachers, setView }) {
-  const showStats = role === 'admin' || role === 'guru';
-  const stats = [
-    { label: 'Aplikasi Aktif', val: apps.length, icon: LayoutDashboard, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Jumlah Murid', val: showStats ? students.length : '—', icon: GraduationCap, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Jumlah Guru', val: showStats ? teachers.length : '—', icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-  ];
-
-  return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
-       <div className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm relative overflow-hidden">
-          <div className="relative z-10">
-             <h2 className="text-2xl font-bold text-slate-800 mb-2">Papan Pemuka Utama</h2>
-             <p className="text-slate-500 max-w-xl">Uruskan data dan aplikasi sekolah anda di sini.</p>
-          </div>
-       </div>
-       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {stats.map((s, i) => (
-             <div key={i} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-indigo-200 transition-colors">
-                <div className={`w-14 h-14 rounded-full flex items-center justify-center ${s.bg} ${s.color}`}><s.icon className="w-7 h-7" /></div>
-                <div><p className="text-sm font-medium text-slate-500">{s.label}</p><h3 className="text-3xl font-bold text-slate-800">{s.val}</h3></div>
-             </div>
-          ))}
-       </div>
-       <div>
-          <div className="flex items-center justify-between mb-6">
-             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Globe className="w-5 h-5 text-indigo-600"/> Aplikasi Pilihan</h3>
-             <button onClick={() => setView('apps')} className="text-sm font-medium text-indigo-600 hover:underline">Lihat Semua</button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-             {apps.slice(0, 4).map(app => (
-                <div key={app.id} onClick={() => setView('apps')} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 cursor-pointer transition-all group flex flex-col h-full">
-                   <div className="flex justify-between items-start mb-4">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${ALL_ICONS[app.iconKey]?.bg || 'bg-slate-100'}`}>{React.createElement(ALL_ICONS[app.iconKey]?.i || Globe, { className: `w-6 h-6 ${ALL_ICONS[app.iconKey]?.color || 'text-slate-600'}` })}</div>
-                   </div>
-                   <h4 className="font-bold text-slate-800 mb-1 group-hover:text-indigo-600 transition-colors line-clamp-1">{app.title}</h4>
-                   <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed">{app.desc || "Klik untuk akses."}</p>
-                </div>
-             ))}
-          </div>
-       </div>
+    <!-- Skrin Loading Awal -->
+    <div id="loading-screen">
+        <div class="spinner"></div>
+        <p class="mt-4 text-slate-500 text-sm font-medium animate-pulse">Menyediakan SistemApp...</p>
+        <p class="text-xs text-slate-400 mt-2">Sila pastikan internet anda stabil.</p>
     </div>
-  );
-}
 
-// --- APP BUILDER, GALLERY, DATA TABLE (Same as before but integrated) ---
-function AppBuilder({ apps, appId }) {
-  const [activeTab, setActiveTab] = useState('link');
-  const [form, setForm] = useState({ title: '', desc: '', iconKey: 'portal', category: 'umum', type: 'link', content: '' });
-  const [confirmDel, setConfirmDel] = useState(null);
+    <!-- Kotak Ralat (Akan muncul jika ada error) -->
+    <div id="error-box"></div>
 
-  const handleSave = async () => {
-    if(!form.title || !form.content) return alert("Sila isi data.");
-    await addDoc(collection(db, 'portal_apps'), { ...form, type: activeTab });
-    setForm({ ...form, title: '', desc: '', content: '' });
-    alert("Aplikasi berjaya ditambah.");
-  };
+    <!-- Root React -->
+    <div id="root"></div>
 
-  const executeDelete = async () => {
-    if(confirmDel) { await deleteDoc(doc(db, 'portal_apps', confirmDel)); setConfirmDel(null); }
-  };
+    <!-- Skrip Pengendali Ralat Global -->
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            const errorBox = document.getElementById('error-box');
+            const loadingScreen = document.getElementById('loading-screen');
+            if(loadingScreen) loadingScreen.style.display = 'none';
+            errorBox.style.display = 'block';
+            errorBox.innerHTML = `<strong>Ralat Sistem:</strong><br/>${message}<br/><small>${source}:${lineno}</small>`;
+            console.error("Global Error:", error);
+        };
+    </script>
 
-  return (
-    <>
-      {confirmDel && <ConfirmModal title="Padam Aplikasi?" msg="Tindakan ini tidak boleh dikembalikan." onConfirm={executeDelete} onCancel={() => setConfirmDel(null)} />}
-      <div className="grid lg:grid-cols-12 gap-8 h-[calc(100vh-140px)]">
-         <div className="lg:col-span-8 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
-            <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-               <div className="flex items-center gap-2 text-slate-700 font-bold"><Code2 className="w-5 h-5 text-indigo-600"/> Studio Aplikasi</div>
-               <button onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition"><Save className="w-4 h-4"/> Terbitkan</button>
+    <!-- Logik Aplikasi Utama (React) -->
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { initializeApp } from 'firebase/app';
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, updateDoc, getDoc, setDoc, getDocs } from 'firebase/firestore';
+        import { 
+          LayoutDashboard, LogOut, ChevronRight, Search, 
+          Link as LinkIcon, ExternalLink, Lock, FileSpreadsheet, Plus, Trash2,
+          BookOpen, Calculator, FlaskConical, Languages, 
+          Trophy, Users, Palette, Utensils, Bus, Library, 
+          MonitorPlay, Code2, GraduationCap, ShieldCheck, 
+          Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2
+        } from 'lucide-react';
+
+        // 1. CONFIG FIREBASE
+        const firebaseConfig = {
+          apiKey: "AIzaSyDlx-fjKX3XZyECCfbz7-wl1kyfZSElI6Q",
+          authDomain: "sistemapp.firebaseapp.com",
+          projectId: "sistemapp",
+          storageBucket: "sistemapp.firebasestorage.app",
+          messagingSenderId: "412733274428",
+          appId: "1:412733274428:web:394977e1390b4d016ec639",
+          measurementId: "G-DMP5MRMP5P"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const googleProvider = new GoogleAuthProvider();
+
+        // 2. ICONS
+        const ICONS = {
+          umum: { dashboard: { i: LayoutDashboard, color: 'text-blue-600', bg: 'bg-blue-50' }, portal: { i: Globe, color: 'text-indigo-600', bg: 'bg-indigo-50' }, admin: { i: ShieldCheck, color: 'text-slate-600', bg: 'bg-slate-100' } },
+          akademik: { buku: { i: BookOpen, color: 'text-emerald-600', bg: 'bg-emerald-50' }, math: { i: Calculator, color: 'text-violet-600', bg: 'bg-violet-50' }, sains: { i: FlaskConical, color: 'text-teal-600', bg: 'bg-teal-50' }, bahasa: { i: Languages, color: 'text-rose-600', bg: 'bg-rose-50' } },
+          koko: { sukan: { i: Trophy, color: 'text-orange-600', bg: 'bg-orange-50' }, seni: { i: Palette, color: 'text-pink-600', bg: 'bg-pink-50' }, kelab: { i: Users, color: 'text-cyan-600', bg: 'bg-cyan-50' } },
+          fasiliti: { kantin: { i: Utensils, color: 'text-yellow-600', bg: 'bg-yellow-50' }, bas: { i: Bus, color: 'text-blue-800', bg: 'bg-blue-100' }, ps: { i: Library, color: 'text-amber-700', bg: 'bg-amber-50' } }
+        };
+        const ALL_ICONS = {};
+        Object.values(ICONS).forEach(cat => Object.assign(ALL_ICONS, cat));
+
+        // 3. MAIN COMPONENT
+        function MainApp() {
+          const [user, setUser] = useState(null);
+          const [userData, setUserData] = useState(null);
+          const [loading, setLoading] = useState(true);
+          
+          const [apps, setApps] = useState([]);
+          const [students, setStudents] = useState([]);
+          const [teachers, setTeachers] = useState([]);
+          
+          // State untuk Routing (Local)
+          const [currentView, setCurrentView] = useState('dashboard');
+
+          // Padam loading screen bila React mount
+          useEffect(() => {
+            const screen = document.getElementById('loading-screen');
+            if(screen) screen.style.display = 'none';
+          }, []);
+
+          // Auth
+          useEffect(() => {
+            const unsub = onAuthStateChanged(auth, async (u) => {
+              if (u) {
+                setUser(u);
+                try {
+                    const ref = doc(db, 'portal_users', u.uid);
+                    const snap = await getDoc(ref);
+                    
+                    if (snap.exists()) {
+                       const d = snap.data();
+                       setUserData(d);
+                       syncLocal(u, d.role);
+                    } else {
+                       const allUsers = await getDocs(collection(db, 'portal_users'));
+                       const role = allUsers.empty ? 'admin' : 'guru';
+                       if(role === 'admin') alert("Anda adalah Admin Pertama!");
+                       
+                       const newData = { name: u.displayName, email: u.email, photo: u.photoURL, role, createdAt: new Date().toISOString() };
+                       await setDoc(ref, newData);
+                       setUserData(newData);
+                       syncLocal(u, role);
+                    }
+                } catch(e) {
+                    console.error("User DB Error:", e);
+                    alert("Ralat pangkalan data pengguna.");
+                }
+              } else {
+                setUser(null);
+                setUserData(null);
+                localStorage.removeItem('portal_current_user');
+              }
+              setLoading(false);
+            });
+            return () => unsub();
+          }, []);
+
+          const syncLocal = (u, r) => localStorage.setItem('portal_current_user', JSON.stringify({ name: u.displayName, email: u.email, role: r, photo: u.photoURL }));
+
+          // Data Fetch
+          useEffect(() => {
+            if (!user || !userData) return;
+            
+            // Public Apps
+            const unsubApps = onSnapshot(query(collection(db, 'portal_apps')), s => setApps(s.docs.map(d => ({id: d.id, ...d.data()}))));
+            
+            // Protected Data
+            let unsubStud = () => {}, unsubTeach = () => {};
+            if (userData.role === 'admin' || userData.role === 'guru') {
+               unsubStud = onSnapshot(query(collection(db, 'portal_students')), s => setStudents(s.docs.map(d => ({id: d.id, ...d.data()}))));
+               unsubTeach = onSnapshot(query(collection(db, 'portal_teachers')), s => setTeachers(s.docs.map(d => ({id: d.id, ...d.data()}))));
+            }
+            return () => { unsubApps(); unsubStud(); unsubTeach(); };
+          }, [user, userData]);
+
+          const doLogin = async () => { try { await signInWithPopup(auth, googleProvider); } catch(e) { alert("Login Error: " + e.message); } };
+          const doLogout = async () => { await signOut(auth); };
+
+          if (loading) return <div className="h-screen flex items-center justify-center text-indigo-600 font-bold">Memeriksa Akaun...</div>;
+          if (!user) return <LoginScreen onLogin={doLogin} />;
+
+          return (
+            <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
+              <Sidebar userData={userData} view={currentView} setView={setCurrentView} logout={doLogout} />
+              <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+                <Header userData={userData} view={currentView} />
+                <main className="flex-1 overflow-y-auto p-6 md:p-8 scroll-smooth">
+                   {/* Router Logic */}
+                   {(() => {
+                      if (['students','teachers','builder'].includes(currentView) && userData.role !== 'admin') return <AccessDenied />;
+                      switch(currentView) {
+                        case 'dashboard': return <Dashboard role={userData.role} apps={apps} students={students} teachers={teachers} setView={setCurrentView} />;
+                        case 'apps': return <AppGallery apps={apps} />;
+                        case 'builder': return <AppBuilder apps={apps} />;
+                        case 'students': return <DataTable type="student" data={students} />;
+                        case 'teachers': return <DataTable type="teacher" data={teachers} />;
+                        default: return <Dashboard role={userData.role} apps={apps} students={students} teachers={teachers} setView={setCurrentView} />;
+                      }
+                   })()}
+                </main>
+              </div>
             </div>
-            <div className="p-8 overflow-y-auto space-y-8">
-               <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2 mb-4">1. Maklumat Asas</h3>
-                  <div className="grid grid-cols-2 gap-6">
-                     <div><label className="lbl">Tajuk Aplikasi</label><input className="inp" value={form.title} onChange={e=>setForm({...form, title: e.target.value})} placeholder="Contoh: Portal Rasmi" /></div>
-                     <div><label className="lbl">Kategori</label><select className="inp" value={form.category} onChange={e=>setForm({...form, category: e.target.value})}><option value="umum">Umum</option><option value="akademik">Akademik</option><option value="koko">Koko</option><option value="fasiliti">Fasiliti</option></select></div>
-                  </div>
-                  <div><label className="lbl">Deskripsi</label><textarea className="inp h-20 resize-none" value={form.desc} onChange={e=>setForm({...form, desc: e.target.value})} /></div>
+          );
+        }
+
+        // --- SUB COMPONENTS ---
+
+        function LoginScreen({ onLogin }) {
+          return (
+            <div className="min-h-screen flex bg-white animate-fade-in">
+              <div className="hidden lg:flex w-5/12 bg-slate-900 p-12 flex-col justify-between relative overflow-hidden">
+                 <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600 rounded-full blur-[80px] opacity-20 -translate-y-1/2 translate-x-1/2"></div>
+                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600 rounded-full blur-[80px] opacity-20 translate-y-1/2 -translate-x-1/2"></div>
+                 <div className="relative z-10"><div className="flex items-center gap-3 mb-6"><div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg"><LayoutDashboard className="w-6 h-6"/></div><span className="text-xl font-bold text-white tracking-tight">MainApp</span></div><h1 className="text-4xl font-bold text-white leading-tight mb-4">Portal Sekolah<br/>Digital</h1><p className="text-slate-400">Log masuk menggunakan Google untuk akses pantas.</p></div>
+              </div>
+              <div className="w-full lg:w-7/12 flex items-center justify-center p-8 bg-slate-50">
+                 <div className="max-w-md w-full bg-white p-10 rounded-2xl shadow-xl border border-slate-100 text-center">
+                    <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600"><Lock className="w-8 h-8"/></div>
+                    <h2 className="text-2xl font-bold text-slate-800 mb-2">Selamat Datang</h2>
+                    <p className="text-slate-500 mb-8">Log masuk untuk meneruskan.</p>
+                    <button onClick={onLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
+                       <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6" alt="G" />
+                       <span className="font-bold text-slate-700">Masuk dengan Google</span>
+                    </button>
+                 </div>
+              </div>
+            </div>
+          );
+        }
+
+        function Sidebar({ userData, view, setView, logout }) {
+          const menus = [
+             { id: 'dashboard', l: 'Utama', i: LayoutDashboard, admin: false },
+             { id: 'apps', l: 'Aplikasi', i: MonitorPlay, admin: false },
+             { id: 'builder', l: 'Bina App', i: Code2, admin: true },
+             { id: 'students', l: 'Data Murid', i: GraduationCap, admin: true },
+             { id: 'teachers', l: 'Data Guru', i: Users, admin: true },
+          ];
+          return (
+             <aside className="w-20 md:w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 z-20">
+                <div className="h-16 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-100"><div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">S</div><span className="ml-3 font-bold text-xl text-slate-800 hidden md:block">SistemApp</span></div>
+                <div className="p-4 border-b border-slate-100 flex items-center gap-3">
+                   <img src={userData.photo || "https://ui-avatars.com/api/?name="+userData.name} className="w-10 h-10 rounded-full border border-slate-200" alt="Avatar"/>
+                   <div className="hidden md:block overflow-hidden"><p className="text-sm font-bold text-slate-700 truncate">{userData.name}</p><p className="text-xs text-slate-500 uppercase font-bold tracking-wider">{userData.role}</p></div>
+                </div>
+                <nav className="p-2 md:p-4 space-y-1 flex-1">
+                   {menus.map(m => {
+                      if (m.admin && userData.role !== 'admin') return null;
+                      const active = view === m.id;
+                      return <button key={m.id} onClick={() => setView(m.id)} title={m.l} className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${active ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}><m.i className={`w-5 h-5 ${active ? 'text-indigo-600' : 'text-slate-400'}`} /><span className="hidden md:block">{m.l}</span></button>
+                   })}
+                </nav>
+                <div className="p-4 border-t border-slate-100"><button onClick={logout} className="flex items-center justify-center md:justify-start gap-3 text-slate-400 hover:text-red-600 hover:bg-red-50 text-sm font-medium w-full px-3 py-3 rounded-lg transition-colors"><LogOut className="w-5 h-5" /><span className="hidden md:block">Keluar</span></button></div>
+             </aside>
+          )
+        }
+
+        function Header({ userData, view }) {
+           return (
+              <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm z-10">
+                 <h2 className="font-bold text-lg capitalize text-slate-800 flex items-center gap-2">{view}</h2>
+                 <span className="text-xs font-bold uppercase text-white bg-indigo-600 px-3 py-1 rounded-full tracking-wider shadow-sm">{userData.role}</span>
+              </header>
+           )
+        }
+
+        function Dashboard({ role, apps, students, teachers, setView }) {
+          const showStats = role === 'admin' || role === 'guru';
+          const stats = [
+            { label: 'Aplikasi', val: apps.length, i: LayoutDashboard, c: 'text-blue-600', b: 'bg-blue-50' },
+            { label: 'Murid', val: showStats ? students.length : '-', i: GraduationCap, c: 'text-emerald-600', b: 'bg-emerald-50' },
+            { label: 'Guru', val: showStats ? teachers.length : '-', i: Users, c: 'text-indigo-600', b: 'bg-indigo-50' },
+          ];
+          return (
+            <div className="max-w-6xl mx-auto space-y-8 animate-fade-in">
+               <div className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm"><h2 className="text-2xl font-bold text-slate-800 mb-2">Hai, {role}!</h2><p className="text-slate-500">Selamat datang ke papan pemuka.</p></div>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">{stats.map((s, i) => (<div key={i} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4"><div className={`w-14 h-14 rounded-full flex items-center justify-center ${s.b} ${s.c}`}><s.i className="w-7 h-7" /></div><div><p className="text-sm font-medium text-slate-500">{s.label}</p><h3 className="text-3xl font-bold text-slate-800">{s.val}</h3></div></div>))}</div>
+               <div>
+                  <div className="flex items-center justify-between mb-6"><h3 className="text-lg font-bold text-slate-800">Aplikasi</h3><button onClick={() => setView('apps')} className="text-sm text-indigo-600 hover:underline">Lihat Semua</button></div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">{apps.slice(0, 4).map(app => (<div key={app.id} onClick={() => setView('apps')} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md cursor-pointer"><h4 className="font-bold text-slate-800 mb-1">{app.title}</h4><p className="text-sm text-slate-500 line-clamp-2">{app.desc}</p></div>))}</div>
                </div>
-               <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2 mb-4">2. Konfigurasi Kandungan</h3>
-                  <div className="flex gap-4 mb-4">
-                     <button onClick={() => setActiveTab('link')} className={`flex-1 py-3 px-4 rounded-lg border text-sm font-bold transition flex items-center justify-center gap-2 ${activeTab === 'link' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}><LinkIcon className="w-4 h-4"/> Pautan URL</button>
-                     <button onClick={() => setActiveTab('html')} className={`flex-1 py-3 px-4 rounded-lg border text-sm font-bold transition flex items-center justify-center gap-2 ${activeTab === 'html' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}><Code2 className="w-4 h-4"/> Kod HTML</button>
-                  </div>
-                  {activeTab === 'link' ? (
-                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-200"><label className="lbl">URL Pautan</label><div className="flex items-center gap-3 p-3 border border-slate-300 rounded-lg bg-white"><Globe className="w-5 h-5 text-slate-400"/><input className="w-full bg-transparent outline-none text-sm text-blue-600 font-medium" value={form.content} onChange={e=>setForm({...form, content: e.target.value})} placeholder="https://..." /></div></div>
-                  ) : (
-                     <div className="h-64"><label className="lbl">Kod HTML</label><textarea className="w-full h-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl" value={form.content} onChange={e=>setForm({...form, content: e.target.value})} placeholder="<div>Code...</div>" /></div>
-                  )}
-               </div>
-               <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2 mb-4">3. Ikon Aplikasi</h3>
-                  <div className="flex gap-3 overflow-x-auto pb-4 pt-1">
-                     {Object.entries(ALL_ICONS).map(([k, d]) => (
-                        <button key={k} onClick={() => setForm({...form, iconKey: k})} className={`p-3 rounded-xl border transition-all flex-shrink-0 ${form.iconKey === k ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`} title={k}><d.i className={`w-6 h-6 ${d.color}`}/></button>
-                     ))}
-                  </div>
-               </div>
             </div>
-         </div>
-         <div className="lg:col-span-4 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden"><div className="p-4 bg-slate-50 border-b border-slate-100 font-bold text-slate-700 text-sm">Senarai Aplikasi ({apps.length})</div><div className="flex-1 overflow-y-auto p-2 space-y-1">{apps.map(app=>(<div key={app.id} className="flex justify-between items-center p-3 rounded-lg hover:bg-slate-50 group border border-transparent hover:border-slate-100 transition-all cursor-default"><div className="flex items-center gap-3 overflow-hidden"><div className={`p-2 rounded-lg ${ALL_ICONS[app.iconKey]?.bg || 'bg-slate-100'}`}><LinkIcon className={`w-4 h-4 ${ALL_ICONS[app.iconKey]?.color}`} /></div><div className="truncate"><div className="text-sm font-bold text-slate-700 truncate">{app.title}</div><div className="text-xs text-slate-400 truncate capitalize">{app.category}</div></div></div><button onClick={()=>setConfirmDel(app.id)} className="text-slate-300 hover:text-red-600 p-2 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-4 h-4"/></button></div>))}</div></div>
-      </div>
-    </>
-  );
-}
+          );
+        }
 
-function AppGallery({ apps }) {
-  const [sel, setSel] = useState(null);
-  const [q, setQ] = useState('');
-  if(sel) return (<div className="bg-white h-[calc(100vh-140px)] rounded-xl border border-slate-200 flex flex-col overflow-hidden shadow-sm animate-fade-in"><div className="h-16 border-b border-slate-100 flex items-center justify-between px-6 bg-slate-50/50"><button onClick={() => setSel(null)} className="text-sm font-bold text-slate-600 hover:text-indigo-600 flex items-center gap-1 transition"><ChevronRight className="w-4 h-4 rotate-180"/> Kembali</button><h3 className="font-bold text-slate-800">{sel.title}</h3>{sel.type === 'link' && <a href={sel.content} target="_blank" className="text-xs bg-indigo-50 text-indigo-600 border border-indigo-100 px-3 py-1.5 rounded-full font-bold flex items-center gap-1 hover:bg-indigo-100 transition">Buka Tab Baru <ExternalLink className="w-3 h-3"/></a>}</div><div className="flex-1 bg-slate-50 relative">{sel.type === 'html' ? <HtmlView content={sel.content} /> : <iframe src={sel.content} className="w-full h-full border-none" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"/>}</div></div>);
-  return (<div><div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4"><div><h2 className="text-2xl font-bold text-slate-800">Galeri Aplikasi</h2><p className="text-slate-500">Semua alat yang anda perlukan.</p></div><div className="relative w-full md:w-auto"><Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400"/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Cari aplikasi..." className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500 w-full md:w-64 transition shadow-sm"/></div></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{apps.filter(a => a.title.toLowerCase().includes(q.toLowerCase())).map(app => { const Icon = ALL_ICONS[app.iconKey] || ALL_ICONS.portal; return (<div key={app.id} onClick={() => setSel(app)} className="bg-white rounded-xl border border-slate-200 p-6 hover:shadow-lg hover:border-indigo-200 hover:-translate-y-1 transition-all cursor-pointer flex flex-col h-60 group"><div className="flex justify-between items-start mb-4"><div className={`w-12 h-12 rounded-xl flex items-center justify-center ${Icon.bg} transition-transform group-hover:scale-110`}>{React.createElement(Icon.i, { className: `w-6 h-6 ${Icon.color}` })}</div><span className="text-[10px] font-bold uppercase bg-slate-100 text-slate-500 px-2 py-1 rounded tracking-wide">{app.category}</span></div><h3 className="font-bold text-slate-800 text-lg mb-2 line-clamp-1 group-hover:text-indigo-600 transition-colors">{app.title}</h3><p className="text-sm text-slate-500 line-clamp-3 leading-relaxed flex-1">{app.desc || "Tiada deskripsi."}</p><div className="mt-4 pt-4 border-t border-slate-50 flex items-center gap-2 text-xs font-bold text-indigo-600 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">Buka Aplikasi <ChevronRight className="w-3 h-3"/></div></div>) })}</div></div>);
-}
+        // --- DATA TABLES ---
+        function DataTable({ type, data }) {
+          const [newRec, setNewRec] = useState({});
+          const col = type === 'student' ? 'portal_students' : 'portal_teachers';
+          const add = async (e) => { e.preventDefault(); if(newRec.name) { await addDoc(collection(db, col), newRec); setNewRec({}); } };
+          const del = async (id) => { if(confirm("Padam?")) await deleteDoc(doc(db, col, id)); };
+          return (<div className="grid lg:grid-cols-4 gap-8"><div className="bg-white p-6 rounded-xl border border-slate-200 h-fit"><h3 className="font-bold mb-4">Daftar {type}</h3><form onSubmit={add} className="space-y-4"><input className="inp" required value={newRec.name||''} onChange={e=>setNewRec({...newRec, name:e.target.value})} placeholder="Nama"/>{type==='student'?<input className="inp" required value={newRec.class||''} onChange={e=>setNewRec({...newRec, class:e.target.value})} placeholder="Kelas"/>:<><input className="inp" required value={newRec.email||''} onChange={e=>setNewRec({...newRec, email:e.target.value})} placeholder="Email"/><input className="inp" required value={newRec.role||''} onChange={e=>setNewRec({...newRec, role:e.target.value})} placeholder="Jawatan"/></>}<button className="w-full bg-slate-900 text-white py-2 rounded-lg font-bold">Simpan</button></form></div><div className="lg:col-span-3 bg-white rounded-xl border border-slate-200 overflow-hidden"><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-slate-500 uppercase text-xs font-bold"><tr><th className="p-4">Nama</th><th className="p-4">Info</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody className="divide-y divide-slate-100">{data.map(d=>(<tr key={d.id} className="hover:bg-slate-50"><td className="p-4 font-bold text-slate-700">{d.name}</td><td className="p-4 text-slate-500">{type==='student'?d.class:d.email}</td><td className="p-4 text-right"><button onClick={()=>del(d.id)} className="text-red-500"><Trash2 className="w-4 h-4"/></button></td></tr>))}</tbody></table></div></div>);
+        }
 
-// --- DATA TABLE ---
-function DataTable({ type, data }) {
-  const [newRec, setNewRec] = useState({});
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({});
-  const [confirmDel, setConfirmDel] = useState(false);
-  const col = type === 'student' ? 'portal_students' : 'portal_teachers';
-  const fileRef = useRef(null);
+        // --- APP BUILDER ---
+        function AppBuilder({ apps }) {
+          const [form, setForm] = useState({ title: '', desc: '', iconKey: 'portal', category: 'umum', type: 'link', content: '' });
+          const save = async () => { if(!form.title) return; await addDoc(collection(db, 'portal_apps'), form); setForm({...form, title:''}); alert("Disimpan!"); };
+          return (<div className="grid lg:grid-cols-12 gap-8"><div className="lg:col-span-8 bg-white rounded-xl border border-slate-200 p-6"><h3 className="font-bold mb-4">Bina App</h3><div className="space-y-4"><input className="inp" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} placeholder="Tajuk"/><textarea className="inp h-20" value={form.desc} onChange={e=>setForm({...form, desc:e.target.value})} placeholder="Deskripsi"/><input className="inp" value={form.content} onChange={e=>setForm({...form, content:e.target.value})} placeholder="URL / HTML"/><button onClick={save} className="bg-indigo-600 text-white w-full py-2 rounded-lg font-bold">Terbitkan</button></div></div><div className="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-4"><h3 className="font-bold text-sm mb-4">Senarai</h3>{apps.map(a=>(<div key={a.id} className="flex justify-between p-2 border-b">{a.title}</div>))}</div></div>);
+        }
 
-  const add = async (e) => { e.preventDefault(); if(!newRec.name) return; await addDoc(collection(db, col), newRec); setNewRec({}); };
-  const handleUpdate = async () => { if (!editingId) return; await updateDoc(doc(db, col, editingId), editForm); setEditingId(null); setEditForm({}); };
-  const executeDelete = async () => { const batch = writeBatch(db); const ids = typeof confirmDel === 'string' ? [confirmDel] : selectedIds; ids.forEach(id => batch.delete(doc(db, col, id))); await batch.commit(); setSelectedIds([]); setConfirmDel(false); };
-  const toggleSelectRow = (id) => { selectedIds.includes(id) ? setSelectedIds(selectedIds.filter(sid=>sid!==id)) : setSelectedIds([...selectedIds, id]); };
-  const startEdit = (rec) => { setEditingId(rec.id); setEditForm({...rec}); };
-  const handleCSV = (e) => {
-     const f = e.target.files[0]; if(!f) return;
-     const r = new FileReader();
-     r.onload = async (ev) => {
-        const batch = writeBatch(db);
-        let c = 0;
-        ev.target.result.split('\n').forEach(l => { const [a, b, c_v] = l.split(',').map(s=>s?.trim()); if(a&&b){ batch.set(doc(collection(db, col)), type==='student'?{name:a, class:b}:{name:a, email:b, role:c_v||'Guru'}); c++; }});
-        if(c>0) { await batch.commit(); alert(`Import berjaya: ${c} rekod.`); }
-     };
-     r.readAsText(f);
-  };
+        function AppGallery({ apps }) {
+          const [sel, setSel] = useState(null);
+          if(sel) return (<div className="h-[80vh] bg-white rounded-xl border border-slate-200 flex flex-col"><div className="p-4 border-b flex justify-between"><button onClick={()=>setSel(null)}>Kembali</button><h3 className="font-bold">{sel.title}</h3></div><iframe src={sel.content} className="flex-1 border-none"/></div>);
+          return (<div className="grid grid-cols-2 md:grid-cols-4 gap-4">{apps.map(a=>(<div key={a.id} onClick={()=>setSel(a)} className="bg-white p-4 rounded-xl border hover:shadow-md cursor-pointer"><h4 className="font-bold">{a.title}</h4></div>))}</div>);
+        }
 
-  return (
-    <>
-      {confirmDel && <ConfirmModal title="Padam Rekod?" msg="Data akan dipadam kekal." onConfirm={executeDelete} onCancel={() => setConfirmDel(false)} />}
-      <div className="grid lg:grid-cols-4 gap-8">
-         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-fit">
-            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2"><Plus className="w-5 h-5 text-indigo-600"/> Daftar {type}</h3>
-            <form onSubmit={add} className="space-y-4">
-               <div><label className="lbl">Nama Penuh</label><input className="inp" required value={newRec.name||''} onChange={e=>setNewRec({...newRec, name:e.target.value})} /></div>
-               {type==='student' ? (
-                  <div><label className="lbl">Kelas</label><input className="inp" required value={newRec.class||''} onChange={e=>setNewRec({...newRec, class:e.target.value})} /></div>
-               ) : (
-                  <><div><label className="lbl">Email</label><input className="inp" required value={newRec.email||''} onChange={e=>setNewRec({...newRec, email:e.target.value})} /></div><div><label className="lbl">Jawatan</label><input className="inp" required value={newRec.role||''} onChange={e=>setNewRec({...newRec, role:e.target.value})} /></div></>
-               )}
-               <button className="w-full bg-slate-900 text-white py-2.5 rounded-lg font-bold text-sm hover:bg-black transition shadow-md">Simpan Data</button>
-            </form>
-            <div className="mt-6 pt-6 border-t border-slate-100">
-               <button onClick={()=>fileRef.current.click()} className="w-full border border-emerald-200 text-emerald-700 bg-emerald-50 py-2.5 rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-100 transition"><FileSpreadsheet className="w-4 h-4"/> Import CSV</button>
-               <input type="file" ref={fileRef} onChange={handleCSV} className="hidden" accept=".csv"/>
-            </div>
-         </div>
-         <div className="lg:col-span-3 bg-white rounded-xl border border-slate-200 flex flex-col overflow-hidden h-[650px] shadow-sm">
-            {selectedIds.length > 0 && (<div className="bg-indigo-50 border-b border-indigo-100 p-3 flex justify-between items-center px-5 animate-fade-in"><span className="text-sm font-bold text-indigo-800">{selectedIds.length} item dipilih</span><button onClick={()=>setConfirmDel(true)} className="bg-white border border-red-200 text-red-600 px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-red-50 flex items-center gap-2"><Trash2 className="w-3 h-3"/> Padam</button></div>)}
-            <div className="overflow-auto flex-1">
-               <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 text-slate-500 uppercase text-xs font-bold sticky top-0 z-10"><tr><th className="p-5 w-10 border-b border-slate-200"><button onClick={()=>setSelectedIds(selectedIds.length===data.length?[]:data.map(d=>d.id))} className="text-slate-400">{selectedIds.length>0 && selectedIds.length===data.length?<CheckSquare className="w-5 h-5 text-indigo-600"/>:<Square className="w-5 h-5"/>}</button></th><th className="p-5 border-b border-slate-200">Nama</th><th className="p-5 border-b border-slate-200">Info</th><th className="p-5 text-right border-b border-slate-200 w-32">Aksi</th></tr></thead>
-                  <tbody className="divide-y divide-slate-100">{data.map(d=>{const isEditing=editingId===d.id;const isSel=selectedIds.includes(d.id);return(<tr key={d.id} className={`transition ${isSel?'bg-indigo-50/50':'hover:bg-slate-50'}`}><td className="p-5"><button onClick={()=>toggleSelectRow(d.id)} className="text-slate-300 hover:text-indigo-500">{isSel?<CheckSquare className="w-5 h-5 text-indigo-600"/>:<Square className="w-5 h-5"/>}</button></td><td className="p-5 font-medium text-slate-700">{isEditing?(<input className="w-full p-2 border border-indigo-300 rounded text-sm outline-none" value={editForm.name} onChange={e=>setEditForm({...editForm, name:e.target.value})}/>):d.name}</td><td className="p-5 text-slate-500">{isEditing?(type==='student'?(<input className="w-full p-2 border border-indigo-300 rounded text-sm outline-none" value={editForm.class} onChange={e=>setEditForm({...editForm, class:e.target.value})}/>):(<div className="flex flex-col gap-2"><input className="w-full p-2 border border-indigo-300 rounded text-xs" value={editForm.email} onChange={e=>setEditForm({...editForm, email:e.target.value})}/><input className="w-full p-2 border border-indigo-300 rounded text-xs" value={editForm.role} onChange={e=>setEditForm({...editForm, role:e.target.value})}/></div>)):(type==='student'?d.class:(<div className="flex flex-col"><span>{d.email}</span><span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-100 px-1.5 rounded w-fit mt-1">{d.role}</span></div>))}</td><td className="p-5 text-right">{isEditing?(<div className="flex justify-end gap-2"><button onClick={handleUpdate} className="text-green-600 hover:bg-green-50 p-1.5 rounded"><CheckCircle className="w-5 h-5"/></button><button onClick={()=>setEditingId(null)} className="text-red-400 hover:bg-red-50 p-1.5 rounded"><XCircle className="w-5 h-5"/></button></div>):(<div className="flex justify-end gap-2"><button onClick={()=>startEdit(d)} className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded transition"><Edit3 className="w-4 h-4"/></button><button onClick={()=>setConfirmDel(d.id)} className="text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded transition"><Trash2 className="w-4 h-4"/></button></div>)}</td></tr>)})}</tbody>
-               </table>
-            </div>
-         </div>
-      </div>
-    </>
-  );
-}
+        function AccessDenied() { return <div className="h-full flex flex-col items-center justify-center text-slate-400 font-bold"><Lock className="w-12 h-12 mb-4 opacity-50"/><p>Akses Terhad</p></div>; }
 
-// --- UTILS ---
-function ConfirmModal({ title, msg, onConfirm, onCancel }) { return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-fade-in"><div className="bg-white w-full max-w-sm rounded-xl p-6 shadow-2xl border border-slate-100 transform scale-100 animate-scale-up"><h3 className="text-lg font-bold text-slate-800 mb-2">{title}</h3><p className="text-slate-500 mb-6">{msg}</p><div className="flex gap-3 justify-end"><button onClick={onCancel} className="px-4 py-2 rounded-lg font-bold text-slate-600 hover:bg-slate-100">Batal</button><button onClick={onConfirm} className="px-4 py-2 rounded-lg font-bold text-white bg-red-600 hover:bg-red-700">Ya, Padam</button></div></div></div> }
-function HtmlView({ content }) { const r = useRef(null); useEffect(() => { if (r.current) Array.from(r.current.getElementsByTagName('script')).forEach(s => { const n = document.createElement('script'); n.text = s.text; try { window.eval(s.text) } catch (e) { } }) }, [content]); return <div ref={r} className="p-8 prose max-w-none text-slate-800" dangerouslySetInnerHTML={{ __html: content }} /> }
-function AccessDenied() { return <div className="h-full flex flex-col items-center justify-center text-slate-400 font-medium"><Lock className="w-12 h-12 mb-4 opacity-50 text-slate-300" /><p>Akses Terhad (Admin Sahaja)</p></div> }
-const styles = `.lbl{display:block;font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:0.5rem;text-transform:uppercase}.inp{width:100%;padding:0.6rem 0.8rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.875rem;outline:none;background-color:#f8fafc;color:#1e293b}.inp:focus{background-color:white;border-color:#4f46e5}@keyframes fade-in{from{opacity:0}to{opacity:1}}@keyframes scale-up{from{transform:scale(0.95);opacity:0}to{transform:scale(1);opacity:1}}.animate-fade-in{animation:fade-in 0.2s ease-out}.animate-scale-up{animation:scale-up 0.2s cubic-bezier(0.16,1,0.3,1)}`;
+        const root = createRoot(document.getElementById('root'));
+        root.render(<MainApp />);
+    </script>
+</body>
+</html>
+
 
