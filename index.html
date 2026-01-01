@@ -230,7 +230,6 @@
         // --- ROUTER ---
         function ContentRouter({ userData, apps, students, teachers }) {
           const [currentView, setCurrentView] = useState('dashboard');
-          
           return <DashboardRouter role={userData.role} apps={apps} students={students} teachers={teachers} />;
         }
 
@@ -238,12 +237,6 @@
         function DashboardRouter({ role, apps, students, teachers }) {
            const [view, setView] = useState('dashboard');
 
-           // FIX: Saya menyatukan semula logik routing di sini untuk paparan HTML yang stabil
-           // (Overriding struktur asal sedikit untuk membolehkan navigasi berfungsi dalam single file HTML)
-           
-           // Oleh kerana struktur asal memisahkan 'view' di App level tetapi render di ContentRouter,
-           // Dalam HTML single file ini, saya akan render DashboardRouter sebagai controller utama content.
-           
            // RE-RENDER of Components based on 'view' state:
            if (['students','teachers','builder'].includes(view) && role !== 'admin') return <AccessDenied />;
            
@@ -422,7 +415,7 @@
                    {menus.map(m => {
                       if (m.admin && userData.role !== 'admin') return null;
                       const active = view === m.id;
-                      return <button key={m.id} onClick={() => setView(m.id)} title={m.l} className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${active ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 border border-transparent'}`}><m.i className={`w-5 h-5 ${active ? 'text-indigo-600' : 'text-slate-400'}`} /><span className="hidden md:block">{m.l}</span></button>
+                      return <button key={m.id} onClick={() => setView(m.id)} title={m.l} className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${active ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}><m.i className={`w-5 h-5 ${active ? 'text-indigo-600' : 'text-slate-400'}`} /><span className="hidden md:block">{m.l}</span></button>
                    })}
                 </nav>
                 <div className="p-4 border-t border-slate-100"><button onClick={logout} className="flex items-center justify-center md:justify-start gap-3 text-slate-400 hover:text-red-600 hover:bg-red-50 text-sm font-medium w-full px-3 py-3 rounded-lg transition-colors"><LogOut className="w-5 h-5" /><span className="hidden md:block">Keluar</span></button></div>
@@ -470,18 +463,97 @@
         // --- APP BUILDER ---
         function AppBuilder({ apps }) {
           const [form, setForm] = useState({ title: '', desc: '', iconKey: 'portal', category: 'umum', type: 'link', content: '' });
-          const save = async () => { if(!form.title) return; await addDoc(collection(db, 'portal_apps'), form); setForm({...form, title:''}); alert("Disimpan!"); };
-          return (<div className="grid lg:grid-cols-12 gap-8"><div className="lg:col-span-8 bg-white rounded-xl border border-slate-200 p-6"><h3 className="font-bold mb-4">Bina App</h3><div className="space-y-4"><input className="inp" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} placeholder="Tajuk"/><textarea className="inp h-20" value={form.desc} onChange={e=>setForm({...form, desc:e.target.value})} placeholder="Deskripsi"/><div className="flex gap-2"><button onClick={()=>setForm({...form, type:'link'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='link'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>Link</button><button onClick={()=>setForm({...form, type:'html'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='html'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>HTML</button></div>{form.type==='link'?<input className="inp" value={form.content} onChange={e=>setForm({...form, content:e.target.value})} placeholder="URL..."/>:<textarea className="inp h-40 font-mono text-xs bg-slate-900 text-green-400" value={form.content} onChange={e=>setForm({...form, content:e.target.value})} placeholder="HTML Code..."/>}<button onClick={save} className="bg-indigo-600 text-white w-full py-2 rounded-lg font-bold">Terbitkan</button></div></div><div className="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-4"><h3 className="font-bold text-sm mb-4">Senarai</h3>{apps.map(a=>(<div key={a.id} className="flex justify-between p-2 border-b">{a.title}</div>))}</div></div>);
+          const [confirmDel, setConfirmDel] = useState(null);
+          const handleSave = async () => { if(!form.title) return; await addDoc(collection(db, 'portal_apps'), form); setForm({...form, title:''}); alert("Disimpan!"); };
+          const executeDelete = async () => { if(confirmDel) { await deleteDoc(doc(db, 'portal_apps', confirmDel)); setConfirmDel(null); } };
+          return (<div className="grid lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-8 bg-white rounded-xl border border-slate-200 p-6">
+                <h3 className="font-bold mb-4">Bina App</h3>
+                <div className="space-y-4">
+                    <input className="inp" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} placeholder="Tajuk"/>
+                    <textarea className="inp h-20" value={form.desc} onChange={e=>setForm({...form, desc:e.target.value})} placeholder="Deskripsi"/>
+                    <div className="flex gap-2">
+                        <button onClick={()=>setForm({...form, type:'link'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='link'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>Link</button>
+                        <button onClick={()=>setForm({...form, type:'html'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='html'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>HTML</button>
+                    </div>
+                    {form.type==='link'?<input className="inp" value={form.content} onChange={e=>setForm({...form, content:e.target.value})} placeholder="URL..."/>:<textarea className="inp h-40 font-mono text-xs bg-slate-900 text-green-400" value={form.content} onChange={e=>setForm({...form, content:e.target.value})} placeholder="HTML Code..."/>}
+                    
+                    {/* ICON SELECTOR */}
+                    <div className="flex gap-3 overflow-x-auto pb-4 pt-1">
+                        {Object.entries(ALL_ICONS).map(([k, d]) => (
+                            <button key={k} onClick={() => setForm({...form, iconKey: k})} className={`p-3 rounded-xl border transition-all flex-shrink-0 ${form.iconKey === k ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`} title={k}>
+                                <d.i className={`w-6 h-6 ${d.color}`}/>
+                            </button>
+                        ))}
+                    </div>
+
+                    <button onClick={handleSave} className="bg-indigo-600 text-white w-full py-2 rounded-lg font-bold">Terbitkan</button>
+                </div>
+            </div>
+            <div className="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-4">
+                <h3 className="font-bold text-sm mb-4">Senarai</h3>
+                {apps.map(a=>(
+                    <div key={a.id} className="flex justify-between items-center p-2 hover:bg-slate-50 border-b border-slate-100 last:border-0">
+                        <span className="text-sm font-bold truncate w-40">{a.title}</span>
+                        <button onClick={()=>setConfirmDel(a.id)} className="text-red-500"><Trash2 className="w-4 h-4"/></button>
+                    </div>
+                ))}
+            </div>
+            {confirmDel && <ConfirmModal title="Padam?" msg="Tiada undo." onConfirm={executeDelete} onCancel={()=>setConfirmDel(null)}/>}
+          </div>);
         }
 
         function AppGallery({ apps }) {
           const [sel, setSel] = useState(null);
-          if(sel) return (<div className="h-[80vh] bg-white rounded-xl border border-slate-200 flex flex-col"><div className="p-4 border-b flex justify-between"><button onClick={()=>setSel(null)}>Kembali</button><h3 className="font-bold">{sel.title}</h3></div><div className="flex-1 relative">{sel.type==='html' ? <HtmlView content={sel.content}/> : <iframe src={sel.content} className="w-full h-full border-none"/>}</div></div>);
-          return (<div className="grid grid-cols-2 md:grid-cols-4 gap-4">{apps.map(a=>(<div key={a.id} onClick={()=>setSel(a)} className="bg-white p-4 rounded-xl border hover:shadow-md cursor-pointer"><h4 className="font-bold">{a.title}</h4></div>))}</div>);
+          
+          if(sel) return (
+            <div className="h-[80vh] bg-white rounded-xl border border-slate-200 flex flex-col">
+                <div className="p-4 border-b flex justify-between">
+                    <button onClick={()=>setSel(null)} className="flex items-center gap-1 font-bold text-slate-600"><ChevronRight className="rotate-180 w-4 h-4"/> Kembali</button>
+                    <h3 className="font-bold">{sel.title}</h3>
+                    {sel.type==='link' && <a href={sel.content} target="_blank" className="text-blue-600 text-xs font-bold flex items-center gap-1">Tab Baru <ExternalLink className="w-3 h-3"/></a>}
+                </div>
+                <div className="flex-1 relative bg-white">
+                    {sel.type === 'html' ? (
+                        <iframe 
+                            srcDoc={sel.content} 
+                            className="w-full h-full border-none" 
+                            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+                            title="SubApp Preview"
+                        />
+                    ) : (
+                        <iframe 
+                            src={sel.content} 
+                            className="w-full h-full border-none" 
+                            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+                            title="External Link"
+                        />
+                    )}
+                </div>
+            </div>
+          );
+
+          return (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {apps.map(a=>(
+                    <div key={a.id} onClick={()=>setSel(a)} className="bg-white p-4 rounded-xl border hover:shadow-md cursor-pointer flex flex-col h-40 justify-between">
+                        <div className="flex justify-between">
+                            <div className={`p-2 rounded-lg ${ALL_ICONS[a.iconKey]?.bg || 'bg-slate-100'}`}>
+                                {React.createElement(ALL_ICONS[a.iconKey]?.i || Globe, { className: `w-6 h-6 ${ALL_ICONS[a.iconKey]?.color || 'text-slate-600'}` })}
+                            </div>
+                        </div>
+                        <div>
+                            <h4 className="font-bold truncate">{a.title}</h4>
+                            <p className="text-xs text-slate-500 line-clamp-2">{a.desc}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+          );
         }
 
         function AccessDenied() { return <div className="h-full flex flex-col items-center justify-center text-slate-400 font-bold"><Lock className="w-12 h-12 mb-4 opacity-50"/><p>Akses Terhad</p></div>; }
-        function HtmlView({ content }) { const r = useRef(null); useEffect(() => { if (r.current) { const s = document.createElement('script'); s.text = r.current.innerText; try { window.eval(s.text); } catch(e){} } }, [content]); return <div ref={r} className="p-8 prose" dangerouslySetInnerHTML={{__html: content}}/>; }
+        
         function ConfirmModal({ title, msg, onConfirm, onCancel }) { return <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-white p-6 rounded-xl w-80 shadow-2xl"><h3 className="font-bold text-lg mb-2">{title}</h3><p className="text-slate-500 mb-4 text-sm">{msg}</p><div className="flex justify-end gap-2"><button onClick={onCancel} className="px-4 py-2 rounded text-sm font-bold text-slate-600">Batal</button><button onClick={onConfirm} className="px-4 py-2 rounded text-sm font-bold bg-red-600 text-white">Ya</button></div></div></div>; }
 
         const styles = `.lbl{display:block;font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:0.5rem;text-transform:uppercase}.inp{width:100%;padding:0.6rem 0.8rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.875rem;outline:none;background-color:#f8fafc;color:#1e293b}.inp:focus{background-color:white;border-color:#4f46e5}@keyframes fade-in{from{opacity:0}to{opacity:1}}@keyframes scale-up{from{transform:scale(0.95);opacity:0}to{transform:scale(1);opacity:1}}.animate-fade-in{animation:fade-in 0.2s ease-out}.animate-scale-up{animation:scale-up 0.2s cubic-bezier(0.16,1,0.3,1)}`;
