@@ -468,26 +468,71 @@
             document.getElementById('app-viewer-category').innerText = app.category;
             
             const iframe = document.getElementById('app-frame');
-            const doc = iframe.contentDocument || iframe.contentWindow.document;
             
-            // Bridge Script to pass Firebase to Iframe
-            const bridgeScript = `
-                <script>
-                    window.db = window.parent.db;
-                    window.auth = window.parent.auth;
-                    window.collection = window.parent.collection;
-                    window.addDoc = window.parent.addDoc;
-                    window.serverTimestamp = window.parent.serverTimestamp;
-                    window.getDocs = window.parent.getDocs;
-                    window.query = window.parent.query;
-                    window.where = window.parent.where;
-                    window.console = window.parent.console; // Debugging
-                <\/script>
-            `;
+            // Wait for iframe to load (or reload) to ensure a clean state
+            // Re-creating the iframe is safer to prevent script contamination
+            const container = document.getElementById('dynamic-app-container');
+            container.innerHTML = ''; // Clear container
+            const newIframe = document.createElement('iframe');
+            newIframe.id = 'app-frame';
+            newIframe.className = 'w-full h-full border-none absolute inset-0 bg-white';
+            container.appendChild(newIframe);
 
-            doc.open();
-            doc.write(bridgeScript + app.html);
-            doc.close();
+            // Give a slight delay for iframe to be ready in DOM
+            setTimeout(() => {
+                const doc = newIframe.contentDocument || newIframe.contentWindow.document;
+                
+                // Bridge Script to pass Firebase to Iframe
+                const bridgeScript = `
+                    <script>
+                        window.db = window.parent.db;
+                        window.auth = window.parent.auth;
+                        window.collection = window.parent.collection;
+                        window.addDoc = window.parent.addDoc;
+                        window.serverTimestamp = window.parent.serverTimestamp;
+                        window.getDocs = window.parent.getDocs;
+                        window.query = window.parent.query;
+                        window.where = window.parent.where;
+                        window.console = window.parent.console; // Debugging
+                        
+                        // Helper to get school data
+                        window.getTeachers = async () => {
+                            try {
+                                const q = window.query(window.collection(window.db, 'teachers'), window.parent.orderBy('name')); // Use parent orderBy if exposed or pass it
+                                // Since orderBy isn't exposed in window object above, let's expose it or just use simple fetch
+                                // Better approach: use the parent's function if possible, or re-implement simple fetch
+                                const snap = await window.getDocs(window.collection(window.db, 'teachers'));
+                                const teachers = [];
+                                snap.forEach(d => teachers.push({id: d.id, ...d.data()}));
+                                return teachers.sort((a,b) => a.name.localeCompare(b.name));
+                            } catch(e) { console.error(e); return []; }
+                        };
+                        
+                        window.getClasses = async () => {
+                             try {
+                                const snap = await window.getDocs(window.collection(window.db, 'classes'));
+                                const classes = [];
+                                snap.forEach(d => classes.push({id: d.id, ...d.data()}));
+                                return classes.sort((a,b) => a.name.localeCompare(b.name));
+                            } catch(e) { console.error(e); return []; }
+                        };
+                        
+                        window.getStudents = async () => {
+                             try {
+                                const snap = await window.getDocs(window.collection(window.db, 'students'));
+                                const students = [];
+                                snap.forEach(d => students.push({id: d.id, ...d.data()}));
+                                return students.sort((a,b) => a.name.localeCompare(b.name));
+                            } catch(e) { console.error(e); return []; }
+                        };
+
+                    <\/script>
+                `;
+
+                doc.open();
+                doc.write(bridgeScript + app.html);
+                doc.close();
+            }, 50);
             
             switchView('viewer');
         }
