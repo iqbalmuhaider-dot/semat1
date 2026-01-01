@@ -43,7 +43,7 @@
           getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged 
         } from 'firebase/auth';
         import { 
-          getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, writeBatch, updateDoc, getDoc, setDoc, getDocs 
+          getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, writeBatch, updateDoc, getDoc, setDoc, getDocs, where 
         } from 'firebase/firestore';
         import { 
           LayoutDashboard, LogOut, ChevronRight, X, Search, 
@@ -99,160 +99,6 @@
 
         // --- KOMPONEN UTAMA ---
         function MainApp() {
-          const [user, setUser] = useState(null); // Firebase User Object
-          const [userData, setUserData] = useState(null); // Firestore User Data (Role, etc)
-          const [loading, setLoading] = useState(true);
-          
-          // Data
-          const [apps, setApps] = useState([]);
-          const [students, setStudents] = useState([]);
-          const [teachers, setTeachers] = useState([]);
-
-          // 1. Auth Listener & Role Check
-          useEffect(() => {
-            const unsub = onAuthStateChanged(auth, async (currentUser) => {
-              if (currentUser) {
-                setUser(currentUser);
-                // Semak Role dalam Firestore
-                const userRef = doc(db, 'portal_users', currentUser.uid);
-                const userSnap = await getDoc(userRef);
-
-                if (userSnap.exists()) {
-                  // User lama: Ambil data
-                  const data = userSnap.data();
-                  setUserData(data);
-                  syncToLocalStorage(currentUser, data.role);
-                } else {
-                  // User baru: Tentukan Role (First User = Admin)
-                  const usersColl = collection(db, 'portal_users');
-                  const snapshot = await getDocs(usersColl);
-                  
-                  let newRole = 'guru'; // Default
-                  if (snapshot.empty) {
-                     newRole = 'admin'; // First user is Admin
-                     alert("Tahniah! Anda adalah pengguna pertama. Anda telah dilantik sebagai ADMIN.");
-                  }
-
-                  const newUserData = {
-                     name: currentUser.displayName,
-                     email: currentUser.email,
-                     photo: currentUser.photoURL,
-                     role: newRole,
-                     createdAt: new Date().toISOString()
-                  };
-
-                  await setDoc(userRef, newUserData);
-                  setUserData(newUserData);
-                  syncToLocalStorage(currentUser, newRole);
-                }
-              } else {
-                setUser(null);
-                setUserData(null);
-                localStorage.removeItem('portal_current_user');
-              }
-              setLoading(false);
-            });
-            return () => unsub();
-          }, []);
-
-          // Helper Sync untuk Attendance App
-          const syncToLocalStorage = (u, r) => {
-             localStorage.setItem('portal_current_user', JSON.stringify({
-                name: u.displayName,
-                email: u.email,
-                role: r,
-                photo: u.photoURL
-             }));
-          };
-
-          // 2. Data Fetching
-          useEffect(() => {
-            if (!user || !userData) return;
-            
-            // Global API
-            window.PortalAPI = { 
-               currentUser: user, 
-               saveData: async (colName, data) => {
-                 try {
-                    await addDoc(collection(db, colName), { ...data, createdAt: new Date().toISOString(), createdBy: user.uid });
-                    return { success: true };
-                 } catch(e) { return { success: false, error: e }; }
-               }
-            };
-
-            // Listeners
-            const unsubApps = onSnapshot(query(collection(db, 'portal_apps')), s => setApps(s.docs.map(d => ({id: d.id, ...d.data()}))));
-            
-            let unsubStud = () => {}, unsubTeach = () => {};
-            if (userData.role === 'admin' || userData.role === 'guru') {
-               unsubStud = onSnapshot(query(collection(db, 'portal_students')), s => setStudents(s.docs.map(d => ({id: d.id, ...d.data()}))));
-               unsubTeach = onSnapshot(query(collection(db, 'portal_teachers')), s => setTeachers(s.docs.map(d => ({id: d.id, ...d.data()}))));
-            }
-            return () => { unsubApps(); unsubStud(); unsubTeach(); };
-          }, [user, userData]);
-
-          const handleLogin = async () => {
-             try {
-                await signInWithPopup(auth, googleProvider);
-             } catch (error) {
-                console.error(error);
-                alert("Gagal log masuk Google: " + error.message);
-             }
-          };
-
-          const handleLogout = async () => {
-             await signOut(auth);
-          };
-
-          if (loading) return (
-            <div className="h-screen flex flex-col items-center justify-center bg-slate-50 text-indigo-600">
-                <Loader2 className="w-10 h-10 animate-spin mb-4"/>
-                <span className="font-medium animate-pulse">Memeriksa kelayakan akaun...</span>
-            </div>
-          );
-
-          if (!user) return <LoginScreen onGoogleLogin={handleLogin} />;
-
-          return (
-            <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
-              <style>{styles}</style>
-              <Sidebar userData={userData} view={userData?.role === 'admin' ? 'dashboard' : 'dashboard'} setView={()=>{}} logout={handleLogout} />
-              <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-                <Header userData={userData} />
-                <main className="flex-1 overflow-y-auto p-6 md:p-8 scroll-smooth">
-                   <ContentRouter userData={userData} apps={apps} students={students} teachers={teachers} />
-                </main>
-              </div>
-            </div>
-          );
-        }
-
-        // --- ROUTER ---
-        function ContentRouter({ userData, apps, students, teachers }) {
-          const [currentView, setCurrentView] = useState('dashboard');
-          return <DashboardRouter role={userData.role} apps={apps} students={students} teachers={teachers} />;
-        }
-
-        // Sub-component untuk handle view switching
-        function DashboardRouter({ role, apps, students, teachers }) {
-           const [view, setView] = useState('dashboard');
-
-           // RE-RENDER of Components based on 'view' state:
-           if (['students','teachers','builder'].includes(view) && role !== 'admin') return <AccessDenied />;
-           
-           switch(view) {
-                case 'dashboard': return <Dashboard role={role} apps={apps} students={students} teachers={teachers} setView={setView} />;
-                case 'apps': return <AppGallery apps={apps} />;
-                case 'builder': return <AppBuilder apps={apps} />;
-                case 'students': return <DataTable type="student" data={students} />;
-                case 'teachers': return <DataTable type="teacher" data={teachers} />;
-                default: return <Dashboard role={role} apps={apps} students={students} teachers={teachers} setView={setView} />;
-           }
-        }
-
-        // --- RE-WRITING MAINAPP TO FIX NAVIGATION ---
-        // (Sebab versi asal ada isu state lifting untuk navigasi sidebar)
-        function MainAppFixed() {
           const [user, setUser] = useState(null); 
           const [userData, setUserData] = useState(null); 
           const [loading, setLoading] = useState(true);
@@ -262,40 +108,90 @@
           const [students, setStudents] = useState([]);
           const [teachers, setTeachers] = useState([]);
 
+          // 1. LOGIK AUTH & SECURITY (KEMASKINI)
           useEffect(() => {
             const unsub = onAuthStateChanged(auth, async (currentUser) => {
               if (currentUser) {
-                setUser(currentUser);
-                const userRef = doc(db, 'portal_users', currentUser.uid);
-                const userSnap = await getDoc(userRef);
+                try {
+                    // A. SUPER ADMIN BYPASS
+                    if (currentUser.uid === "eNs6hJfU3CXVjpfRmYiBBRCzPI03") {
+                         const ref = doc(db, 'portal_users', currentUser.uid);
+                         const superData = { 
+                             name: currentUser.displayName || "Super Admin", 
+                             email: currentUser.email, 
+                             photo: currentUser.photoURL, 
+                             role: 'admin',
+                             isSuperAdmin: true,
+                             createdAt: new Date().toISOString()
+                         };
+                         // Force update/create super admin
+                         await setDoc(ref, superData, { merge: true });
+                         
+                         setUser(currentUser);
+                         setUserData(superData);
+                         syncToLocalStorage(currentUser, 'admin');
+                         setLoading(false);
+                         return; // Keluar dari function, akses diberi
+                    }
 
-                if (userSnap.exists()) {
-                  const data = userSnap.data();
-                  setUserData(data);
-                  syncToLocalStorage(currentUser, data.role);
-                } else {
-                  const usersColl = collection(db, 'portal_users');
-                  const snapshot = await getDocs(usersColl);
-                  let newRole = snapshot.empty ? 'admin' : 'guru';
-                  if (newRole === 'admin') alert("Anda adalah Admin Pertama!");
+                    // B. SEMAK USER SEDIA ADA
+                    const userRef = doc(db, 'portal_users', currentUser.uid);
+                    const userSnap = await getDoc(userRef);
 
-                  const newUserData = {
-                     name: currentUser.displayName,
-                     email: currentUser.email,
-                     photo: currentUser.photoURL,
-                     role: newRole,
-                     createdAt: new Date().toISOString()
-                  };
-                  await setDoc(userRef, newUserData);
-                  setUserData(newUserData);
-                  syncToLocalStorage(currentUser, newRole);
+                    if (userSnap.exists()) {
+                        // User lama yang sah
+                        const data = userSnap.data();
+                        setUser(currentUser);
+                        setUserData(data);
+                        syncToLocalStorage(currentUser, data.role);
+                        setLoading(false);
+                    } else {
+                        // C. USER BARU - SEMAK WHITELIST (SENARAI GURU)
+                        const q = query(collection(db, 'portal_teachers'), where("email", "==", currentUser.email));
+                        const querySnapshot = await getDocs(q);
+
+                        if (!querySnapshot.empty) {
+                            // E-mel wujud dalam database guru! Benarkan masuk.
+                            const teacherInfo = querySnapshot.docs[0].data();
+                            
+                            // Tentukan role (default guru, tapi jika data kata admin, bagi admin)
+                            const assignedRole = (teacherInfo.role && teacherInfo.role.toLowerCase() === 'admin') ? 'admin' : 'guru';
+
+                            const newUserData = {
+                                name: teacherInfo.name, // Guna nama rasmi dari DB
+                                email: currentUser.email,
+                                photo: currentUser.photoURL,
+                                role: assignedRole,
+                                createdAt: new Date().toISOString()
+                            };
+
+                            await setDoc(userRef, newUserData);
+                            setUser(currentUser);
+                            setUserData(newUserData);
+                            syncToLocalStorage(currentUser, assignedRole);
+                            setLoading(false);
+                        } else {
+                            // D. AKSES DITOLAK
+                            await signOut(auth);
+                            setUser(null);
+                            setUserData(null);
+                            localStorage.removeItem('portal_current_user');
+                            alert("AKSES DITOLAK: E-mel anda tidak didaftarkan dalam sistem oleh Admin.");
+                            setLoading(false);
+                        }
+                    }
+                } catch(e) {
+                    console.error("Auth Error:", e);
+                    alert("Ralat Sistem: " + e.message);
+                    await signOut(auth);
+                    setLoading(false);
                 }
               } else {
                 setUser(null);
                 setUserData(null);
                 localStorage.removeItem('portal_current_user');
+                setLoading(false);
               }
-              setLoading(false);
             });
             return () => unsub();
           }, []);
@@ -338,7 +234,7 @@
 
           const handleLogout = async () => { await signOut(auth); };
 
-          if (loading) return <div className="h-screen flex flex-col items-center justify-center bg-slate-50 text-indigo-600"><Loader2 className="w-10 h-10 animate-spin mb-4"/><span className="font-medium animate-pulse">Memproses...</span></div>;
+          if (loading) return <div className="h-screen flex flex-col items-center justify-center bg-slate-50 text-indigo-600"><Loader2 className="w-10 h-10 animate-spin mb-4"/><span className="font-medium animate-pulse">Menyemak kelayakan...</span></div>;
 
           if (!user) return <LoginScreen onGoogleLogin={handleLogin} />;
 
@@ -389,7 +285,9 @@
                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6" alt="Google" />
                        <span className="font-bold text-slate-700">Teruskan dengan Google</span>
                     </button>
-                    <p className="mt-6 text-xs text-slate-400">*Pengguna pertama akan dilantik sebagai Admin secara automatik.</p>
+                    <p className="mt-6 text-xs text-slate-400 max-w-xs mx-auto">
+                       Hanya e-mel yang didaftarkan oleh Admin sahaja dibenarkan akses.
+                    </p>
                  </div>
               </div>
             </div>
