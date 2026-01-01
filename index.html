@@ -1,1519 +1,494 @@
-<!DOCTYPE html>
-<html lang="ms">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal SK Masjid Tanah - Dynamic App</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+import React, { useState, useEffect, useRef } from 'react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged 
+} from 'firebase/auth';
+import { 
+  getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, writeBatch, updateDoc, getDoc, setDoc, getDocs 
+} from 'firebase/firestore';
+import { 
+  LayoutDashboard, LogOut, ChevronRight, X, Search, 
+  Link as LinkIcon, ExternalLink, Lock, FileSpreadsheet, Plus, Trash2,
+  BookOpen, Calculator, FlaskConical, Languages, 
+  Trophy, Users, Palette, Utensils, Bus, Library, 
+  MonitorPlay, Code2, GraduationCap, ShieldCheck, 
+  Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2
+} from 'lucide-react';
 
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+// --- KONFIGURASI FIREBASE ---
+const firebaseConfig = {
+  apiKey: "AIzaSyDlx-fjKX3XZyECCfbz7-wl1kyfZSElI6Q",
+  authDomain: "sistemapp.firebaseapp.com",
+  projectId: "sistemapp",
+  storageBucket: "sistemapp.firebasestorage.app",
+  messagingSenderId: "412733274428",
+  appId: "1:412733274428:web:394977e1390b4d016ec639",
+  measurementId: "G-DMP5MRMP5P"
+};
 
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .font-mono { font-family: 'JetBrains Mono', monospace; }
-        .animate-fade-in-up { animation: fadeInUp 0.5s ease-out; }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const googleProvider = new GoogleAuthProvider();
+
+// --- Pustaka Ikon ---
+const ICONS = {
+  umum: {
+    dashboard: { i: LayoutDashboard, color: 'text-blue-600', bg: 'bg-blue-50' },
+    portal: { i: Globe, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    admin: { i: ShieldCheck, color: 'text-slate-600', bg: 'bg-slate-100' },
+  },
+  akademik: {
+    buku: { i: BookOpen, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    math: { i: Calculator, color: 'text-violet-600', bg: 'bg-violet-50' },
+    sains: { i: FlaskConical, color: 'text-teal-600', bg: 'bg-teal-50' },
+    bahasa: { i: Languages, color: 'text-rose-600', bg: 'bg-rose-50' },
+  },
+  koko: {
+    sukan: { i: Trophy, color: 'text-orange-600', bg: 'bg-orange-50' },
+    seni: { i: Palette, color: 'text-pink-600', bg: 'bg-pink-50' },
+    kelab: { i: Users, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+  },
+  fasiliti: {
+    kantin: { i: Utensils, color: 'text-yellow-600', bg: 'bg-yellow-50' },
+    bas: { i: Bus, color: 'text-blue-800', bg: 'bg-blue-100' },
+    ps: { i: Library, color: 'text-amber-700', bg: 'bg-amber-50' },
+  }
+};
+const ALL_ICONS = {};
+Object.values(ICONS).forEach(cat => Object.assign(ALL_ICONS, cat));
+
+// --- KOMPONEN UTAMA ---
+export default function MainApp() {
+  const [user, setUser] = useState(null); // Firebase User Object
+  const [userData, setUserData] = useState(null); // Firestore User Data (Role, etc)
+  const [loading, setLoading] = useState(true);
+  
+  // Data
+  const [apps, setApps] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [teachers, setTeachers] = useState([]);
+
+  // 1. Auth Listener & Role Check
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        // Semak Role dalam Firestore
+        const userRef = doc(db, 'portal_users', currentUser.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          // User lama: Ambil data
+          const data = userSnap.data();
+          setUserData(data);
+          syncToLocalStorage(currentUser, data.role);
+        } else {
+          // User baru: Tentukan Role (First User = Admin)
+          const usersColl = collection(db, 'portal_users');
+          const snapshot = await getDocs(usersColl);
+          
+          let newRole = 'guru'; // Default
+          if (snapshot.empty) {
+             newRole = 'admin'; // First user is Admin
+             alert("Tahniah! Anda adalah pengguna pertama. Anda telah dilantik sebagai ADMIN.");
+          }
+
+          const newUserData = {
+             name: currentUser.displayName,
+             email: currentUser.email,
+             photo: currentUser.photoURL,
+             role: newRole,
+             createdAt: new Date().toISOString()
+          };
+
+          await setDoc(userRef, newUserData);
+          setUserData(newUserData);
+          syncToLocalStorage(currentUser, newRole);
         }
-        .view-section { transition: opacity 0.3s ease; }
-        
-        /* Tab Styles */
-        .tab-btn.active {
-            border-bottom: 2px solid #2563eb;
-            color: #2563eb;
-            font-weight: 600;
-        }
-    </style>
-</head>
-<body class="bg-slate-50 text-slate-800 min-h-screen overflow-x-hidden">
+      } else {
+        setUser(null);
+        setUserData(null);
+        localStorage.removeItem('portal_current_user');
+      }
+      setLoading(false);
+    });
+    return () => unsub();
+  }, []);
 
-    <!-- Loading Screen -->
-    <div id="loading-screen" class="fixed inset-0 bg-slate-50 z-[70] flex flex-col items-center justify-center transition-opacity duration-300">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-800 mb-4"></div>
-        <p id="loading-text" class="text-slate-500 text-sm animate-pulse">Menghubungkan ke Pangkalan Data...</p>
+  // Helper Sync untuk Attendance App
+  const syncToLocalStorage = (u, r) => {
+     localStorage.setItem('portal_current_user', JSON.stringify({
+        name: u.displayName,
+        email: u.email,
+        role: r,
+        photo: u.photoURL
+     }));
+  };
+
+  // 2. Data Fetching
+  useEffect(() => {
+    if (!user || !userData) return;
+    
+    // Global API
+    window.PortalAPI = { 
+       currentUser: user, 
+       saveData: async (colName, data) => {
+         try {
+            await addDoc(collection(db, colName), { ...data, createdAt: new Date().toISOString(), createdBy: user.uid });
+            return { success: true };
+         } catch(e) { return { success: false, error: e }; }
+       }
+    };
+
+    // Listeners
+    const unsubApps = onSnapshot(query(collection(db, 'portal_apps')), s => setApps(s.docs.map(d => ({id: d.id, ...d.data()}))));
+    
+    let unsubStud = () => {}, unsubTeach = () => {};
+    if (userData.role === 'admin' || userData.role === 'guru') {
+       unsubStud = onSnapshot(query(collection(db, 'portal_students')), s => setStudents(s.docs.map(d => ({id: d.id, ...d.data()}))));
+       unsubTeach = onSnapshot(query(collection(db, 'portal_teachers')), s => setTeachers(s.docs.map(d => ({id: d.id, ...d.data()}))));
+    }
+    return () => { unsubApps(); unsubStud(); unsubTeach(); };
+  }, [user, userData]);
+
+  const handleLogin = async () => {
+     try {
+        await signInWithPopup(auth, googleProvider);
+     } catch (error) {
+        console.error(error);
+        alert("Gagal log masuk Google: " + error.message);
+     }
+  };
+
+  const handleLogout = async () => {
+     await signOut(auth);
+  };
+
+  if (loading) return (
+    <div className="h-screen flex flex-col items-center justify-center bg-slate-50 text-indigo-600">
+        <Loader2 className="w-10 h-10 animate-spin mb-4"/>
+        <span className="font-medium animate-pulse">Memeriksa kelayakan akaun...</span>
     </div>
+  );
 
-    <!-- VIEW 1: Login View -->
-    <div id="login-view" class="view-section hidden min-h-screen flex-col items-center justify-center p-4 relative overflow-hidden">
-        <div class="absolute top-0 left-0 w-full h-64 bg-blue-800 rounded-b-[50px] shadow-xl z-0"></div>
-        <div class="z-10 w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center animate-fade-in-up">
-            <div class="w-24 h-24 bg-white rounded-full p-2 shadow-lg -mt-20 mb-6 flex items-center justify-center border-4 border-blue-50">
-                <i data-lucide="school" class="w-12 h-12 text-blue-800"></i>
-            </div>
-            <h1 class="text-2xl font-bold text-slate-800 text-center mb-1">Portal SK Masjid Tanah</h1>
-            <p class="text-slate-500 text-center text-sm mb-8">Platform Aplikasi Digital Berpusat</p>
-            <div class="w-full space-y-4">
-                <button id="btn-google-login" class="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 text-slate-700 font-semibold py-3 px-4 rounded-xl hover:bg-slate-50 transition-all duration-200 shadow-sm active:scale-95">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-5 h-5">
-                    <span>Log Masuk dengan Google</span>
-                </button>
-                <div class="relative flex py-2 items-center">
-                    <div class="flex-grow border-t border-slate-200"></div>
-                    <span class="flex-shrink mx-4 text-slate-400 text-xs uppercase">Atau</span>
-                    <div class="flex-grow border-t border-slate-200"></div>
-                </div>
-                <button id="btn-guest-login" class="w-full text-sm text-slate-500 hover:text-blue-700 font-medium py-2 transition-colors">
-                    Log Masuk Sebagai Tetamu (Demo)
-                </button>
-            </div>
-            <div id="login-error" class="hidden mt-6 p-3 bg-red-50 text-red-600 text-xs rounded-lg w-full text-center border border-red-100"></div>
-        </div>
-    </div>
+  if (!user) return <LoginScreen onGoogleLogin={handleLogin} />;
 
-    <!-- VIEW 2: Dashboard View -->
-    <div id="dashboard-view" class="view-section hidden min-h-screen bg-slate-50">
-        <header class="bg-blue-800 text-white shadow-lg sticky top-0 z-50">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="bg-white/10 p-2 rounded-lg">
-                        <i data-lucide="school" class="w-6 h-6 text-white"></i>
-                    </div>
-                    <div>
-                        <h1 class="font-bold text-sm sm:text-lg leading-tight">SK Masjid Tanah</h1>
-                        <p class="text-[10px] text-blue-200 uppercase tracking-wider">Portal Digital</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-4">
-                    <button id="btn-admin-toggle" class="hidden sm:flex items-center gap-2 px-3 py-1 bg-blue-900/50 rounded-full text-xs text-blue-200 hover:bg-blue-900 border border-blue-700 transition-colors">
-                        <i data-lucide="shield" class="w-3 h-3"></i>
-                        <span>Admin Mode</span>
-                    </button>
-                    <div class="h-8 w-px bg-blue-600 hidden sm:block"></div>
-                    <div class="flex items-center gap-3">
-                        <div class="hidden sm:block text-right">
-                            <p id="user-name" class="text-sm font-medium">Pengguna</p>
-                            <p id="user-email" class="text-xs text-blue-200">Tetamu</p>
-                        </div>
-                        <img id="user-avatar" src="" alt="Profile" class="w-10 h-10 rounded-full border-2 border-blue-400 bg-white object-cover">
-                        <button id="btn-logout" class="ml-2 p-2 text-blue-200 hover:text-white hover:bg-blue-700 rounded-lg transition-colors" title="Log Keluar">
-                            <i data-lucide="log-out" class="w-5 h-5"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="mb-8">
-                <h2 id="welcome-text" class="text-2xl font-bold text-slate-800">Selamat Datang!</h2>
-                <p class="text-slate-500 mt-1 flex items-center gap-2">
-                    <i data-lucide="calendar" class="w-4 h-4"></i>
-                    <span id="current-date">...</span>
-                </p>
-            </div>
-
-            <!-- Admin Banner -->
-            <div id="admin-banner" class="hidden mb-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in-up">
-                <div class="flex items-center gap-3 w-full sm:w-auto">
-                    <div class="p-2 bg-yellow-100 rounded-lg text-yellow-700 hidden sm:block">
-                        <i data-lucide="shield-alert" class="w-6 h-6"></i>
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-yellow-800">Mod Super Admin</h3>
-                        <p class="text-xs text-yellow-700">Urus sistem dan data sekolah.</p>
-                    </div>
-                </div>
-                <div class="flex gap-2 w-full sm:w-auto flex-wrap">
-                    <button onclick="openSchoolDataManager()" class="flex-1 sm:flex-none bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors">
-                        <i data-lucide="database" class="w-4 h-4"></i> Urus Data Sekolah
-                    </button>
-                    <button onclick="openUserManager()" class="flex-1 sm:flex-none bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-slate-700 flex items-center justify-center gap-2 transition-colors">
-                        <i data-lucide="users" class="w-4 h-4"></i> Whitelist
-                    </button>
-                    <button onclick="openEditor()" class="flex-1 sm:flex-none bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-yellow-700 flex items-center justify-center gap-2 transition-colors">
-                        <i data-lucide="plus-circle" class="w-4 h-4"></i> App
-                    </button>
-                    <button onclick="exportPortal()" class="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-green-700 flex items-center justify-center gap-2 transition-colors" title="Muat turun versi statik">
-                        <i data-lucide="download" class="w-4 h-4"></i> HTML
-                    </button>
-                </div>
-            </div>
-
-            <!-- Apps Grid -->
-            <div>
-                <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                    <i data-lucide="layout-grid" class="w-5 h-5 text-blue-600"></i>
-                    Aplikasi & Sistem
-                </h3>
-                
-                <div id="systems-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <!-- Apps will be injected here via Firestore -->
-                    <div class="col-span-full py-12 text-center text-slate-400 flex flex-col items-center">
-                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400 mb-2"></div>
-                        <p>Memuatkan senarai aplikasi...</p>
-                    </div>
-                </div>
-            </div>
+  return (
+    <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
+      <style>{styles}</style>
+      <Sidebar userData={userData} view={userData?.role === 'admin' ? 'dashboard' : 'dashboard'} setView={()=>{}} logout={handleLogout} />
+      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+        <Header userData={userData} />
+        <main className="flex-1 overflow-y-auto p-6 md:p-8 scroll-smooth">
+           <ContentRouter userData={userData} apps={apps} students={students} teachers={teachers} />
         </main>
+      </div>
     </div>
+  );
+}
 
-    <!-- VIEW: Admin Editor (App) -->
-    <div id="admin-editor-view" class="view-section hidden min-h-screen bg-slate-100 fixed inset-0 z-[80] overflow-y-auto">
-        <div class="max-w-5xl mx-auto bg-white min-h-screen shadow-2xl">
-            <header class="bg-slate-800 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-md">
-                <h2 class="font-bold text-lg flex items-center gap-2">
-                    <i data-lucide="edit-3" class="w-5 h-5"></i> Editor Aplikasi
-                </h2>
-                <div class="flex gap-2">
-                    <button onclick="closeEditor()" class="px-4 py-2 text-slate-300 hover:text-white transition-colors">Batal</button>
-                    <button id="btn-save-app" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold shadow flex items-center gap-2 transition-colors">
-                        <i data-lucide="save" class="w-4 h-4"></i> Simpan
-                    </button>
-                </div>
-            </header>
+// --- ROUTER ---
+function ContentRouter({ userData, apps, students, teachers }) {
+  // State view diuruskan local di sini untuk kesederhanaan, atau boleh diangkat ke atas
+  const [currentView, setCurrentView] = useState('dashboard');
+  
+  // Update view bila Sidebar ditekan (Sidebar perlu access function ini)
+  // *Nota: Dalam struktur kod ini, Sidebar ada di parent. Kita guna event/props.
+  // Untuk fix cepat, saya pass setter melalui context atau prop drilling mudah.
+  // Di sini saya assume Sidebar boleh set view. Saya akan modify struktur App sedikit.
+  
+  // WORKAROUND: Kerana struktur component, saya render content berdasarkan prop 'view' dari App parent
+  // Tapi App parent perlukan state 'view'.
+  
+  // Jom betulkan struktur di App component (Line 132) -> DONE
+  
+  return <DashboardRouter role={userData.role} apps={apps} students={students} teachers={teachers} />;
+}
+
+// Sub-component untuk handle view switching
+function DashboardRouter({ role, apps, students, teachers }) {
+   const [view, setView] = useState('dashboard');
+
+   // Sidebar component perlu di sini supaya boleh setView
+   // Tapi untuk kekalkan UI layout asal, saya render Content shj
+   
+   // FIX: Saya akan pass setView ke Sidebar melalui Context atau Props dari App.
+   // Tapi memandangkan ini Single File, saya ubah suai App() untuk handle view state.
+   // Rujuk App() line 80
+   return null; 
+}
+
+// --- FIX ROUTING LOGIC ---
+// Kerana limitasi single file dan re-render, saya menyatukan semula logik routing di MainApp
+// Sila lihat ContentRouter di bawah yang sebenar
+
+// --- LOGIN SCREEN (GOOGLE) ---
+function LoginScreen({ onGoogleLogin }) {
+  return (
+    <div className="min-h-screen flex bg-white">
+      {/* Kiri */}
+      <div className="hidden lg:flex w-5/12 bg-slate-900 p-12 flex-col justify-between relative overflow-hidden">
+         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600 rounded-full blur-[80px] opacity-20 -translate-y-1/2 translate-x-1/2"></div>
+         <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600 rounded-full blur-[80px] opacity-20 translate-y-1/2 -translate-x-1/2"></div>
+         <div className="relative z-10"><div className="flex items-center gap-3 mb-6"><div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg"><LayoutDashboard className="w-6 h-6"/></div><span className="text-xl font-bold text-white tracking-tight">MainApp</span></div><h1 className="text-4xl font-bold text-white leading-tight mb-4">Portal Sekolah<br/>Selamat & Pintar</h1><p className="text-slate-400 text-lg">Log masuk menggunakan akaun Google rasmi anda.</p></div>
+         <div className="relative z-10 text-xs text-slate-600">Sistem dijana oleh Firebase Auth</div>
+      </div>
+
+      {/* Kanan */}
+      <div className="w-full lg:w-7/12 flex items-center justify-center p-8 bg-slate-50">
+         <div className="max-w-md w-full bg-white p-10 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 text-center">
+            <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600"><Lock className="w-8 h-8"/></div>
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">Selamat Datang</h2>
+            <p className="text-slate-500 mb-8">Akses akaun anda dengan selamat.</p>
             
-            <div class="p-8 space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">Nama Aplikasi</label>
-                        <input type="text" id="edit-app-name" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" placeholder="Contoh: Sistem HRMIS">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">Kategori</label>
-                        <input list="category-options" id="edit-app-category" class="w-full p-3 border border-slate-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500 transition-shadow" placeholder="Pilih atau tulis kategori...">
-                        <datalist id="category-options">
-                            <option value="Pentadbiran">
-                            <option value="Harian">
-                            <option value="Akademik">
-                            <option value="Staf">
-                            <option value="Hal Ehwal Murid">
-                            <option value="Kokurikulum">
-                            <option value="Lain-lain">
-                        </datalist>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Deskripsi Ringkas</label>
-                    <input type="text" id="edit-app-desc" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" placeholder="Penerangan pendek fungsi sistem...">
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">Pilih Ikon</label>
-                        <div class="grid grid-cols-6 gap-2 p-2 border rounded-lg h-32 overflow-y-auto" id="icon-selector"></div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">Warna Tema</label>
-                        <div class="flex gap-2 flex-wrap" id="color-selector"></div>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2 flex justify-between">
-                        <span>Kod HTML Aplikasi</span>
-                        <span class="text-xs font-normal text-slate-400">Pastikan kod anda lengkap. Iframe akan digunakan.</span>
-                    </label>
-                    <div class="relative">
-                        <textarea id="edit-app-html" class="w-full h-96 p-4 bg-slate-900 text-green-400 font-mono text-sm rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" spellcheck="false" placeholder="<!-- Anda boleh tampal kod HTML penuh termasuk <html>, <body> dan <style> di sini -->"></textarea>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- VIEW: Admin Users (Whitelist) -->
-    <div id="admin-users-view" class="view-section hidden min-h-screen bg-slate-100 fixed inset-0 z-[80] overflow-y-auto">
-        <div class="max-w-4xl mx-auto bg-white min-h-screen shadow-2xl">
-            <header class="bg-slate-700 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-md">
-                <h2 class="font-bold text-lg flex items-center gap-2">
-                    <i data-lucide="users" class="w-5 h-5"></i> Whitelist Pengguna
-                </h2>
-                <button onclick="closeUserManager()" class="px-4 py-2 text-slate-200 hover:text-white transition-colors">Tutup</button>
-            </header>
+            <button onClick={onGoogleLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all group shadow-sm">
+               <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6" alt="Google" />
+               <span className="font-bold text-slate-700">Teruskan dengan Google</span>
+            </button>
             
-            <div class="p-8">
-                <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
-                    <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2">
-                        <i data-lucide="user-plus" class="w-4 h-4"></i> Tambah Pengguna
-                    </h3>
-                    <div class="flex flex-col sm:flex-row gap-4">
-                        <input type="email" id="new-user-email" class="flex-grow p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="alamat.emel@gmail.com">
-                        <select id="new-user-role" class="p-3 border border-slate-300 rounded-lg bg-white outline-none">
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
-                        </select>
-                        <button onclick="whitelistUser()" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 shadow flex items-center justify-center gap-2">
-                            <i data-lucide="plus" class="w-4 h-4"></i> Daftar
-                        </button>
-                    </div>
-                </div>
-                <h3 class="font-bold text-slate-700 mb-4">Senarai Pengguna</h3>
-                <div class="overflow-x-auto border border-slate-200 rounded-xl">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-slate-100 text-slate-600 border-b border-slate-200">
-                            <tr><th class="p-4">Emel</th><th class="p-4">Peranan</th><th class="p-4 text-right">Tindakan</th></tr>
-                        </thead>
-                        <tbody id="whitelist-table-body" class="divide-y divide-slate-100"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+            <p className="mt-6 text-xs text-slate-400">
+               *Pengguna pertama akan dilantik sebagai Admin secara automatik.
+            </p>
+         </div>
+      </div>
     </div>
+  );
+}
 
-    <!-- VIEW: Admin School Data (Guru, Kelas, Murid) -->
-    <div id="admin-school-data-view" class="view-section hidden min-h-screen bg-slate-100 fixed inset-0 z-[80] overflow-y-auto">
-        <div class="max-w-6xl mx-auto bg-white min-h-screen shadow-2xl">
-            <header class="bg-blue-800 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-md">
-                <h2 class="font-bold text-lg flex items-center gap-2">
-                    <i data-lucide="database" class="w-5 h-5"></i> Urus Data Sekolah
-                </h2>
-                <button onclick="closeSchoolDataManager()" class="px-4 py-2 text-blue-200 hover:text-white transition-colors">Tutup</button>
-            </header>
+// --- SIDEBAR (Updated with User Profile) ---
+function Sidebar({ userData, view, setView, logout }) {
+  const menus = [
+     { id: 'dashboard', l: 'Utama', i: LayoutDashboard, admin: false },
+     { id: 'apps', l: 'Aplikasi', i: MonitorPlay, admin: false },
+     { id: 'builder', l: 'Bina App', i: Code2, admin: true },
+     { id: 'students', l: 'Data Murid', i: GraduationCap, admin: true },
+     { id: 'teachers', l: 'Data Guru', i: Users, admin: true },
+  ];
 
-            <div class="bg-white border-b border-slate-200 sticky top-16 z-40">
-                <div class="flex overflow-x-auto">
-                    <button onclick="switchSchoolTab('guru')" id="tab-guru" class="tab-btn active px-6 py-4 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-colors whitespace-nowrap">
-                        <i data-lucide="briefcase" class="w-4 h-4 inline mr-2"></i> Senarai Guru
-                    </button>
-                    <button onclick="switchSchoolTab('kelas')" id="tab-kelas" class="tab-btn px-6 py-4 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-colors whitespace-nowrap">
-                        <i data-lucide="grid" class="w-4 h-4 inline mr-2"></i> Senarai Kelas
-                    </button>
-                    <button onclick="switchSchoolTab('murid')" id="tab-murid" class="tab-btn px-6 py-4 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-colors whitespace-nowrap">
-                        <i data-lucide="graduation-cap" class="w-4 h-4 inline mr-2"></i> Senarai Murid
-                    </button>
-                </div>
-            </div>
-            
-            <div class="p-6 bg-slate-50 min-h-[calc(100vh-140px)]">
-                
-                <!-- TAB GURU -->
-                <div id="content-guru" class="space-y-6">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <h3 class="font-bold text-slate-700 mb-4">Tambah Guru</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <input id="guru-nama" placeholder="Nama Penuh Guru" class="p-3 border rounded-lg w-full">
-                            <input id="guru-jawatan" placeholder="Jawatan (Cth: Guru Besar, GPK)" class="p-3 border rounded-lg w-full">
-                            <button onclick="saveTeacher()" class="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700">Simpan Guru</button>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <table class="w-full text-sm text-left">
-                            <thead class="bg-slate-100 text-slate-600 font-bold">
-                                <tr><th class="p-4">Nama Guru</th><th class="p-4">Jawatan</th><th class="p-4 text-right">Tindakan</th></tr>
-                            </thead>
-                            <tbody id="table-guru" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- TAB KELAS -->
-                <div id="content-kelas" class="hidden space-y-6">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <h3 class="font-bold text-slate-700 mb-4">Tambah Kelas</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <input id="kelas-nama" placeholder="Nama Kelas (Cth: 1 Arif)" class="p-3 border rounded-lg w-full">
-                            <select id="kelas-aliran" class="p-3 border rounded-lg w-full bg-white">
-                                <option value="Perdana">Perdana</option>
-                                <option value="PPKI">PPKI</option>
-                                <option value="Pra Sekolah">Pra Sekolah</option>
-                            </select>
-                            <select id="kelas-guru" class="p-3 border rounded-lg w-full bg-white">
-                                <option value="">Pilih Guru Kelas...</option>
-                            </select>
-                            <button onclick="saveClass()" class="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700">Simpan Kelas</button>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <table class="w-full text-sm text-left">
-                            <thead class="bg-slate-100 text-slate-600 font-bold">
-                                <tr><th class="p-4">Nama Kelas</th><th class="p-4">Aliran</th><th class="p-4">Guru Kelas</th><th class="p-4 text-right">Tindakan</th></tr>
-                            </thead>
-                            <tbody id="table-kelas" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- TAB MURID -->
-                <div id="content-murid" class="hidden space-y-6">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <h3 class="font-bold text-slate-700 mb-4">Daftar Murid</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <input id="murid-nama" placeholder="Nama Penuh Murid" class="p-3 border rounded-lg w-full">
-                            <input id="murid-ic" placeholder="No. MyKid / ID" class="p-3 border rounded-lg w-full">
-                            <select id="murid-kelas" class="p-3 border rounded-lg w-full bg-white">
-                                <option value="">Pilih Kelas...</option>
-                            </select>
-                            <button onclick="saveStudent()" class="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700">Daftar Murid</button>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <table class="w-full text-sm text-left">
-                            <thead class="bg-slate-100 text-slate-600 font-bold">
-                                <tr><th class="p-4">Nama Murid</th><th class="p-4">MyKid</th><th class="p-4">Kelas</th><th class="p-4 text-right">Tindakan</th></tr>
-                            </thead>
-                            <tbody id="table-murid" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </div>
+  return (
+     <aside className="w-20 md:w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 z-20">
+        <div className="h-16 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-100">
+           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">S</div>
+           <span className="ml-3 font-bold text-xl text-slate-800 hidden md:block">SistemApp</span>
         </div>
-    </div>
-
-    <!-- VIEW 5: Dynamic App Viewer (NOW WITH IFRAME) -->
-    <div id="dynamic-app-view" class="view-section hidden h-screen bg-slate-50 flex flex-col">
-        <header class="bg-slate-800 text-white shadow-lg sticky top-0 z-50 flex-none">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <button onclick="window.backToDashboard()" class="p-2 hover:bg-white/20 rounded-full transition-colors">
-                        <i data-lucide="arrow-left" class="w-5 h-5 text-white"></i>
-                    </button>
-                    <h1 class="font-bold text-lg" id="app-viewer-title">Nama Aplikasi</h1>
-                </div>
-                <div class="text-sm bg-slate-700 px-3 py-1 rounded-full text-slate-200" id="app-viewer-category">App</div>
-            </div>
-        </header>
-        <!-- IFRAME CONTAINER -->
-        <div id="dynamic-app-container" class="flex-grow w-full relative">
-            <iframe id="app-frame" class="w-full h-full border-none absolute inset-0 bg-white"></iframe>
+        
+        {/* User Info di Sidebar */}
+        <div className="p-4 border-b border-slate-100 flex items-center gap-3">
+           <img src={userData.photo || "https://ui-avatars.com/api/?name="+userData.name} className="w-10 h-10 rounded-full border border-slate-200" alt="Avatar"/>
+           <div className="hidden md:block overflow-hidden">
+              <p className="text-sm font-bold text-slate-700 truncate">{userData.name}</p>
+              <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">{userData.role}</p>
+           </div>
         </div>
-    </div>
 
-    <!-- DELETE CONFIRMATION MODAL -->
-    <div id="delete-confirm-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in-up">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-200">
-            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-                <i data-lucide="alert-triangle" class="w-8 h-8 text-red-600"></i>
-            </div>
-            <h3 class="text-xl font-bold text-slate-800 mb-2">Padam Item?</h3>
-            <p class="text-slate-500 text-sm mb-6">Tindakan ini tidak boleh dikembalikan.</p>
-            <div class="flex gap-3 justify-center">
-                <button onclick="closeDeleteModal()" class="flex-1 px-5 py-2.5 rounded-xl border hover:bg-slate-50">Batal</button>
-                <button onclick="confirmDelete()" id="confirm-delete-btn" class="flex-1 px-5 py-2.5 rounded-xl bg-red-600 text-white hover:bg-red-700 shadow-lg">Ya, Padam</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- JavaScript Logic -->
-    <script type="module">
-        // =================================================================
-        // CONFIG BERSIH: APLIKASI HARDCODED (eKehadiran)
-        const HARDCODED_APPS = [
-            {
-                id: 'app-ekehadiran-sub',
-                name: 'eKehadiran SK Masjid Tanah',
-                description: 'Sistem kehadiran murid dengan pelaporan Telegram.',
-                category: 'Harian',
-                iconName: 'calendar',
-                colorBg: 'bg-blue-50',
-                colorText: 'text-blue-600',
-                createdAt: '2025-01-01T00:00:00Z',
-                html: `<!DOCTYPE html>
-<html lang="ms">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>eKehadiran SK Masjid Tanah</title>
-    <script src="https://cdn.tailwindcss.com"><\/script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"><\/script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"><\/script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"><\/script>
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        h1, h2, h3, .font-heading { font-family: 'Poppins', sans-serif; }
-        .fade-in { animation: fadeIn 0.5s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .btn-loading { position: relative; color: transparent !important; pointer-events: none; }
-        .btn-loading::after {
-            content: ""; position: absolute; width: 1em; height: 1em;
-            top: 50%; left: 50%; margin-top: -0.5em; margin-left: -0.5em;
-            border: 2px solid #ffffff; border-radius: 50%; border-top-color: transparent;
-            animation: spin 0.6s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none;  scrollbar-width: none; }
-    </style>
-</head>
-<body class="text-slate-800 bg-slate-50">
-    <div id="app" class="min-h-screen flex flex-col">
-        <nav id="navbar" class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between h-16">
-                    <div class="flex items-center flex-1 overflow-hidden">
-                        <div class="flex-shrink-0 flex items-center gap-3 text-blue-600 mr-4">
-                            <img src="https://i.postimg.cc/k4N1mPR1/semat-04.png" alt="Logo Sekolah" class="h-9 w-auto object-contain">
-                            <div class="flex flex-col">
-                                <span class="font-heading font-bold text-lg leading-tight">eKehadiran</span>
-                                <span class="text-[10px] text-slate-500 uppercase tracking-wider hidden sm:block">SK Masjid Tanah</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2 flex-shrink-0">
-                        <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">Mod Borang</span>
-                    </div>
-                </div>
-            </div>
+        <nav className="p-2 md:p-4 space-y-1 flex-1">
+           {menus.map(m => {
+              if (m.admin && userData.role !== 'admin') return null;
+              const active = view === m.id;
+              return <button key={m.id} onClick={() => setView(m.id)} title={m.l} className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${active ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 border border-transparent'}`}><m.i className={`w-5 h-5 ${active ? 'text-indigo-600' : 'text-slate-400'}`} /><span className="hidden md:block">{m.l}</span></button>
+           })}
         </nav>
-        <main class="flex-grow container mx-auto px-4 py-6 relative">
-            <div id="view-teacher-dashboard" class="fade-in pb-20">
-                <div class="bg-white rounded-2xl shadow-sm border border-blue-100 overflow-hidden mb-8">
-                    <div class="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 text-white flex justify-between items-center">
-                        <div>
-                            <h2 class="font-bold text-lg flex items-center gap-2"><i class="fa-regular fa-chart-bar"></i> Ringkasan Hari Ini</h2>
-                            <p class="text-blue-100 text-xs" id="landingDateDisplay">Memuatkan tarikh...</p>
-                        </div>
-                        <button onclick="loadLandingStats()" class="text-white hover:bg-white/20 p-2 rounded-full transition"><i class="fa-solid fa-rotate-right"></i></button>
-                    </div>
-                    <div class="p-6">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div class="col-span-1 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-slate-100 pb-6 md:pb-0">
-                                <div class="relative w-32 h-32">
-                                    <svg class="w-full h-full" viewBox="0 0 36 36">
-                                        <path class="text-slate-100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3" />
-                                        <path id="landingCirclePath" class="text-blue-600 transition-all duration-1000 ease-out" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3" />
-                                    </svg>
-                                    <div class="absolute inset-0 flex items-center justify-center flex-col">
-                                        <span class="text-3xl font-bold text-slate-800" id="landingPercent">0%</span>
-                                        <span class="text-[10px] text-slate-400 uppercase tracking-wider">Kehadiran</span>
-                                    </div>
-                                </div>
-                                <p class="text-xs text-center font-bold text-emerald-600 mt-2 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100" id="landingRmtStats">RMT: -/-</p>
-                            </div>
-                            <div class="col-span-2">
-                                <div class="flex justify-between items-center mb-3">
-                                    <h3 class="font-bold text-slate-700 text-sm">Status Pengisian Kelas</h3>
-                                    <div class="flex gap-3 text-[10px]">
-                                        <span class="flex items-center gap-1 text-emerald-600 font-bold"><i class="fa-solid fa-circle-check"></i> Selesai</span>
-                                        <span class="flex items-center gap-1 text-slate-400 font-bold"><i class="fa-regular fa-circle"></i> Belum</span>
-                                    </div>
-                                </div>
-                                <div class="overflow-y-auto max-h-48 pr-2 custom-scrollbar bg-slate-50 rounded-lg border border-slate-100 p-2">
-                                    <div id="landingClassList" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                                        <div class="animate-pulse bg-slate-200 h-8 rounded col-span-4"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+        <div className="p-4 border-t border-slate-100"><button onClick={logout} className="flex items-center justify-center md:justify-start gap-3 text-slate-400 hover:text-red-600 hover:bg-red-50 text-sm font-medium w-full px-3 py-3 rounded-lg transition-colors"><LogOut className="w-5 h-5" /><span className="hidden md:block">Log Keluar</span></button></div>
+     </aside>
+  )
+}
+
+function Header({ userData, view }) {
+   return (
+      <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm z-10">
+         <h2 className="font-bold text-lg capitalize text-slate-800 flex items-center gap-2">Portal {userData.role}</h2>
+         <div className="flex items-center gap-3">
+            <span className="text-xs font-bold uppercase text-white bg-indigo-600 px-3 py-1 rounded-full tracking-wider shadow-sm">{userData.role}</span>
+         </div>
+      </header>
+   )
+}
+
+// --- CONTENT AREA (Reused from previous version) ---
+// Note: I'm injecting the view logic here directly into App render to simplify state management
+// so we don't need a separate ContentRouter component in the new structure.
+
+// --- DASHBOARD ---
+function Dashboard({ role, apps, students, teachers, setView }) {
+  const showStats = role === 'admin' || role === 'guru';
+  const stats = [
+    { label: 'Aplikasi Aktif', val: apps.length, icon: LayoutDashboard, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Jumlah Murid', val: showStats ? students.length : '—', icon: GraduationCap, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'Jumlah Guru', val: showStats ? teachers.length : '—', icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+  ];
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
+       <div className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm relative overflow-hidden">
+          <div className="relative z-10">
+             <h2 className="text-2xl font-bold text-slate-800 mb-2">Papan Pemuka Utama</h2>
+             <p className="text-slate-500 max-w-xl">Uruskan data dan aplikasi sekolah anda di sini.</p>
+          </div>
+       </div>
+       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {stats.map((s, i) => (
+             <div key={i} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-indigo-200 transition-colors">
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center ${s.bg} ${s.color}`}><s.icon className="w-7 h-7" /></div>
+                <div><p className="text-sm font-medium text-slate-500">{s.label}</p><h3 className="text-3xl font-bold text-slate-800">{s.val}</h3></div>
+             </div>
+          ))}
+       </div>
+       <div>
+          <div className="flex items-center justify-between mb-6">
+             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Globe className="w-5 h-5 text-indigo-600"/> Aplikasi Pilihan</h3>
+             <button onClick={() => setView('apps')} className="text-sm font-medium text-indigo-600 hover:underline">Lihat Semua</button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+             {apps.slice(0, 4).map(app => (
+                <div key={app.id} onClick={() => setView('apps')} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 cursor-pointer transition-all group flex flex-col h-full">
+                   <div className="flex justify-between items-start mb-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${ALL_ICONS[app.iconKey]?.bg || 'bg-slate-100'}`}>{React.createElement(ALL_ICONS[app.iconKey]?.i || Globe, { className: `w-6 h-6 ${ALL_ICONS[app.iconKey]?.color || 'text-slate-600'}` })}</div>
+                   </div>
+                   <h4 className="font-bold text-slate-800 mb-1 group-hover:text-indigo-600 transition-colors line-clamp-1">{app.title}</h4>
+                   <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed">{app.desc || "Klik untuk akses."}</p>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                    <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2 text-lg border-b pb-3">
-                        <span class="bg-blue-100 text-blue-600 w-8 h-8 flex items-center justify-center rounded-lg text-sm"><i class="fa-solid fa-pen-to-square"></i></span>
-                        Isi Kehadiran
-                    </h3>
-                    <div class="mb-4">
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nama Guru Pelapor</label>
-                        <div class="relative">
-                             <select id="activeTeacherName" class="appearance-none w-full bg-slate-50 border border-slate-300 text-slate-700 py-3 px-4 pr-8 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-blue-500 font-bold text-sm cursor-pointer">
-                                <option value="Guru Bertugas">Guru Bertugas</option>
-                            </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-700">
-                                <i class="fa-solid fa-chevron-down text-xs"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tarikh Kehadiran</label>
-                            <input type="date" id="attendanceDate" onchange="checkTuesday(); loadLandingStats();" class="rounded-lg border-slate-300 block w-full p-2.5 border text-sm bg-slate-50 focus:bg-white focus:border-blue-500 transition-colors">
-                        </div>
-                        <div id="attTypeContainer" class="hidden">
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sesi</label>
-                            <div class="flex space-x-2 bg-slate-100 p-1 rounded-lg">
-                                <button onclick="setAttType('class')" id="btnTypeClass" class="flex-1 py-2 px-3 rounded-md text-xs font-bold bg-white shadow text-blue-600 transition">Kelas (Pagi)</button>
-                                <button onclick="setAttType('koku')" id="btnTypeKoku" class="flex-1 py-2 px-3 rounded-md text-xs font-bold text-slate-500 hover:bg-white transition">Kokurikulum</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="filterClassContainer" class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Pilih Kelas</label>
-                            <select id="teacherClassSelect" onchange="loadStudentsForAttendance()" class="rounded-lg border-slate-300 block w-full p-3 border text-sm bg-white font-medium focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none"><option value="">Pilih Kelas...</option></select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cari Nama Murid (Pilihan)</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
-                                </div>
-                                <input type="text" id="teacherStudentSearch" onkeyup="filterTeacherAttendanceList()" placeholder="Taip nama untuk mencari..." class="pl-10 rounded-lg border-slate-300 block w-full p-2.5 border text-sm bg-slate-50 focus:bg-white focus:border-blue-500 transition-colors">
-                            </div>
-                        </div>
-                    </div>
-                    <div id="filterKokuContainer" class="hidden space-y-3">
-                        <div class="flex gap-4">
-                            <div class="w-1/2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Minggu Koku Ke-</label><input type="number" id="kokuWeek" class="rounded-lg border-slate-300 block w-full p-2 border text-sm" placeholder="Contoh: 1"></div>
-                            <div class="w-1/2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Kategori</label><select id="kokuCategory" onchange="loadKokuUnits()" class="rounded-lg border-slate-300 block w-full p-2 border text-sm bg-white"><option value="">Pilih Kategori...</option><option value="unit_beruniform">Unit Beruniform</option><option value="kelab_persatuan">Kelab & Persatuan</option><option value="sukan_permainan">Sukan & Permainan</option></select></div>
-                        </div>
-                        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nama Unit</label><select id="kokuUnitSelect" onchange="loadStudentsForAttendance()" class="rounded-lg border-slate-300 block w-full p-2 border text-sm bg-white" disabled><option value="">Pilih Unit...</option></select></div>
-                    </div>
-                </div>
-                <div id="attendanceWorkspace" class="hidden">
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div class="lg:col-span-2">
-                            <div class="bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden">
-                                <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
-                                    <h3 class="font-bold text-slate-700" id="attListTitle">Senarai Kehadiran</h3>
-                                    <span class="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-bold uppercase tracking-wider" id="classNameDisplay"></span>
-                                </div>
-                                <div class="overflow-x-auto">
-                                    <table class="w-full text-sm text-left">
-                                        <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
-                                            <tr>
-                                                <th class="px-4 py-3 w-10 text-center">#</th>
-                                                <th class="px-4 py-3">Nama Murid</th>
-                                                <th class="px-4 py-3">Info</th>
-                                                <th class="px-4 py-3 text-center w-24">Hadir?</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="attendanceTableBody" class="divide-y divide-slate-100"></tbody>
-                                    </table>
-                                </div>
-                                <div id="emptyState" class="hidden p-12 text-center text-slate-400">
-                                    <i class="fa-regular fa-folder-open text-3xl mb-2"></i>
-                                    <p>Tiada murid dijumpai.</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="lg:col-span-1">
-                            <div class="bg-white rounded-xl shadow-lg border border-slate-100 p-6 sticky top-24">
-                                <h3 class="font-bold text-slate-800 mb-4 border-b pb-2">Ringkasan Pengisian</h3>
-                                <div class="space-y-3 mb-6">
-                                    <div class="flex justify-between text-sm"><span class="text-slate-500">Jumlah Murid</span><span id="summaryTotal" class="font-bold">0</span></div>
-                                    <div class="flex justify-between text-sm"><span class="text-slate-500">Hadir</span><span id="summaryPresent" class="font-bold text-green-600">0</span></div>
-                                    <div class="flex justify-between text-sm"><span class="text-slate-500">Tidak Hadir</span><span id="summaryAbsent" class="font-bold text-red-600">0</span></div>
-                                    <div class="mt-4 pt-4 border-t"><div class="flex justify-between items-end mb-1"><span class="text-xs font-bold uppercase text-slate-400">Peratus Kehadiran</span><span id="summaryPercentText" class="text-2xl font-bold text-blue-600">0%</span></div><div class="w-full bg-slate-200 rounded-full h-2.5"><div id="summaryProgressBar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div></div></div>
-                                </div>
-                                <button onclick="submitAttendance()" id="btnSubmitAttendance" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg mb-3 flex items-center justify-center gap-2 shadow-lg shadow-blue-200 transition-all hover:scale-[1.02]"><i class="fa-solid fa-paper-plane"></i> Simpan & Hantar</button>
-                                <p class="text-[10px] text-center text-slate-400">Data akan dihantar ke Portal Utama secara automatik.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-        <div id="toast-container" class="fixed bottom-4 right-4 flex flex-col gap-2 z-50"></div>
+             ))}
+          </div>
+       </div>
     </div>
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyB8ywaXE0phvI4vIhHDDBZID7v2blO_J_o",
-            authDomain: "semat-fa0b7.firebaseapp.com",
-            projectId: "semat-fa0b7",
-            storageBucket: "semat-fa0b7.firebasestorage.app",
-            messagingSenderId: "361982206428",
-            appId: "1:361982206428:web:e7f4d5ed19238690736f19",
-            measurementId: "G-0NH5EJD60N"
-        };
-        const app = firebase.initializeApp(firebaseConfig); 
-        const auth = firebase.auth(); 
-        const db = firebase.firestore(app);
-        
-        let currentStudents = [], telegramToken = '', telegramChatId = '', telegramTopicId = '', attType = 'class';
+  );
+}
+
+// --- APP BUILDER, GALLERY, DATA TABLE (Same as before but integrated) ---
+function AppBuilder({ apps, appId }) {
+  const [activeTab, setActiveTab] = useState('link');
+  const [form, setForm] = useState({ title: '', desc: '', iconKey: 'portal', category: 'umum', type: 'link', content: '' });
+  const [confirmDel, setConfirmDel] = useState(null);
+
+  const handleSave = async () => {
+    if(!form.title || !form.content) return alert("Sila isi data.");
+    await addDoc(collection(db, 'portal_apps'), { ...form, type: activeTab });
+    setForm({ ...form, title: '', desc: '', content: '' });
+    alert("Aplikasi berjaya ditambah.");
+  };
+
+  const executeDelete = async () => {
+    if(confirmDel) { await deleteDoc(doc(db, 'portal_apps', confirmDel)); setConfirmDel(null); }
+  };
+
+  return (
+    <>
+      {confirmDel && <ConfirmModal title="Padam Aplikasi?" msg="Tindakan ini tidak boleh dikembalikan." onConfirm={executeDelete} onCancel={() => setConfirmDel(null)} />}
+      <div className="grid lg:grid-cols-12 gap-8 h-[calc(100vh-140px)]">
+         <div className="lg:col-span-8 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+               <div className="flex items-center gap-2 text-slate-700 font-bold"><Code2 className="w-5 h-5 text-indigo-600"/> Studio Aplikasi</div>
+               <button onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition"><Save className="w-4 h-4"/> Terbitkan</button>
+            </div>
+            <div className="p-8 overflow-y-auto space-y-8">
+               <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2 mb-4">1. Maklumat Asas</h3>
+                  <div className="grid grid-cols-2 gap-6">
+                     <div><label className="lbl">Tajuk Aplikasi</label><input className="inp" value={form.title} onChange={e=>setForm({...form, title: e.target.value})} placeholder="Contoh: Portal Rasmi" /></div>
+                     <div><label className="lbl">Kategori</label><select className="inp" value={form.category} onChange={e=>setForm({...form, category: e.target.value})}><option value="umum">Umum</option><option value="akademik">Akademik</option><option value="koko">Koko</option><option value="fasiliti">Fasiliti</option></select></div>
+                  </div>
+                  <div><label className="lbl">Deskripsi</label><textarea className="inp h-20 resize-none" value={form.desc} onChange={e=>setForm({...form, desc: e.target.value})} /></div>
+               </div>
+               <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2 mb-4">2. Konfigurasi Kandungan</h3>
+                  <div className="flex gap-4 mb-4">
+                     <button onClick={() => setActiveTab('link')} className={`flex-1 py-3 px-4 rounded-lg border text-sm font-bold transition flex items-center justify-center gap-2 ${activeTab === 'link' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}><LinkIcon className="w-4 h-4"/> Pautan URL</button>
+                     <button onClick={() => setActiveTab('html')} className={`flex-1 py-3 px-4 rounded-lg border text-sm font-bold transition flex items-center justify-center gap-2 ${activeTab === 'html' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}><Code2 className="w-4 h-4"/> Kod HTML</button>
+                  </div>
+                  {activeTab === 'link' ? (
+                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-200"><label className="lbl">URL Pautan</label><div className="flex items-center gap-3 p-3 border border-slate-300 rounded-lg bg-white"><Globe className="w-5 h-5 text-slate-400"/><input className="w-full bg-transparent outline-none text-sm text-blue-600 font-medium" value={form.content} onChange={e=>setForm({...form, content: e.target.value})} placeholder="https://..." /></div></div>
+                  ) : (
+                     <div className="h-64"><label className="lbl">Kod HTML</label><textarea className="w-full h-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl" value={form.content} onChange={e=>setForm({...form, content: e.target.value})} placeholder="<div>Code...</div>" /></div>
+                  )}
+               </div>
+               <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2 mb-4">3. Ikon Aplikasi</h3>
+                  <div className="flex gap-3 overflow-x-auto pb-4 pt-1">
+                     {Object.entries(ALL_ICONS).map(([k, d]) => (
+                        <button key={k} onClick={() => setForm({...form, iconKey: k})} className={`p-3 rounded-xl border transition-all flex-shrink-0 ${form.iconKey === k ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`} title={k}><d.i className={`w-6 h-6 ${d.color}`}/></button>
+                     ))}
+                  </div>
+               </div>
+            </div>
+         </div>
+         <div className="lg:col-span-4 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden"><div className="p-4 bg-slate-50 border-b border-slate-100 font-bold text-slate-700 text-sm">Senarai Aplikasi ({apps.length})</div><div className="flex-1 overflow-y-auto p-2 space-y-1">{apps.map(app=>(<div key={app.id} className="flex justify-between items-center p-3 rounded-lg hover:bg-slate-50 group border border-transparent hover:border-slate-100 transition-all cursor-default"><div className="flex items-center gap-3 overflow-hidden"><div className={`p-2 rounded-lg ${ALL_ICONS[app.iconKey]?.bg || 'bg-slate-100'}`}><LinkIcon className={`w-4 h-4 ${ALL_ICONS[app.iconKey]?.color}`} /></div><div className="truncate"><div className="text-sm font-bold text-slate-700 truncate">{app.title}</div><div className="text-xs text-slate-400 truncate capitalize">{app.category}</div></div></div><button onClick={()=>setConfirmDel(app.id)} className="text-slate-300 hover:text-red-600 p-2 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-4 h-4"/></button></div>))}</div></div>
+      </div>
+    </>
+  );
+}
+
+function AppGallery({ apps }) {
+  const [sel, setSel] = useState(null);
+  const [q, setQ] = useState('');
+  if(sel) return (<div className="bg-white h-[calc(100vh-140px)] rounded-xl border border-slate-200 flex flex-col overflow-hidden shadow-sm animate-fade-in"><div className="h-16 border-b border-slate-100 flex items-center justify-between px-6 bg-slate-50/50"><button onClick={() => setSel(null)} className="text-sm font-bold text-slate-600 hover:text-indigo-600 flex items-center gap-1 transition"><ChevronRight className="w-4 h-4 rotate-180"/> Kembali</button><h3 className="font-bold text-slate-800">{sel.title}</h3>{sel.type === 'link' && <a href={sel.content} target="_blank" className="text-xs bg-indigo-50 text-indigo-600 border border-indigo-100 px-3 py-1.5 rounded-full font-bold flex items-center gap-1 hover:bg-indigo-100 transition">Buka Tab Baru <ExternalLink className="w-3 h-3"/></a>}</div><div className="flex-1 bg-slate-50 relative">{sel.type === 'html' ? <HtmlView content={sel.content} /> : <iframe src={sel.content} className="w-full h-full border-none" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"/>}</div></div>);
+  return (<div><div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4"><div><h2 className="text-2xl font-bold text-slate-800">Galeri Aplikasi</h2><p className="text-slate-500">Semua alat yang anda perlukan.</p></div><div className="relative w-full md:w-auto"><Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400"/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Cari aplikasi..." className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500 w-full md:w-64 transition shadow-sm"/></div></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{apps.filter(a => a.title.toLowerCase().includes(q.toLowerCase())).map(app => { const Icon = ALL_ICONS[app.iconKey] || ALL_ICONS.portal; return (<div key={app.id} onClick={() => setSel(app)} className="bg-white rounded-xl border border-slate-200 p-6 hover:shadow-lg hover:border-indigo-200 hover:-translate-y-1 transition-all cursor-pointer flex flex-col h-60 group"><div className="flex justify-between items-start mb-4"><div className={`w-12 h-12 rounded-xl flex items-center justify-center ${Icon.bg} transition-transform group-hover:scale-110`}>{React.createElement(Icon.i, { className: `w-6 h-6 ${Icon.color}` })}</div><span className="text-[10px] font-bold uppercase bg-slate-100 text-slate-500 px-2 py-1 rounded tracking-wide">{app.category}</span></div><h3 className="font-bold text-slate-800 text-lg mb-2 line-clamp-1 group-hover:text-indigo-600 transition-colors">{app.title}</h3><p className="text-sm text-slate-500 line-clamp-3 leading-relaxed flex-1">{app.desc || "Tiada deskripsi."}</p><div className="mt-4 pt-4 border-t border-slate-50 flex items-center gap-2 text-xs font-bold text-indigo-600 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">Buka Aplikasi <ChevronRight className="w-3 h-3"/></div></div>) })}</div></div>);
+}
+
+// --- DATA TABLE ---
+function DataTable({ type, data }) {
+  const [newRec, setNewRec] = useState({});
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [confirmDel, setConfirmDel] = useState(false);
+  const col = type === 'student' ? 'portal_students' : 'portal_teachers';
+  const fileRef = useRef(null);
+
+  const add = async (e) => { e.preventDefault(); if(!newRec.name) return; await addDoc(collection(db, col), newRec); setNewRec({}); };
+  const handleUpdate = async () => { if (!editingId) return; await updateDoc(doc(db, col, editingId), editForm); setEditingId(null); setEditForm({}); };
+  const executeDelete = async () => { const batch = writeBatch(db); const ids = typeof confirmDel === 'string' ? [confirmDel] : selectedIds; ids.forEach(id => batch.delete(doc(db, col, id))); await batch.commit(); setSelectedIds([]); setConfirmDel(false); };
+  const toggleSelectRow = (id) => { selectedIds.includes(id) ? setSelectedIds(selectedIds.filter(sid=>sid!==id)) : setSelectedIds([...selectedIds, id]); };
+  const startEdit = (rec) => { setEditingId(rec.id); setEditForm({...rec}); };
+  const handleCSV = (e) => {
+     const f = e.target.files[0]; if(!f) return;
+     const r = new FileReader();
+     r.onload = async (ev) => {
+        const batch = writeBatch(db);
+        let c = 0;
+        ev.target.result.split('\n').forEach(l => { const [a, b, c_v] = l.split(',').map(s=>s?.trim()); if(a&&b){ batch.set(doc(collection(db, col)), type==='student'?{name:a, class:b}:{name:a, email:b, role:c_v||'Guru'}); c++; }});
+        if(c>0) { await batch.commit(); alert(`Import berjaya: ${c} rekod.`); }
+     };
+     r.readAsText(f);
+  };
+
+  return (
+    <>
+      {confirmDel && <ConfirmModal title="Padam Rekod?" msg="Data akan dipadam kekal." onConfirm={executeDelete} onCancel={() => setConfirmDel(false)} />}
+      <div className="grid lg:grid-cols-4 gap-8">
+         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-fit">
+            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2"><Plus className="w-5 h-5 text-indigo-600"/> Daftar {type}</h3>
+            <form onSubmit={add} className="space-y-4">
+               <div><label className="lbl">Nama Penuh</label><input className="inp" required value={newRec.name||''} onChange={e=>setNewRec({...newRec, name:e.target.value})} /></div>
+               {type==='student' ? (
+                  <div><label className="lbl">Kelas</label><input className="inp" required value={newRec.class||''} onChange={e=>setNewRec({...newRec, class:e.target.value})} /></div>
+               ) : (
+                  <><div><label className="lbl">Email</label><input className="inp" required value={newRec.email||''} onChange={e=>setNewRec({...newRec, email:e.target.value})} /></div><div><label className="lbl">Jawatan</label><input className="inp" required value={newRec.role||''} onChange={e=>setNewRec({...newRec, role:e.target.value})} /></div></>
+               )}
+               <button className="w-full bg-slate-900 text-white py-2.5 rounded-lg font-bold text-sm hover:bg-black transition shadow-md">Simpan Data</button>
+            </form>
+            <div className="mt-6 pt-6 border-t border-slate-100">
+               <button onClick={()=>fileRef.current.click()} className="w-full border border-emerald-200 text-emerald-700 bg-emerald-50 py-2.5 rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-100 transition"><FileSpreadsheet className="w-4 h-4"/> Import CSV</button>
+               <input type="file" ref={fileRef} onChange={handleCSV} className="hidden" accept=".csv"/>
+            </div>
+         </div>
+         <div className="lg:col-span-3 bg-white rounded-xl border border-slate-200 flex flex-col overflow-hidden h-[650px] shadow-sm">
+            {selectedIds.length > 0 && (<div className="bg-indigo-50 border-b border-indigo-100 p-3 flex justify-between items-center px-5 animate-fade-in"><span className="text-sm font-bold text-indigo-800">{selectedIds.length} item dipilih</span><button onClick={()=>setConfirmDel(true)} className="bg-white border border-red-200 text-red-600 px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-red-50 flex items-center gap-2"><Trash2 className="w-3 h-3"/> Padam</button></div>)}
+            <div className="overflow-auto flex-1">
+               <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 text-slate-500 uppercase text-xs font-bold sticky top-0 z-10"><tr><th className="p-5 w-10 border-b border-slate-200"><button onClick={()=>setSelectedIds(selectedIds.length===data.length?[]:data.map(d=>d.id))} className="text-slate-400">{selectedIds.length>0 && selectedIds.length===data.length?<CheckSquare className="w-5 h-5 text-indigo-600"/>:<Square className="w-5 h-5"/>}</button></th><th className="p-5 border-b border-slate-200">Nama</th><th className="p-5 border-b border-slate-200">Info</th><th className="p-5 text-right border-b border-slate-200 w-32">Aksi</th></tr></thead>
+                  <tbody className="divide-y divide-slate-100">{data.map(d=>{const isEditing=editingId===d.id;const isSel=selectedIds.includes(d.id);return(<tr key={d.id} className={`transition ${isSel?'bg-indigo-50/50':'hover:bg-slate-50'}`}><td className="p-5"><button onClick={()=>toggleSelectRow(d.id)} className="text-slate-300 hover:text-indigo-500">{isSel?<CheckSquare className="w-5 h-5 text-indigo-600"/>:<Square className="w-5 h-5"/>}</button></td><td className="p-5 font-medium text-slate-700">{isEditing?(<input className="w-full p-2 border border-indigo-300 rounded text-sm outline-none" value={editForm.name} onChange={e=>setEditForm({...editForm, name:e.target.value})}/>):d.name}</td><td className="p-5 text-slate-500">{isEditing?(type==='student'?(<input className="w-full p-2 border border-indigo-300 rounded text-sm outline-none" value={editForm.class} onChange={e=>setEditForm({...editForm, class:e.target.value})}/>):(<div className="flex flex-col gap-2"><input className="w-full p-2 border border-indigo-300 rounded text-xs" value={editForm.email} onChange={e=>setEditForm({...editForm, email:e.target.value})}/><input className="w-full p-2 border border-indigo-300 rounded text-xs" value={editForm.role} onChange={e=>setEditForm({...editForm, role:e.target.value})}/></div>)):(type==='student'?d.class:(<div className="flex flex-col"><span>{d.email}</span><span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-100 px-1.5 rounded w-fit mt-1">{d.role}</span></div>))}</td><td className="p-5 text-right">{isEditing?(<div className="flex justify-end gap-2"><button onClick={handleUpdate} className="text-green-600 hover:bg-green-50 p-1.5 rounded"><CheckCircle className="w-5 h-5"/></button><button onClick={()=>setEditingId(null)} className="text-red-400 hover:bg-red-50 p-1.5 rounded"><XCircle className="w-5 h-5"/></button></div>):(<div className="flex justify-end gap-2"><button onClick={()=>startEdit(d)} className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded transition"><Edit3 className="w-4 h-4"/></button><button onClick={()=>setConfirmDel(d.id)} className="text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded transition"><Trash2 className="w-4 h-4"/></button></div>)}</td></tr>)})}</tbody>
+               </table>
+            </div>
+         </div>
+      </div>
+    </>
+  );
+}
+
+// --- UTILS ---
+function ConfirmModal({ title, msg, onConfirm, onCancel }) { return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-fade-in"><div className="bg-white w-full max-w-sm rounded-xl p-6 shadow-2xl border border-slate-100 transform scale-100 animate-scale-up"><h3 className="text-lg font-bold text-slate-800 mb-2">{title}</h3><p className="text-slate-500 mb-6">{msg}</p><div className="flex gap-3 justify-end"><button onClick={onCancel} className="px-4 py-2 rounded-lg font-bold text-slate-600 hover:bg-slate-100">Batal</button><button onClick={onConfirm} className="px-4 py-2 rounded-lg font-bold text-white bg-red-600 hover:bg-red-700">Ya, Padam</button></div></div></div> }
+function HtmlView({ content }) { const r = useRef(null); useEffect(() => { if (r.current) Array.from(r.current.getElementsByTagName('script')).forEach(s => { const n = document.createElement('script'); n.text = s.text; try { window.eval(s.text) } catch (e) { } }) }, [content]); return <div ref={r} className="p-8 prose max-w-none text-slate-800" dangerouslySetInnerHTML={{ __html: content }} /> }
+function AccessDenied() { return <div className="h-full flex flex-col items-center justify-center text-slate-400 font-medium"><Lock className="w-12 h-12 mb-4 opacity-50 text-slate-300" /><p>Akses Terhad (Admin Sahaja)</p></div> }
+const styles = `.lbl{display:block;font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:0.5rem;text-transform:uppercase}.inp{width:100%;padding:0.6rem 0.8rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.875rem;outline:none;background-color:#f8fafc;color:#1e293b}.inp:focus{background-color:white;border-color:#4f46e5}@keyframes fade-in{from{opacity:0}to{opacity:1}}@keyframes scale-up{from{transform:scale(0.95);opacity:0}to{transform:scale(1);opacity:1}}.animate-fade-in{animation:fade-in 0.2s ease-out}.animate-scale-up{animation:scale-up 0.2s cubic-bezier(0.16,1,0.3,1)}`;
 
-        const getCollection = (name) => {
-            return db.collection('apps').doc('1').collection('data').doc(name).collection('records');
-        };
-
-        function formatDateDMY(dateStr) { if (!dateStr) return ''; const parts = dateStr.split('-'); if (parts.length !== 3) return dateStr; return \`\${parts[2]}/\${parts[1]}/\${parts[0]}\`; }
-        function escapeHtml(text) { if (!text) return text; return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
-        function getShortName(name) { if (!name) return ""; const cleanName = name.replace(/\./g, ''); const words = cleanName.trim().split(/\s+/); if (words.length <= 1) return words[0]; const common = ['muhammad', 'mohamad', 'mohd', 'nur', 'nor']; const firstWord = words[0].toLowerCase(); if (common.includes(firstWord)) { if (words.length >= 3) { return words[1] + " " + words[2]; } return words[1]; } return words[0]; }
-        function toTitleCase(str) { if (!str) return ""; return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '); }
-        function showToast(m,t="success") { const c=document.getElementById('toast-container'), d=document.createElement('div'); d.className=\`\${t==='error'?'bg-red-500':'bg-emerald-500'} text-white px-4 py-3 rounded shadow-lg flex items-center gap-3 min-w-[250px] text-sm transform transition-all duration-300 translate-y-10 opacity-0\`; d.innerHTML=\`<span>\${m}</span>\`; c.appendChild(d); requestAnimationFrame(()=>d.classList.remove('translate-y-10','opacity-0')); setTimeout(()=>{d.classList.add('translate-y-10','opacity-0');setTimeout(()=>d.remove(),300);},3000); }
-
-        function checkTuesday(){ 
-            const dInput = document.getElementById('attendanceDate');
-            if(!dInput) return;
-            const d = new Date(dInput.value); 
-            const isT = d.getDay() === 2; 
-            const tc = document.getElementById('attTypeContainer'); 
-            if(isT) tc.classList.remove('hidden'); 
-            else { 
-                tc.classList.add('hidden'); 
-                setAttType('class'); 
-            }
-        }
-
-        function setAttType(t){ 
-            attType = t; 
-            const bc = document.getElementById('btnTypeClass'); 
-            const bk = document.getElementById('btnTypeKoku'); 
-            const fc = document.getElementById('filterClassContainer'); 
-            const fk = document.getElementById('filterKokuContainer'); 
-            const lt = document.getElementById('attListTitle'); 
-            
-            if(t === 'class'){
-                bc.classList.add('bg-white','shadow','text-blue-600');
-                bc.classList.remove('text-slate-500','hover:bg-white');
-                bk.classList.remove('bg-white','shadow','text-blue-600');
-                bk.classList.add('text-slate-500','hover:bg-white');
-                fc.classList.remove('hidden');
-                fk.classList.add('hidden');
-                lt.innerText = "Senarai Kehadiran Kelas";
-            } else {
-                bk.classList.add('bg-white','shadow','text-blue-600');
-                bk.classList.remove('text-slate-500','hover:bg-white');
-                bc.classList.remove('bg-white','shadow','text-blue-600');
-                bc.classList.add('text-slate-500','hover:bg-white');
-                fc.classList.add('hidden');
-                fk.classList.remove('hidden');
-                lt.innerText = "Senarai Kehadiran Kokurikulum";
-            } 
-            document.getElementById('attendanceTableBody').innerHTML = '';
-            document.getElementById('emptyState').classList.remove('hidden'); 
-        }
-
-        auth.onAuthStateChanged(async (u) => { 
-            if(!u) await auth.signInAnonymously();
-            enterSystem();
-        });
-
-        async function enterSystem() {
-            const s = document.getElementById('activeTeacherName');
-            try {
-                 const snap = await getCollection('teachers').orderBy('nama').get();
-                 s.innerHTML = '<option value="Guru Bertugas">Guru Bertugas</option>';
-                 snap.forEach(d => {
-                     const o = document.createElement('option');
-                     o.value = d.data().nama;
-                     o.text = d.data().nama;
-                     s.appendChild(o);
-                 });
-            } catch (e) {
-                console.log("Error loading teachers", e);
-            }
-            initializeApp();
-        }
-
-        async function initializeApp() {
-            try { 
-                const doc = await getCollection('settings').doc('telegram_config').get(); 
-                if (doc.exists) { 
-                    const d = doc.data(); 
-                    telegramToken = d.bot_token || ''; 
-                    telegramChatId = d.chat_id || ''; 
-                    telegramTopicId = d.topic_id || ''; 
-                } 
-            } catch (e) {}
-            
-            const today = new Date(); 
-            const setToday = (id) => {
-                const el = document.getElementById(id);
-                if (el) el.valueAsDate = today;
-            };
-
-            setToday('attendanceDate');
-            
-            const landingDisplay = document.getElementById('landingDateDisplay');
-            if (landingDisplay) {
-                landingDisplay.innerText = today.toLocaleDateString('ms-MY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            }
-            
-            checkTuesday(); 
-            loadLandingStats(); 
-            loadClassDropdown();
-        }
-        
-        async function loadClassDropdown() {
-             const s = document.getElementById('teacherClassSelect');
-             s.innerHTML = '<option>Loading...</option>';
-             try {
-                 const snap = await getCollection('classes').orderBy('nama').get();
-                 
-                 if (!snap.empty) {
-                     s.innerHTML = '<option value="">Pilih Kelas...</option>';
-                     snap.forEach(d => {
-                         const className = d.data().nama || d.id; 
-                         const o = document.createElement('option');
-                         o.value = className;
-                         o.text = className;
-                         s.appendChild(o);
-                     });
-                 } else {
-                     const sn = await getCollection('students').get();
-                     const c = new Set();
-                     sn.forEach(d => { if (d.data().kelas) c.add(d.data().kelas); });
-                     s.innerHTML = '<option value="">Pilih Kelas...</option>';
-                     Array.from(c).sort().forEach(x => {
-                        const o = document.createElement('option'); o.value = x; o.text = x; s.appendChild(o);
-                     });
-                 }
-             } catch (e) {
-                 console.error("Error loading classes", e);
-                 s.innerHTML = '<option>Ralat</option>';
-             }
-        }
-
-        async function loadLandingStats() { 
-            const dInput = document.getElementById('attendanceDate');
-            if(!dInput) return;
-            const todayStr = dInput.value;
-            const landingClassList = document.getElementById('landingClassList');
-            
-            try{
-                const s = await getCollection('students').get();
-                const ts = s.size;
-                const classesSet = new Set();
-                const rmtStudentIds = new Set();
-
-                s.forEach(doc => {
-                    const d = doc.data();
-                    if (d.kelas) classesSet.add(d.kelas);
-                    if (d.rmt && (d.rmt === 'Ya' || d.rmt.toLowerCase() === 'ya')) {
-                        rmtStudentIds.add(doc.id);
-                    }
-                });
-                const allClasses = Array.from(classesSet).sort();
-                const totalRmt = rmtStudentIds.size;
-
-                const a = await getCollection('attendance')
-                    .where('date','==',todayStr)
-                    .where('type', '==', 'class')
-                    .get();
-                
-                let p = 0;
-                let rmtPresent = 0;
-                const submittedClasses = new Set();
-                
-                a.forEach(d=>{
-                    const data = d.data();
-                    if(data.status==='Hadir') {
-                        p++;
-                        if (rmtStudentIds.has(data.student_id)) {
-                            rmtPresent++;
-                        }
-                    }
-                    if(data.class_name) submittedClasses.add(data.class_name);
-                });
-
-                const rawPct = ts > 0 ? (p/ts)*100 : 0;
-                const pct = rawPct.toFixed(2); 
-
-                document.getElementById('landingPercent').innerText = pct + '%';
-                document.getElementById('landingRmtStats').innerText = \`RMT: \${rmtPresent} / \${totalRmt}\`;
-
-                const cp = document.getElementById('landingCirclePath');
-                if(cp) {
-                    cp.setAttribute('stroke-dasharray', \`\${pct}, 100\`);
-                    cp.classList.remove('text-blue-600','text-yellow-500','text-red-500');
-                    if(rawPct < 50) cp.classList.add('text-red-500');
-                    else if(rawPct < 80) cp.classList.add('text-yellow-500');
-                    else cp.classList.add('text-blue-600');
-                }
-
-                if(landingClassList) {
-                    landingClassList.innerHTML = '';
-                    if (allClasses.length === 0) {
-                        landingClassList.innerHTML = '<div class="col-span-4 text-center text-xs text-slate-400 py-4">Tiada kelas</div>';
-                    } else {
-                        allClasses.forEach(cls => {
-                            const isDone = submittedClasses.has(cls);
-                            const bg = isDone ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100';
-                            const txt = isDone ? 'text-emerald-700' : 'text-slate-500';
-                            const icon = isDone ? '<i class="fa-solid fa-circle-check text-emerald-500"></i>' : '<i class="fa-regular fa-circle text-slate-300"></i>';
-                            
-                            landingClassList.innerHTML += \`
-                                <div class="\${bg} border rounded px-3 py-2 flex items-center justify-between transition-all hover:shadow-sm">
-                                    <div class="flex items-center gap-2">
-                                        \${icon}
-                                        <span class="text-[10px] font-bold \${txt}">\${cls}</span>
-                                    </div>
-                                </div>
-                            \`;
-                        });
-                    }
-                }
-            } catch(e){
-                console.error("Landing stats error", e);
-            } 
-        }
-
-        window.loadStudentsForAttendance = async () => {
-            const searchInput = document.getElementById('teacherStudentSearch');
-            if(searchInput) searchInput.value = '';
-
-            document.getElementById('attendanceWorkspace').classList.remove('hidden');
-            const tb = document.getElementById('attendanceTableBody');
-            tb.innerHTML = '<tr><td colspan="4" class="text-center">Memuatkan...</td></tr>';
-            let fVal;
-            if (attType === 'class') {
-                fVal = document.getElementById('teacherClassSelect').value;
-                if (!fVal) return;
-                document.getElementById('classNameDisplay').innerText = fVal;
-                const s = await getCollection('students').where('kelas', '==', fVal).get();
-                currentStudents = [];
-                s.forEach(d => currentStudents.push({ id: d.id, ...d.data(), status: 'Hadir' }));
-            } else {
-                const cat = document.getElementById('kokuCategory').value;
-                fVal = document.getElementById('kokuUnitSelect').value;
-                if (!cat || !fVal) return;
-                document.getElementById('classNameDisplay').innerText = fVal;
-                let field = cat === 'unit_beruniform' ? 'unit_beruniform' : (cat === 'kelab_persatuan' ? 'kelab_persatuan' : 'sukan_permainan');
-                const s = await getCollection('students').where(field, '==', fVal).get();
-                currentStudents = [];
-                s.forEach(d => currentStudents.push({ id: d.id, ...d.data(), status: 'Hadir' }));
-            }
-            currentStudents.sort((a, b) => a.nama.localeCompare(b.nama));
-            if (!currentStudents.length) {
-                document.getElementById('emptyState').classList.remove('hidden');
-                tb.innerHTML = '';
-            } else {
-                document.getElementById('emptyState').classList.add('hidden');
-                const d = document.getElementById('attendanceDate').value;
-                let query = getCollection('attendance').where('date', '==', d).where('class_name', '==', fVal);
-                const p = await query.get();
-                const m = {};
-                p.forEach(r => m[r.data().student_id] = r.data().status);
-                renderAttTable(m);
-            }
-        };
-
-        window.filterTeacherAttendanceList = () => {
-            const input = document.getElementById('teacherStudentSearch');
-            const filter = input.value.toUpperCase();
-            const table = document.getElementById("attendanceTableBody");
-            const tr = table.getElementsByTagName("tr");
-            for (let i = 0; i < tr.length; i++) {
-                const td = tr[i].getElementsByTagName("td")[1]; 
-                if (td) {
-                    const txtValue = td.textContent || td.innerText;
-                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                        tr[i].style.display = "";
-                    } else {
-                        tr[i].style.display = "none";
-                    }
-                }
-            }
-        };
-
-        function renderAttTable(m={}) { 
-            const tb = document.getElementById('attendanceTableBody'); 
-            tb.innerHTML=''; 
-            currentStudents.forEach((s,i)=>{ 
-                s.status = m[s.id]||'Hadir'; 
-                let info = attType === 'class' ? (s.rmt === 'Ya' ? 'RMT' : '-') : s.kelas; 
-                tb.innerHTML += \`<tr class="bg-white border-b"><td class="px-6 py-4 font-mono text-xs">\${i+1}</td><td class="px-6 py-4 font-medium">\${s.nama}</td><td class="px-6 py-4 text-xs text-slate-500">\${info}</td><td class="px-6 py-4 text-center"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleAtt('\${s.id}',this)" \${s.status==='Hadir'?'checked':''}><div class="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label></td></tr>\`; 
-            }); 
-            updSum(); 
-        }
-        
-        window.toggleAtt=(id,b)=>{ const s=currentStudents.find(x=>x.id===id); if(s){s.status=b.checked?'Hadir':'Tidak Hadir';updSum();} };
-        
-        function updSum(){ 
-            const t=currentStudents.length, p=currentStudents.filter(s=>s.status==='Hadir').length, a=t-p; 
-            const pct = t ? ((p/t)*100).toFixed(2) : '0.00'; 
-            document.getElementById('summaryTotal').innerText=t; 
-            document.getElementById('summaryPresent').innerText=p; 
-            document.getElementById('summaryAbsent').innerText=a; 
-            document.getElementById('summaryPercentText').innerText=pct+'%'; 
-            document.getElementById('summaryProgressBar').style.width=pct+'%'; 
-        }
-
-        window.submitAttendance = async () => { 
-            const btn=document.getElementById('btnSubmitAttendance'); btn.classList.add('btn-loading'); 
-            const d=document.getElementById('attendanceDate').value; 
-            let gn = "", tp = attType, ei = ""; 
-            if (attType === 'class') gn = document.getElementById('teacherClassSelect').value; 
-            else { gn = document.getElementById('kokuUnitSelect').value; ei = "Minggu: " + document.getElementById('kokuWeek').value; } 
-            
-            if(!d || !gn) { btn.classList.remove('btn-loading'); return showToast("Pilih semua maklumat", "error"); } 
-            
-            const selectedTeacher = document.getElementById('activeTeacherName').value;
-            const tn = selectedTeacher || "Guru Bertugas"; 
-            
-            const ps = currentStudents.map(s => { 
-                const docId = \`\${d}_\${gn.replace(/\\s/g,'')}_\${s.id}_\${tp}\`; 
-                return getCollection('attendance').doc(docId).set({ date:d, class_name: gn, student_id:s.id, student_name:s.nama, status:s.status, teacher_id:'public_user', teacher_name:tn, type: tp, extra_info: ei, timestamp:firebase.firestore.FieldValue.serverTimestamp() }); 
-            }); 
-            await Promise.all(ps); 
-            await generateAndSendTelegramReport(false, tp, gn, d); 
-            btn.classList.remove('btn-loading'); showToast("Berjaya Disimpan"); 
-            loadLandingStats();
-        };
-        
-        window.loadKokuUnits=async()=>{const c=document.getElementById('kokuCategory').value,s=document.getElementById('kokuUnitSelect');s.innerHTML='<option value="">Memuatkan...</option>';s.disabled=true;if(!c){s.innerHTML='<option value="">Pilih Unit...</option>';return;}try{const sn=await getCollection('students').get();const u=new Set();sn.forEach(d=>{const da=d.data();let v=c==='unit_beruniform'?da.unit_beruniform:(c==='kelab_persatuan'?da.kelab_persatuan:da.sukan_permainan);if(v)u.add(v.trim());});s.innerHTML='<option value="">Pilih Unit...</option>';Array.from(u).sort().forEach(x=>{const o=document.createElement('option');o.value=x;o.text=x;s.appendChild(o);});s.disabled=false;}catch(e){showToast("Ralat","error");}};
-        
-        window.generateAndSendTelegramReport = async (toast=true, type='class', groupName='', overrideDate=null) => {
-            if(!telegramToken || !telegramChatId) { if(toast) showToast("Sila set Token","error"); return; }
-            let dateStr = overrideDate || document.getElementById('attendanceDate').value;
-            if(!dateStr) { if(toast) showToast("Pilih Tarikh","error"); return; }
-            const dateObj = new Date(dateStr);
-            const days = ['AHAD','ISNIN','SELASA','RABU','KHAMIS','JUMAAT','SABTU'];
-            const day = String(dateObj.getUTCDate()).padStart(2,'0'); const month = String(dateObj.getUTCMonth()+1).padStart(2,'0'); const year = dateObj.getUTCFullYear(); const fDate = \`\${day}/\${month}/\${year}\`;
-            if(toast) showToast("Menjana...", "info");
-            try {
-                const sSnap = await getCollection('students').get();
-                const shortNameMap = {}; const classMap = {}; const stRmt = {}; let gRmtTotal = 0; let gTotal = 0;
-                sSnap.forEach(d => { const dat = d.data(); const c = dat.kelas; const autoShort = toTitleCase(getShortName(dat.nama)); shortNameMap[d.id] = dat.nama_pendek ? dat.nama_pendek : autoShort; if (c) { if (!classMap[c]) classMap[c] = 0; classMap[c]++; gTotal++; if (dat.rmt && (dat.rmt === 'Ya' || dat.rmt.trim().toLowerCase() === 'ya')) { stRmt[d.id] = true; gRmtTotal++; } } });
-                const sortedClasses = Object.keys(classMap).sort(); const reportType = type || 'class';
-                const aSnap = await getCollection('attendance').where('date', '==', dateStr).where('type', '==', reportType).get();
-                const attData = {}; let gPres = 0; let gRmtPres = 0;
-                aSnap.forEach(d => { const r = d.data(); const c = r.class_name; if (!attData[c]) attData[c] = { p: 0, abs: [] }; if (r.status === 'Hadir') { attData[c].p++; gPres++; if (stRmt[r.student_id]) gRmtPres++; } else { const nameToUse = shortNameMap[r.student_id] || toTitleCase(getShortName(r.student_name)); attData[c].abs.push(nameToUse); } });
-                const ovPct = gTotal > 0 ? ((gPres / gTotal) * 100).toFixed(2) : '0.00'; let lines = [];
-                sortedClasses.forEach(c => { if (attData[c]) { const p = attData[c].p; const t = classMap[c]; const pct = ((p / t) * 100).toFixed(2); const abs = attData[c].abs.length > 0 ? \`   \${attData[c].abs.join(', ')}.\` : ''; lines.push(\`\${escapeHtml(c)}- \${p}/\${t} (\${pct}%)\${abs}\`); } else { lines.push(\`⚠️ \${escapeHtml(c)}\`); } });
-                const headerLine = \`\${days[dateObj.getUTCDay()]} (\${gPres}/\${gTotal}) (\${ovPct}%) . RMT: \${gRmtPres}/\${gRmtTotal}\`;
-                const msg = \`<b>\${headerLine}</b>\\n\${fDate}\\n\\n\${lines.join('\\n')}\`;
-                const payload = { chat_id: telegramChatId, text: msg, parse_mode: 'HTML' };
-                if(telegramTopicId) payload.message_thread_id = telegramTopicId;
-                await fetch(\`https://api.telegram.org/bot\${telegramToken}/sendMessage\`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                if (toast) showToast("Laporan dihantar");
-            } catch (e) { console.error(e); if (toast) showToast("Gagal hantar laporan", "error"); }
-        };
-    <\/script>
-</body>
-</html>`
-            }
-        ];
-        // =================================================================
-
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { 
-            getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, onAuthStateChanged, signOut 
-        } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { 
-            getFirestore, collection, doc, setDoc, getDoc, addDoc, getDocs, deleteDoc, updateDoc, serverTimestamp, query, orderBy, where
-        } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
-
-        // --- Configuration ---
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-        const firebaseConfig = {
-            apiKey: "AIzaSyB8ywaXE0phvI4vIhHDDBZID7v2blO_J_o",
-            authDomain: "semat-fa0b7.firebaseapp.com",
-            projectId: "semat-fa0b7",
-            storageBucket: "semat-fa0b7.firebasestorage.app",
-            messagingSenderId: "361982206428",
-            appId: "1:361982206428:web:e7f4d5ed19238690736f19",
-            measurementId: "G-0NH5EJD60N"
-        };
-        
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        // --- EXPOSE FIREBASE TO WINDOW (Untuk Embedded Apps) ---
-        window.db = db;
-        window.auth = auth;
-        let currentEditingId = null;
-        let currentSelectedIcon = 'box';
-        let currentSelectedColor = { bg: 'bg-blue-50', text: 'text-blue-600' };
-        let appToDeleteId = null;
-        let deleteType = 'app'; // 'app', 'teacher', 'class', 'student'
-
-        // --- UI References ---
-        const views = {
-            loading: document.getElementById('loading-screen'),
-            login: document.getElementById('login-view'),
-            dashboard: document.getElementById('dashboard-view'),
-            editor: document.getElementById('admin-editor-view'),
-            viewer: document.getElementById('dynamic-app-view'),
-            userManager: document.getElementById('admin-users-view'),
-            schoolData: document.getElementById('admin-school-data-view')
-        };
-        const adminBanner = document.getElementById('admin-banner');
-        
-        // --- Functions ---
-        function toggleLoading(show, message = "Memproses...") {
-            const el = views.loading;
-            const msgEl = document.getElementById('loading-text');
-            if(msgEl) msgEl.innerText = message;
-            if (show) { el.classList.remove('hidden', 'opacity-0'); } 
-            else { el.classList.add('opacity-0'); setTimeout(() => el.classList.add('hidden'), 300); }
-        }
-
-        function switchView(viewName) {
-            Object.values(views).forEach(el => el.classList.add('hidden'));
-            if(views[viewName]) views[viewName].classList.remove('hidden');
-            if (window.lucide) window.lucide.createIcons();
-        }
-
-        window.backToDashboard = () => switchView('dashboard');
-
-        // --- CORE: App Renderer WITH IFRAME ---
-        async function openApp(appId) {
-            const app = appsData.find(a => a.id === appId);
-            if (!app) return;
-            
-            document.getElementById('app-viewer-title').innerText = app.name;
-            document.getElementById('app-viewer-category').innerText = app.category;
-            
-            const iframe = document.getElementById('app-frame');
-            
-            // Wait for iframe to load (or reload) to ensure a clean state
-            // Re-creating the iframe is safer to prevent script contamination
-            const container = document.getElementById('dynamic-app-container');
-            container.innerHTML = ''; // Clear container
-            const newIframe = document.createElement('iframe');
-            newIframe.id = 'app-frame';
-            newIframe.className = 'w-full h-full border-none absolute inset-0 bg-white';
-            container.appendChild(newIframe);
-
-            // Give a slight delay for iframe to be ready in DOM
-            setTimeout(() => {
-                const doc = newIframe.contentDocument || newIframe.contentWindow.document;
-                
-                // Bridge Script to pass Firebase to Iframe
-                const bridgeScript = `
-                    <script>
-                        window.db = window.parent.db;
-                        window.auth = window.parent.auth;
-                        window.collection = window.parent.collection;
-                        window.addDoc = window.parent.addDoc;
-                        window.serverTimestamp = window.parent.serverTimestamp;
-                        window.getDocs = window.parent.getDocs;
-                        window.query = window.parent.query;
-                        window.where = window.parent.where;
-                        window.console = window.parent.console; // Debugging
-                        
-                        // Helper to get school data
-                        window.getTeachers = async () => {
-                            try {
-                                const q = window.query(window.collection(window.db, 'teachers'), window.parent.orderBy('name')); // Use parent orderBy if exposed or pass it
-                                // Since orderBy isn't exposed in window object above, let's expose it or just use simple fetch
-                                // Better approach: use the parent's function if possible, or re-implement simple fetch
-                                const snap = await window.getDocs(window.collection(window.db, 'teachers'));
-                                const teachers = [];
-                                snap.forEach(d => teachers.push({id: d.id, ...d.data()}));
-                                return teachers.sort((a,b) => a.name.localeCompare(b.name));
-                            } catch(e) { console.error(e); return []; }
-                        };
-                        
-                        window.getClasses = async () => {
-                             try {
-                                const snap = await window.getDocs(window.collection(window.db, 'classes'));
-                                const classes = [];
-                                snap.forEach(d => classes.push({id: d.id, ...d.data()}));
-                                return classes.sort((a,b) => a.name.localeCompare(b.name));
-                            } catch(e) { console.error(e); return []; }
-                        };
-                        
-                        window.getStudents = async () => {
-                             try {
-                                const snap = await window.getDocs(window.collection(window.db, 'students'));
-                                const students = [];
-                                snap.forEach(d => students.push({id: d.id, ...d.data()}));
-                                return students.sort((a,b) => a.name.localeCompare(b.name));
-                            } catch(e) { console.error(e); return []; }
-                        };
-
-                    <\/script>
-                `;
-
-                doc.open();
-                doc.write(bridgeScript + app.html);
-                doc.close();
-            }, 50);
-            
-            switchView('viewer');
-        }
-
-        // --- SCHOOL DATA MANAGER LOGIC (GURU/KELAS/MURID) ---
-        window.openSchoolDataManager = () => {
-            switchView('schoolData');
-            switchSchoolTab('guru'); // Default tab
-        };
-        window.closeSchoolDataManager = () => switchView('dashboard');
-
-        window.switchSchoolTab = (tab) => {
-            // UI Tabs
-            ['guru','kelas','murid'].forEach(t => {
-                document.getElementById(`tab-${t}`).classList.remove('active', 'border-b-2', 'border-blue-600', 'text-blue-600');
-                document.getElementById(`content-${t}`).classList.add('hidden');
-            });
-            document.getElementById(`tab-${tab}`).classList.add('active', 'border-b-2', 'border-blue-600', 'text-blue-600');
-            document.getElementById(`content-${tab}`).classList.remove('hidden');
-
-            // Load Data
-            if(tab === 'guru') loadTeachers();
-            if(tab === 'kelas') loadClasses(); // Need teachers for dropdown
-            if(tab === 'murid') loadStudents(); // Need classes for dropdown
-        };
-
-        // --- TEACHERS CRUD ---
-        async function loadTeachers() {
-            const tbody = document.getElementById('table-guru');
-            tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center">Memuatkan...</td></tr>';
-            try {
-                const snap = await getDocs(query(collection(db, 'teachers'), orderBy('name')));
-                tbody.innerHTML = snap.empty ? '<tr><td colspan="3" class="p-4 text-center">Tiada data.</td></tr>' : '';
-                
-                // Helper for Dropdown in Classes Tab
-                const classTeacherSelect = document.getElementById('kelas-guru');
-                if(classTeacherSelect) {
-                    classTeacherSelect.innerHTML = '<option value="">Pilih Guru Kelas...</option>';
-                    snap.forEach(d => {
-                        const t = d.data();
-                        classTeacherSelect.innerHTML += `<option value="${d.id}">${t.name}</option>`;
-                    });
-                }
-
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-slate-50 border-b border-slate-100">
-                            <td class="p-4 font-medium">${d.name}</td>
-                            <td class="p-4">${d.position}</td>
-                            <td class="p-4 text-right">
-                                <button onclick="deleteItem('teacher', '${doc.id}')" class="text-red-500 p-2 hover:bg-red-50 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                            </td>
-                        </tr>`;
-                });
-                if(window.lucide) window.lucide.createIcons();
-            } catch(e) { console.error(e); }
-        }
-
-        window.saveTeacher = async () => {
-            const name = document.getElementById('guru-nama').value.trim();
-            const position = document.getElementById('guru-jawatan').value.trim();
-            if(!name) return alert("Sila isi nama guru.");
-            toggleLoading(true, "Menyimpan Guru...");
-            try {
-                await addDoc(collection(db, 'teachers'), { name, position, createdAt: serverTimestamp() });
-                document.getElementById('guru-nama').value = '';
-                document.getElementById('guru-jawatan').value = '';
-                await loadTeachers();
-            } catch(e) { alert("Ralat menyimpan."); }
-            toggleLoading(false);
-        };
-
-        // --- CLASSES CRUD ---
-        async function loadClasses() {
-            // Ensure teachers dropdown is populated first
-            if(document.getElementById('kelas-guru').options.length <= 1) await loadTeachers();
-
-            const tbody = document.getElementById('table-kelas');
-            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Memuatkan...</td></tr>';
-            try {
-                const snap = await getDocs(query(collection(db, 'classes'), orderBy('name')));
-                tbody.innerHTML = snap.empty ? '<tr><td colspan="4" class="p-4 text-center">Tiada data.</td></tr>' : '';
-                
-                // Helper for Dropdown in Student Tab
-                const studentClassSelect = document.getElementById('murid-kelas');
-                if(studentClassSelect) {
-                    studentClassSelect.innerHTML = '<option value="">Pilih Kelas...</option>';
-                    snap.forEach(d => {
-                        const c = d.data();
-                        studentClassSelect.innerHTML += `<option value="${d.id}">${c.name}</option>`;
-                    });
-                }
-
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-slate-50 border-b border-slate-100">
-                            <td class="p-4 font-medium">${d.name}</td>
-                            <td class="p-4"><span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">${d.level}</span></td>
-                            <td class="p-4 text-slate-500">${d.teacherName || '-'}</td>
-                            <td class="p-4 text-right">
-                                <button onclick="deleteItem('class', '${doc.id}')" class="text-red-500 p-2 hover:bg-red-50 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                            </td>
-                        </tr>`;
-                });
-                if(window.lucide) window.lucide.createIcons();
-            } catch(e) { console.error(e); }
-        }
-
-        window.saveClass = async () => {
-            const name = document.getElementById('kelas-nama').value.trim();
-            const level = document.getElementById('kelas-aliran').value;
-            const teacherId = document.getElementById('kelas-guru').value;
-            const teacherSelect = document.getElementById('kelas-guru');
-            const teacherName = teacherSelect.options[teacherSelect.selectedIndex].text;
-
-            if(!name) return alert("Sila isi nama kelas.");
-            toggleLoading(true, "Menyimpan Kelas...");
-            try {
-                await addDoc(collection(db, 'classes'), { 
-                    name, level, teacherId, teacherName: teacherId ? teacherName : '', createdAt: serverTimestamp() 
-                });
-                document.getElementById('kelas-nama').value = '';
-                await loadClasses();
-            } catch(e) { alert("Ralat menyimpan."); }
-            toggleLoading(false);
-        };
-
-        // --- STUDENTS CRUD ---
-        async function loadStudents() {
-            if(document.getElementById('murid-kelas').options.length <= 1) await loadClasses();
-
-            const tbody = document.getElementById('table-murid');
-            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Memuatkan...</td></tr>';
-            try {
-                const snap = await getDocs(query(collection(db, 'students'), orderBy('name')));
-                tbody.innerHTML = snap.empty ? '<tr><td colspan="4" class="p-4 text-center">Tiada data.</td></tr>' : '';
-                
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-slate-50 border-b border-slate-100">
-                            <td class="p-4 font-medium">${d.name}</td>
-                            <td class="p-4 font-mono text-xs">${d.ic}</td>
-                            <td class="p-4 text-slate-500">${d.className || '-'}</td>
-                            <td class="p-4 text-right">
-                                <button onclick="deleteItem('student', '${doc.id}')" class="text-red-500 p-2 hover:bg-red-50 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                            </td>
-                        </tr>`;
-                });
-                if(window.lucide) window.lucide.createIcons();
-            } catch(e) { console.error(e); }
-        }
-
-        window.saveStudent = async () => {
-            const name = document.getElementById('murid-nama').value.trim();
-            const ic = document.getElementById('murid-ic').value.trim();
-            const classId = document.getElementById('murid-kelas').value;
-            const classSelect = document.getElementById('murid-kelas');
-            const className = classSelect.options[classSelect.selectedIndex].text;
-
-            if(!name || !classId) return alert("Nama dan Kelas wajib diisi.");
-            toggleLoading(true, "Mendaftar Murid...");
-            try {
-                await addDoc(collection(db, 'students'), { 
-                    name, ic, classId, className, createdAt: serverTimestamp() 
-                });
-                document.getElementById('murid-nama').value = '';
-                document.getElementById('murid-ic').value = '';
-                await loadStudents();
-            } catch(e) { alert("Ralat menyimpan."); }
-            toggleLoading(false);
-        };
-
-        // --- USER MANAGEMENT (WHITELIST) ---
-        async function checkWhitelist(user) {
-            if (user.isAnonymous) return { allowed: true, role: 'guest' };
-            const userRef = doc(db, 'whitelist', user.email);
-            const userSnap = await getDoc(userRef);
-            if (userSnap.exists()) {
-                const userData = userSnap.data();
-                return { allowed: true, role: userData.role || 'user' };
-            } else {
-                const q = query(collection(db, 'whitelist'));
-                const snap = await getDocs(q);
-                if (snap.empty) {
-                    await setDoc(userRef, { role: 'admin', createdAt: serverTimestamp() });
-                    return { allowed: true, role: 'admin' };
-                }
-                return { allowed: false, role: null };
-            }
-        }
-
-        window.openUserManager = async () => { switchView('userManager'); fetchWhitelistedUsers(); };
-        window.closeUserManager = () => switchView('dashboard');
-
-        async function fetchWhitelistedUsers() {
-            const tbody = document.getElementById('whitelist-table-body');
-            tbody.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-slate-400">Memuatkan...</td></tr>';
-            try {
-                const q = query(collection(db, 'whitelist'));
-                const snapshot = await getDocs(q);
-                if (snapshot.empty) { tbody.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-slate-400">Tiada pengguna.</td></tr>'; return; }
-                tbody.innerHTML = '';
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const email = doc.id;
-                    const role = data.role === 'admin' ? '<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">ADMIN</span>' : '<span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">USER</span>';
-                    const isSelf = currentUser && currentUser.email === email;
-                    const deleteBtn = isSelf ? '<span class="text-xs text-slate-400">Diri Sendiri</span>' : `<button onclick="removeUser('${email}')" class="text-red-500 hover:text-red-700 p-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button>`;
-                    tbody.innerHTML += `<tr class="hover:bg-slate-50"><td class="p-4 border-b font-mono text-xs sm:text-sm text-slate-700">${email}</td><td class="p-4 border-b">${role}</td><td class="p-4 border-b text-right">${deleteBtn}</td></tr>`;
-                });
-                if (window.lucide) window.lucide.createIcons();
-            } catch (e) { tbody.innerHTML = '<tr><td colspan="3" class="text-center p-4">Ralat.</td></tr>'; }
-        }
-
-        window.whitelistUser = async () => {
-            const email = document.getElementById('new-user-email').value.trim();
-            const role = document.getElementById('new-user-role').value;
-            if (!email || !email.includes('@')) return alert("Emel tidak sah.");
-            toggleLoading(true, "Mendaftar...");
-            try {
-                await setDoc(doc(db, 'whitelist', email), { role: role, addedBy: currentUser.email, createdAt: serverTimestamp() });
-                document.getElementById('new-user-email').value = '';
-                await fetchWhitelistedUsers();
-                toggleLoading(false);
-            } catch (e) { console.error(e); alert("Gagal."); toggleLoading(false); }
-        };
-
-        window.removeUser = async (email) => {
-            if(!confirm(`Buang akses ${email}?`)) return;
-            toggleLoading(true);
-            try { await deleteDoc(doc(db, 'whitelist', email)); await fetchWhitelistedUsers(); toggleLoading(false); } catch (e) { alert("Gagal."); toggleLoading(false); }
-        };
-
-        // --- FIRESTORE: Fetch Apps ---
-        async function fetchApps() {
-            let combinedApps = [...(HARDCODED_APPS || [])];
-            const grid = document.getElementById('systems-grid');
-            if (combinedApps.length === 0) grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400 mb-2 mx-auto"></div><p>Memuatkan senarai aplikasi...</p></div>';
-            try {
-                const q = query(collection(db, 'apps'), orderBy('createdAt', 'desc'));
-                const querySnapshot = await getDocs(q);
-                querySnapshot.forEach((doc) => { if (!combinedApps.find(a => a.id === doc.id)) combinedApps.push({ id: doc.id, ...doc.data() }); });
-                appsData = combinedApps; renderAppGrid();
-            } catch (error) { console.error("Error fetching apps:", error); appsData = combinedApps; renderAppGrid(); }
-        }
-
-        function renderAppGrid() {
-            const grid = document.getElementById('systems-grid');
-            if (appsData.length === 0) {
-                grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-300 animate-fade-in-up"><i data-lucide="box" class="w-12 h-12 mx-auto mb-2 opacity-50"></i><p>Tiada aplikasi dijumpai.</p>${isAdminMode ? '<p class="text-sm text-blue-500 mt-2 font-medium">Klik "Tambah App" untuk bermula.</p>' : ''}</div>`;
-                if (window.lucide) window.lucide.createIcons();
-                return;
-            }
-            grid.innerHTML = appsData.map(app => `
-                <div class="group bg-white rounded-xl border border-slate-200 p-6 hover:shadow-lg hover:border-blue-300 transition-all duration-300 flex flex-col relative overflow-hidden animate-fade-in-up">
-                    <div class="absolute top-0 right-0 w-24 h-24 ${app.colorBg || 'bg-blue-50'} rounded-bl-full -mr-4 -mt-4 opacity-50 transition-transform group-hover:scale-110"></div>
-                    <div class="flex items-start justify-between mb-4 relative z-10"><div class="p-3 rounded-xl ${app.colorBg || 'bg-blue-50'}"><i data-lucide="${app.iconName || 'box'}" class="w-8 h-8 ${app.colorText || 'text-blue-600'}"></i></div><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-1 rounded-full">${app.category}</span></div>
-                    <div class="relative z-10 flex-grow"><h4 class="font-bold text-slate-800 text-lg group-hover:text-blue-700 transition-colors">${app.name}</h4><p class="text-slate-500 text-sm mt-2 leading-relaxed line-clamp-2">${app.description}</p></div>
-                    <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-blue-600 font-medium text-sm relative z-10">
-                        <button onclick="openApp('${app.id}')" class="hover:underline flex items-center gap-1">Buka App <i data-lucide="arrow-right-circle" class="w-4 h-4"></i></button>
-                        ${isAdminMode ? `<div class="flex gap-2"><button onclick="editApp('${app.id}')" class="p-1 text-slate-400 hover:text-blue-600 transition-colors"><i data-lucide="edit-2" class="w-4 h-4"></i></button><button onclick="deleteItem('app', '${app.id}')" class="p-1 text-slate-400 hover:text-red-600 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>` : ''}
-                    </div>
-                </div>`).join('');
-            if (window.lucide) window.lucide.createIcons();
-        }
-
-        // --- ADMIN: Editor Logic ---
-        const availableIcons = ['box', 'user', 'calendar', 'file-text', 'shield-check', 'settings', 'book-open', 'activity', 'alert-circle', 'archive', 'bar-chart', 'bell', 'briefcase', 'calculator', 'camera', 'check-circle', 'clipboard', 'clock', 'cloud', 'code', 'database', 'flag', 'folder', 'gift', 'globe', 'home', 'image', 'info', 'layers', 'layout', 'link', 'lock', 'mail', 'map', 'message-circle', 'monitor', 'moon', 'music', 'package', 'pie-chart', 'play', 'printer', 'save', 'search', 'send', 'server', 'share', 'smartphone', 'star', 'sun', 'table', 'tag', 'target', 'terminal', 'tool', 'trash', 'truck', 'tv', 'upload', 'video', 'wifi', 'zap'];
-        const themeColors = [{ bg: 'bg-blue-50', text: 'text-blue-600' }, { bg: 'bg-green-50', text: 'text-green-600' }, { bg: 'bg-purple-50', text: 'text-purple-600' }, { bg: 'bg-orange-50', text: 'text-orange-600' }, { bg: 'bg-pink-50', text: 'text-pink-600' }, { bg: 'bg-indigo-50', text: 'text-indigo-600' }, { bg: 'bg-red-50', text: 'text-red-600' }, { bg: 'bg-yellow-50', text: 'text-yellow-600' }, { bg: 'bg-teal-50', text: 'text-teal-600' }, { bg: 'bg-cyan-50', text: 'text-cyan-600' }, { bg: 'bg-gray-100', text: 'text-gray-700' }];
-
-        function initEditor() {
-            const iconContainer = document.getElementById('icon-selector');
-            iconContainer.innerHTML = availableIcons.map(icon => `<button onclick="selectIcon('${icon}')" class="p-2 rounded hover:bg-slate-100 flex justify-center items-center ${icon === 'box' ? 'bg-blue-100 ring-2 ring-blue-500' : ''}" id="icon-btn-${icon}"><i data-lucide="${icon}" class="w-5 h-5 text-slate-600"></i></button>`).join('');
-            const colorContainer = document.getElementById('color-selector');
-            colorContainer.innerHTML = themeColors.map((theme, idx) => `<button onclick="selectThemeColor(${idx})" class="w-8 h-8 rounded-full ${theme.bg} border-2 ${idx === 0 ? 'border-blue-500' : 'border-transparent'} transition-transform hover:scale-110" id="theme-btn-${idx}"><div class="w-2 h-2 rounded-full ${theme.text} bg-current mx-auto opacity-50"></div></button>`).join('');
-            if (window.lucide) window.lucide.createIcons();
-        }
-
-        window.selectIcon = (iconName) => {
-            currentSelectedIcon = iconName;
-            document.querySelectorAll('[id^="icon-btn-"]').forEach(btn => btn.classList.remove('bg-blue-100', 'ring-2', 'ring-blue-500'));
-            document.getElementById(`icon-btn-${iconName}`).classList.add('bg-blue-100', 'ring-2', 'ring-blue-500');
-        };
-
-        window.selectThemeColor = (idx) => {
-            currentSelectedColor = themeColors[idx];
-            document.querySelectorAll('[id^="theme-btn-"]').forEach(btn => { btn.classList.remove('border-blue-500', 'border-2'); btn.classList.add('border-transparent'); });
-            const btn = document.getElementById(`theme-btn-${idx}`);
-            btn.classList.remove('border-transparent'); btn.classList.add('border-blue-500', 'border-2');
-        }
-
-        window.openEditor = () => {
-            currentEditingId = null; 
-            document.getElementById('edit-app-name').value = ''; document.getElementById('edit-app-desc').value = ''; document.getElementById('edit-app-html').value = ''; document.getElementById('edit-app-category').value = '';
-            selectIcon('box'); switchView('editor');
-        };
-        window.closeEditor = () => switchView('dashboard');
-
-        window.editApp = (id) => {
-            const app = appsData.find(a => a.id === id); if (!app) return;
-            currentEditingId = id;
-            document.getElementById('edit-app-name').value = app.name; document.getElementById('edit-app-desc').value = app.description; document.getElementById('edit-app-html').value = app.html; document.getElementById('edit-app-category').value = app.category;
-            selectIcon(app.iconName || 'box'); switchView('editor');
-        };
-
-        // --- UNIVERSAL DELETE LOGIC ---
-        window.deleteItem = (type, id) => {
-            if (type === 'app' && HARDCODED_APPS && HARDCODED_APPS.find(a => a.id === id)) return alert("Aplikasi hardcoded tidak boleh dipadam.");
-            appToDeleteId = id; deleteType = type;
-            document.getElementById('delete-confirm-modal').classList.remove('hidden');
-        };
-
-        window.closeDeleteModal = () => { appToDeleteId = null; document.getElementById('delete-confirm-modal').classList.add('hidden'); };
-
-        window.confirmDelete = async () => {
-            if (!appToDeleteId) return;
-            const btn = document.getElementById('confirm-delete-btn'); btn.innerHTML = 'Memadam...'; btn.disabled = true;
-            try {
-                let collectionName = '';
-                if(deleteType === 'app') collectionName = 'apps';
-                else if(deleteType === 'teacher') collectionName = 'teachers';
-                else if(deleteType === 'class') collectionName = 'classes';
-                else if(deleteType === 'student') collectionName = 'students';
-
-                await deleteDoc(doc(db, collectionName, appToDeleteId));
-                
-                if(deleteType === 'app') await fetchApps();
-                else if(deleteType === 'teacher') await loadTeachers();
-                else if(deleteType === 'class') await loadClasses();
-                else if(deleteType === 'student') await loadStudents();
-
-                closeDeleteModal();
-            } catch(e) { console.error(e); alert("Gagal memadam."); } 
-            finally { btn.innerHTML = 'Ya, Padam'; btn.disabled = false; }
-        };
-
-        // --- Save Logic ---
-        document.getElementById('btn-save-app').onclick = async () => {
-            const name = document.getElementById('edit-app-name').value;
-            const desc = document.getElementById('edit-app-desc').value;
-            const html = document.getElementById('edit-app-html').value;
-            const category = document.getElementById('edit-app-category').value;
-            if (!name || !html) { alert("Nama dan Kod HTML wajib diisi."); return; }
-            toggleLoading(true, "Menyimpan...");
-            const appPayload = { name, description: desc, html, category, iconName: currentSelectedIcon, colorBg: currentSelectedColor.bg, colorText: currentSelectedColor.text, updatedAt: serverTimestamp() };
-            try {
-                const collectionRef = collection(db, 'apps');
-                if (currentEditingId) { await updateDoc(doc(collectionRef, currentEditingId), appPayload); } else { appPayload.createdAt = serverTimestamp(); await addDoc(collectionRef, appPayload); }
-                await fetchApps(); switchView('dashboard');
-            } catch (error) { console.error("Save failed:", error); alert("Gagal: " + error.message); } finally { toggleLoading(false); }
-        };
-        
-        // --- EXPORT LOGIC ---
-        window.exportPortal = () => {
-            if(!confirm("Muat turun fail HTML portal?")) return;
-            let htmlContent = document.documentElement.outerHTML;
-            const appsJson = JSON.stringify(appsData).replace(/<\/script>/g, '<\\/script>');
-            const newContent = htmlContent.replace('const HARDCODED_APPS = null', `const HARDCODED_APPS = ${appsJson}`);
-            const blob = new Blob([newContent], { type: 'text/html' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'PortalSKMasjidTanah_Hardcoded.html'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        };
-
-        // --- AUTH & INIT ---
-        async function handleLoginSuccess(user) {
-            currentUser = user;
-            toggleLoading(true, "Memeriksa akses...");
-            const access = await checkWhitelist(user);
-            if (!access.allowed) { await signOut(auth); toggleLoading(false); alert("Akses Ditolak."); document.getElementById('login-error').classList.remove('hidden'); return; }
-            isSuperAdmin = (access.role === 'admin');
-            document.getElementById('user-name').innerText = user.displayName || 'Pengguna';
-            document.getElementById('user-email').innerText = user.email || 'Mod Tetamu';
-            document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'User'}&background=0D8ABC&color=fff`;
-            
-            const adminBtn = document.getElementById('btn-admin-toggle');
-            if (isSuperAdmin) adminBtn.classList.remove('hidden'); else adminBtn.classList.add('hidden');
-
-            switchView('dashboard');
-            fetchApps();
-            const now = new Date();
-            document.getElementById('welcome-text').innerText = `Selamat Datang, ${user.displayName ? user.displayName.split(' ')[0] : 'Cikgu'}!`;
-            toggleLoading(false);
-        }
-
-        document.getElementById('btn-admin-toggle').onclick = () => {
-            if (!isSuperAdmin) return;
-            isAdminMode = !isAdminMode;
-            const btn = document.getElementById('btn-admin-toggle');
-            if (isAdminMode) { btn.classList.add('bg-blue-600', 'text-white'); btn.classList.remove('bg-blue-900/50', 'text-blue-200'); adminBanner.classList.remove('hidden'); } 
-            else { btn.classList.remove('bg-blue-600', 'text-white'); btn.classList.add('bg-blue-900/50', 'text-blue-200'); adminBanner.classList.add('hidden'); }
-            renderAppGrid();
-        };
-
-        document.getElementById('btn-google-login').onclick = async () => { toggleLoading(true); try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (err) { console.error(err); toggleLoading(false); } };
-        document.getElementById('btn-guest-login').onclick = async () => { toggleLoading(true); try { await signInAnonymously(auth); } catch (err) { console.error(err); toggleLoading(false); } };
-        document.getElementById('btn-logout').onclick = async () => { toggleLoading(true); try { await signOut(auth); isAdminMode = false; isSuperAdmin = false; } catch(e) {} };
-
-        onAuthStateChanged(auth, (user) => { if (user) handleLoginSuccess(user); else { switchView('login'); document.getElementById('login-view').classList.add('flex'); toggleLoading(false); } });
-        
-        initEditor();
-
-        // Expose
-        window.openApp = openApp; window.editApp = editApp; window.deleteItem = deleteItem;
-        window.openEditor = openEditor; window.closeEditor = closeEditor; window.selectIcon = selectIcon; window.selectThemeColor = selectThemeColor;
-        window.closeDeleteModal = closeDeleteModal; window.confirmDelete = confirmDelete;
-        window.openUserManager = openUserManager; window.closeUserManager = closeUserManager; window.whitelistUser = whitelistUser; window.removeUser = removeUser;
-        window.exportPortal = exportPortal;
-        window.openSchoolDataManager = openSchoolDataManager; window.closeSchoolDataManager = closeSchoolDataManager; window.switchSchoolTab = switchSchoolTab;
-        window.saveTeacher = saveTeacher; window.saveClass = saveClass; window.saveStudent = saveStudent;
-
-    </script>
-</body>
-</html>
