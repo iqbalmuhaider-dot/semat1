@@ -392,7 +392,580 @@
 
     <!-- JavaScript Logic -->
     <script type="module">
-        const HARDCODED_APPS = null; 
+        // =================================================================
+        // CONFIG BERSIH: APLIKASI HARDCODED (eKehadiran)
+        const HARDCODED_APPS = [
+            {
+                id: 'app-ekehadiran-sub',
+                name: 'eKehadiran SK Masjid Tanah',
+                description: 'Sistem kehadiran murid dengan pelaporan Telegram.',
+                category: 'Harian',
+                iconName: 'calendar',
+                colorBg: 'bg-blue-50',
+                colorText: 'text-blue-600',
+                createdAt: '2025-01-01T00:00:00Z',
+                html: `<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eKehadiran SK Masjid Tanah</title>
+    <script src="https://cdn.tailwindcss.com"><\/script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"><\/script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"><\/script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"><\/script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        h1, h2, h3, .font-heading { font-family: 'Poppins', sans-serif; }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .btn-loading { position: relative; color: transparent !important; pointer-events: none; }
+        .btn-loading::after {
+            content: ""; position: absolute; width: 1em; height: 1em;
+            top: 50%; left: 50%; margin-top: -0.5em; margin-left: -0.5em;
+            border: 2px solid #ffffff; border-radius: 50%; border-top-color: transparent;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none;  scrollbar-width: none; }
+    </style>
+</head>
+<body class="text-slate-800 bg-slate-50">
+    <div id="app" class="min-h-screen flex flex-col">
+        <nav id="navbar" class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center flex-1 overflow-hidden">
+                        <div class="flex-shrink-0 flex items-center gap-3 text-blue-600 mr-4">
+                            <img src="https://i.postimg.cc/k4N1mPR1/semat-04.png" alt="Logo Sekolah" class="h-9 w-auto object-contain">
+                            <div class="flex flex-col">
+                                <span class="font-heading font-bold text-lg leading-tight">eKehadiran</span>
+                                <span class="text-[10px] text-slate-500 uppercase tracking-wider hidden sm:block">SK Masjid Tanah</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">Mod Borang</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        <main class="flex-grow container mx-auto px-4 py-6 relative">
+            <div id="view-teacher-dashboard" class="fade-in pb-20">
+                <div class="bg-white rounded-2xl shadow-sm border border-blue-100 overflow-hidden mb-8">
+                    <div class="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 text-white flex justify-between items-center">
+                        <div>
+                            <h2 class="font-bold text-lg flex items-center gap-2"><i class="fa-regular fa-chart-bar"></i> Ringkasan Hari Ini</h2>
+                            <p class="text-blue-100 text-xs" id="landingDateDisplay">Memuatkan tarikh...</p>
+                        </div>
+                        <button onclick="loadLandingStats()" class="text-white hover:bg-white/20 p-2 rounded-full transition"><i class="fa-solid fa-rotate-right"></i></button>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="col-span-1 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-slate-100 pb-6 md:pb-0">
+                                <div class="relative w-32 h-32">
+                                    <svg class="w-full h-full" viewBox="0 0 36 36">
+                                        <path class="text-slate-100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3" />
+                                        <path id="landingCirclePath" class="text-blue-600 transition-all duration-1000 ease-out" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3" />
+                                    </svg>
+                                    <div class="absolute inset-0 flex items-center justify-center flex-col">
+                                        <span class="text-3xl font-bold text-slate-800" id="landingPercent">0%</span>
+                                        <span class="text-[10px] text-slate-400 uppercase tracking-wider">Kehadiran</span>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-center font-bold text-emerald-600 mt-2 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100" id="landingRmtStats">RMT: -/-</p>
+                            </div>
+                            <div class="col-span-2">
+                                <div class="flex justify-between items-center mb-3">
+                                    <h3 class="font-bold text-slate-700 text-sm">Status Pengisian Kelas</h3>
+                                    <div class="flex gap-3 text-[10px]">
+                                        <span class="flex items-center gap-1 text-emerald-600 font-bold"><i class="fa-solid fa-circle-check"></i> Selesai</span>
+                                        <span class="flex items-center gap-1 text-slate-400 font-bold"><i class="fa-regular fa-circle"></i> Belum</span>
+                                    </div>
+                                </div>
+                                <div class="overflow-y-auto max-h-48 pr-2 custom-scrollbar bg-slate-50 rounded-lg border border-slate-100 p-2">
+                                    <div id="landingClassList" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                        <div class="animate-pulse bg-slate-200 h-8 rounded col-span-4"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                    <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2 text-lg border-b pb-3">
+                        <span class="bg-blue-100 text-blue-600 w-8 h-8 flex items-center justify-center rounded-lg text-sm"><i class="fa-solid fa-pen-to-square"></i></span>
+                        Isi Kehadiran
+                    </h3>
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nama Guru Pelapor</label>
+                        <div class="relative">
+                             <select id="activeTeacherName" class="appearance-none w-full bg-slate-50 border border-slate-300 text-slate-700 py-3 px-4 pr-8 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-blue-500 font-bold text-sm cursor-pointer">
+                                <option value="Guru Bertugas">Guru Bertugas</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-700">
+                                <i class="fa-solid fa-chevron-down text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tarikh Kehadiran</label>
+                            <input type="date" id="attendanceDate" onchange="checkTuesday(); loadLandingStats();" class="rounded-lg border-slate-300 block w-full p-2.5 border text-sm bg-slate-50 focus:bg-white focus:border-blue-500 transition-colors">
+                        </div>
+                        <div id="attTypeContainer" class="hidden">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sesi</label>
+                            <div class="flex space-x-2 bg-slate-100 p-1 rounded-lg">
+                                <button onclick="setAttType('class')" id="btnTypeClass" class="flex-1 py-2 px-3 rounded-md text-xs font-bold bg-white shadow text-blue-600 transition">Kelas (Pagi)</button>
+                                <button onclick="setAttType('koku')" id="btnTypeKoku" class="flex-1 py-2 px-3 rounded-md text-xs font-bold text-slate-500 hover:bg-white transition">Kokurikulum</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="filterClassContainer" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Pilih Kelas</label>
+                            <select id="teacherClassSelect" onchange="loadStudentsForAttendance()" class="rounded-lg border-slate-300 block w-full p-3 border text-sm bg-white font-medium focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none"><option value="">Pilih Kelas...</option></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cari Nama Murid (Pilihan)</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+                                </div>
+                                <input type="text" id="teacherStudentSearch" onkeyup="filterTeacherAttendanceList()" placeholder="Taip nama untuk mencari..." class="pl-10 rounded-lg border-slate-300 block w-full p-2.5 border text-sm bg-slate-50 focus:bg-white focus:border-blue-500 transition-colors">
+                            </div>
+                        </div>
+                    </div>
+                    <div id="filterKokuContainer" class="hidden space-y-3">
+                        <div class="flex gap-4">
+                            <div class="w-1/2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Minggu Koku Ke-</label><input type="number" id="kokuWeek" class="rounded-lg border-slate-300 block w-full p-2 border text-sm" placeholder="Contoh: 1"></div>
+                            <div class="w-1/2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Kategori</label><select id="kokuCategory" onchange="loadKokuUnits()" class="rounded-lg border-slate-300 block w-full p-2 border text-sm bg-white"><option value="">Pilih Kategori...</option><option value="unit_beruniform">Unit Beruniform</option><option value="kelab_persatuan">Kelab & Persatuan</option><option value="sukan_permainan">Sukan & Permainan</option></select></div>
+                        </div>
+                        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nama Unit</label><select id="kokuUnitSelect" onchange="loadStudentsForAttendance()" class="rounded-lg border-slate-300 block w-full p-2 border text-sm bg-white" disabled><option value="">Pilih Unit...</option></select></div>
+                    </div>
+                </div>
+                <div id="attendanceWorkspace" class="hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2">
+                            <div class="bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden">
+                                <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                                    <h3 class="font-bold text-slate-700" id="attListTitle">Senarai Kehadiran</h3>
+                                    <span class="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-bold uppercase tracking-wider" id="classNameDisplay"></span>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-sm text-left">
+                                        <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                                            <tr>
+                                                <th class="px-4 py-3 w-10 text-center">#</th>
+                                                <th class="px-4 py-3">Nama Murid</th>
+                                                <th class="px-4 py-3">Info</th>
+                                                <th class="px-4 py-3 text-center w-24">Hadir?</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="attendanceTableBody" class="divide-y divide-slate-100"></tbody>
+                                    </table>
+                                </div>
+                                <div id="emptyState" class="hidden p-12 text-center text-slate-400">
+                                    <i class="fa-regular fa-folder-open text-3xl mb-2"></i>
+                                    <p>Tiada murid dijumpai.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-1">
+                            <div class="bg-white rounded-xl shadow-lg border border-slate-100 p-6 sticky top-24">
+                                <h3 class="font-bold text-slate-800 mb-4 border-b pb-2">Ringkasan Pengisian</h3>
+                                <div class="space-y-3 mb-6">
+                                    <div class="flex justify-between text-sm"><span class="text-slate-500">Jumlah Murid</span><span id="summaryTotal" class="font-bold">0</span></div>
+                                    <div class="flex justify-between text-sm"><span class="text-slate-500">Hadir</span><span id="summaryPresent" class="font-bold text-green-600">0</span></div>
+                                    <div class="flex justify-between text-sm"><span class="text-slate-500">Tidak Hadir</span><span id="summaryAbsent" class="font-bold text-red-600">0</span></div>
+                                    <div class="mt-4 pt-4 border-t"><div class="flex justify-between items-end mb-1"><span class="text-xs font-bold uppercase text-slate-400">Peratus Kehadiran</span><span id="summaryPercentText" class="text-2xl font-bold text-blue-600">0%</span></div><div class="w-full bg-slate-200 rounded-full h-2.5"><div id="summaryProgressBar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div></div></div>
+                                </div>
+                                <button onclick="submitAttendance()" id="btnSubmitAttendance" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg mb-3 flex items-center justify-center gap-2 shadow-lg shadow-blue-200 transition-all hover:scale-[1.02]"><i class="fa-solid fa-paper-plane"></i> Simpan & Hantar</button>
+                                <p class="text-[10px] text-center text-slate-400">Data akan dihantar ke Portal Utama secara automatik.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <div id="toast-container" class="fixed bottom-4 right-4 flex flex-col gap-2 z-50"></div>
+    </div>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8ywaXE0phvI4vIhHDDBZID7v2blO_J_o",
+            authDomain: "semat-fa0b7.firebaseapp.com",
+            projectId: "semat-fa0b7",
+            storageBucket: "semat-fa0b7.firebasestorage.app",
+            messagingSenderId: "361982206428",
+            appId: "1:361982206428:web:e7f4d5ed19238690736f19",
+            measurementId: "G-0NH5EJD60N"
+        };
+        const app = firebase.initializeApp(firebaseConfig); 
+        const auth = firebase.auth(); 
+        const db = firebase.firestore(app);
+        
+        let currentStudents = [], telegramToken = '', telegramChatId = '', telegramTopicId = '', attType = 'class';
+
+        const getCollection = (name) => {
+            return db.collection('apps').doc('1').collection('data').doc(name).collection('records');
+        };
+
+        function formatDateDMY(dateStr) { if (!dateStr) return ''; const parts = dateStr.split('-'); if (parts.length !== 3) return dateStr; return \`\${parts[2]}/\${parts[1]}/\${parts[0]}\`; }
+        function escapeHtml(text) { if (!text) return text; return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+        function getShortName(name) { if (!name) return ""; const cleanName = name.replace(/\./g, ''); const words = cleanName.trim().split(/\s+/); if (words.length <= 1) return words[0]; const common = ['muhammad', 'mohamad', 'mohd', 'nur', 'nor']; const firstWord = words[0].toLowerCase(); if (common.includes(firstWord)) { if (words.length >= 3) { return words[1] + " " + words[2]; } return words[1]; } return words[0]; }
+        function toTitleCase(str) { if (!str) return ""; return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '); }
+        function showToast(m,t="success") { const c=document.getElementById('toast-container'), d=document.createElement('div'); d.className=\`\${t==='error'?'bg-red-500':'bg-emerald-500'} text-white px-4 py-3 rounded shadow-lg flex items-center gap-3 min-w-[250px] text-sm transform transition-all duration-300 translate-y-10 opacity-0\`; d.innerHTML=\`<span>\${m}</span>\`; c.appendChild(d); requestAnimationFrame(()=>d.classList.remove('translate-y-10','opacity-0')); setTimeout(()=>{d.classList.add('translate-y-10','opacity-0');setTimeout(()=>d.remove(),300);},3000); }
+
+        function checkTuesday(){ 
+            const dInput = document.getElementById('attendanceDate');
+            if(!dInput) return;
+            const d = new Date(dInput.value); 
+            const isT = d.getDay() === 2; 
+            const tc = document.getElementById('attTypeContainer'); 
+            if(isT) tc.classList.remove('hidden'); 
+            else { 
+                tc.classList.add('hidden'); 
+                setAttType('class'); 
+            }
+        }
+
+        function setAttType(t){ 
+            attType = t; 
+            const bc = document.getElementById('btnTypeClass'); 
+            const bk = document.getElementById('btnTypeKoku'); 
+            const fc = document.getElementById('filterClassContainer'); 
+            const fk = document.getElementById('filterKokuContainer'); 
+            const lt = document.getElementById('attListTitle'); 
+            
+            if(t === 'class'){
+                bc.classList.add('bg-white','shadow','text-blue-600');
+                bc.classList.remove('text-slate-500','hover:bg-white');
+                bk.classList.remove('bg-white','shadow','text-blue-600');
+                bk.classList.add('text-slate-500','hover:bg-white');
+                fc.classList.remove('hidden');
+                fk.classList.add('hidden');
+                lt.innerText = "Senarai Kehadiran Kelas";
+            } else {
+                bk.classList.add('bg-white','shadow','text-blue-600');
+                bk.classList.remove('text-slate-500','hover:bg-white');
+                bc.classList.remove('bg-white','shadow','text-blue-600');
+                bc.classList.add('text-slate-500','hover:bg-white');
+                fc.classList.add('hidden');
+                fk.classList.remove('hidden');
+                lt.innerText = "Senarai Kehadiran Kokurikulum";
+            } 
+            document.getElementById('attendanceTableBody').innerHTML = '';
+            document.getElementById('emptyState').classList.remove('hidden'); 
+        }
+
+        auth.onAuthStateChanged(async (u) => { 
+            if(!u) await auth.signInAnonymously();
+            enterSystem();
+        });
+
+        async function enterSystem() {
+            const s = document.getElementById('activeTeacherName');
+            try {
+                 const snap = await getCollection('teachers').orderBy('nama').get();
+                 s.innerHTML = '<option value="Guru Bertugas">Guru Bertugas</option>';
+                 snap.forEach(d => {
+                     const o = document.createElement('option');
+                     o.value = d.data().nama;
+                     o.text = d.data().nama;
+                     s.appendChild(o);
+                 });
+            } catch (e) {
+                console.log("Error loading teachers", e);
+            }
+            initializeApp();
+        }
+
+        async function initializeApp() {
+            try { 
+                const doc = await getCollection('settings').doc('telegram_config').get(); 
+                if (doc.exists) { 
+                    const d = doc.data(); 
+                    telegramToken = d.bot_token || ''; 
+                    telegramChatId = d.chat_id || ''; 
+                    telegramTopicId = d.topic_id || ''; 
+                } 
+            } catch (e) {}
+            
+            const today = new Date(); 
+            const setToday = (id) => {
+                const el = document.getElementById(id);
+                if (el) el.valueAsDate = today;
+            };
+
+            setToday('attendanceDate');
+            
+            const landingDisplay = document.getElementById('landingDateDisplay');
+            if (landingDisplay) {
+                landingDisplay.innerText = today.toLocaleDateString('ms-MY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            }
+            
+            checkTuesday(); 
+            loadLandingStats(); 
+            loadClassDropdown();
+        }
+        
+        async function loadClassDropdown() {
+             const s = document.getElementById('teacherClassSelect');
+             s.innerHTML = '<option>Loading...</option>';
+             try {
+                 const snap = await getCollection('classes').orderBy('nama').get();
+                 
+                 if (!snap.empty) {
+                     s.innerHTML = '<option value="">Pilih Kelas...</option>';
+                     snap.forEach(d => {
+                         const className = d.data().nama || d.id; 
+                         const o = document.createElement('option');
+                         o.value = className;
+                         o.text = className;
+                         s.appendChild(o);
+                     });
+                 } else {
+                     const sn = await getCollection('students').get();
+                     const c = new Set();
+                     sn.forEach(d => { if (d.data().kelas) c.add(d.data().kelas); });
+                     s.innerHTML = '<option value="">Pilih Kelas...</option>';
+                     Array.from(c).sort().forEach(x => {
+                        const o = document.createElement('option'); o.value = x; o.text = x; s.appendChild(o);
+                     });
+                 }
+             } catch (e) {
+                 console.error("Error loading classes", e);
+                 s.innerHTML = '<option>Ralat</option>';
+             }
+        }
+
+        async function loadLandingStats() { 
+            const dInput = document.getElementById('attendanceDate');
+            if(!dInput) return;
+            const todayStr = dInput.value;
+            const landingClassList = document.getElementById('landingClassList');
+            
+            try{
+                const s = await getCollection('students').get();
+                const ts = s.size;
+                const classesSet = new Set();
+                const rmtStudentIds = new Set();
+
+                s.forEach(doc => {
+                    const d = doc.data();
+                    if (d.kelas) classesSet.add(d.kelas);
+                    if (d.rmt && (d.rmt === 'Ya' || d.rmt.toLowerCase() === 'ya')) {
+                        rmtStudentIds.add(doc.id);
+                    }
+                });
+                const allClasses = Array.from(classesSet).sort();
+                const totalRmt = rmtStudentIds.size;
+
+                const a = await getCollection('attendance')
+                    .where('date','==',todayStr)
+                    .where('type', '==', 'class')
+                    .get();
+                
+                let p = 0;
+                let rmtPresent = 0;
+                const submittedClasses = new Set();
+                
+                a.forEach(d=>{
+                    const data = d.data();
+                    if(data.status==='Hadir') {
+                        p++;
+                        if (rmtStudentIds.has(data.student_id)) {
+                            rmtPresent++;
+                        }
+                    }
+                    if(data.class_name) submittedClasses.add(data.class_name);
+                });
+
+                const rawPct = ts > 0 ? (p/ts)*100 : 0;
+                const pct = rawPct.toFixed(2); 
+
+                document.getElementById('landingPercent').innerText = pct + '%';
+                document.getElementById('landingRmtStats').innerText = \`RMT: \${rmtPresent} / \${totalRmt}\`;
+
+                const cp = document.getElementById('landingCirclePath');
+                if(cp) {
+                    cp.setAttribute('stroke-dasharray', \`\${pct}, 100\`);
+                    cp.classList.remove('text-blue-600','text-yellow-500','text-red-500');
+                    if(rawPct < 50) cp.classList.add('text-red-500');
+                    else if(rawPct < 80) cp.classList.add('text-yellow-500');
+                    else cp.classList.add('text-blue-600');
+                }
+
+                if(landingClassList) {
+                    landingClassList.innerHTML = '';
+                    if (allClasses.length === 0) {
+                        landingClassList.innerHTML = '<div class="col-span-4 text-center text-xs text-slate-400 py-4">Tiada kelas</div>';
+                    } else {
+                        allClasses.forEach(cls => {
+                            const isDone = submittedClasses.has(cls);
+                            const bg = isDone ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100';
+                            const txt = isDone ? 'text-emerald-700' : 'text-slate-500';
+                            const icon = isDone ? '<i class="fa-solid fa-circle-check text-emerald-500"></i>' : '<i class="fa-regular fa-circle text-slate-300"></i>';
+                            
+                            landingClassList.innerHTML += \`
+                                <div class="\${bg} border rounded px-3 py-2 flex items-center justify-between transition-all hover:shadow-sm">
+                                    <div class="flex items-center gap-2">
+                                        \${icon}
+                                        <span class="text-[10px] font-bold \${txt}">\${cls}</span>
+                                    </div>
+                                </div>
+                            \`;
+                        });
+                    }
+                }
+            } catch(e){
+                console.error("Landing stats error", e);
+            } 
+        }
+
+        window.loadStudentsForAttendance = async () => {
+            const searchInput = document.getElementById('teacherStudentSearch');
+            if(searchInput) searchInput.value = '';
+
+            document.getElementById('attendanceWorkspace').classList.remove('hidden');
+            const tb = document.getElementById('attendanceTableBody');
+            tb.innerHTML = '<tr><td colspan="4" class="text-center">Memuatkan...</td></tr>';
+            let fVal;
+            if (attType === 'class') {
+                fVal = document.getElementById('teacherClassSelect').value;
+                if (!fVal) return;
+                document.getElementById('classNameDisplay').innerText = fVal;
+                const s = await getCollection('students').where('kelas', '==', fVal).get();
+                currentStudents = [];
+                s.forEach(d => currentStudents.push({ id: d.id, ...d.data(), status: 'Hadir' }));
+            } else {
+                const cat = document.getElementById('kokuCategory').value;
+                fVal = document.getElementById('kokuUnitSelect').value;
+                if (!cat || !fVal) return;
+                document.getElementById('classNameDisplay').innerText = fVal;
+                let field = cat === 'unit_beruniform' ? 'unit_beruniform' : (cat === 'kelab_persatuan' ? 'kelab_persatuan' : 'sukan_permainan');
+                const s = await getCollection('students').where(field, '==', fVal).get();
+                currentStudents = [];
+                s.forEach(d => currentStudents.push({ id: d.id, ...d.data(), status: 'Hadir' }));
+            }
+            currentStudents.sort((a, b) => a.nama.localeCompare(b.nama));
+            if (!currentStudents.length) {
+                document.getElementById('emptyState').classList.remove('hidden');
+                tb.innerHTML = '';
+            } else {
+                document.getElementById('emptyState').classList.add('hidden');
+                const d = document.getElementById('attendanceDate').value;
+                let query = getCollection('attendance').where('date', '==', d).where('class_name', '==', fVal);
+                const p = await query.get();
+                const m = {};
+                p.forEach(r => m[r.data().student_id] = r.data().status);
+                renderAttTable(m);
+            }
+        };
+
+        window.filterTeacherAttendanceList = () => {
+            const input = document.getElementById('teacherStudentSearch');
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById("attendanceTableBody");
+            const tr = table.getElementsByTagName("tr");
+            for (let i = 0; i < tr.length; i++) {
+                const td = tr[i].getElementsByTagName("td")[1]; 
+                if (td) {
+                    const txtValue = td.textContent || td.innerText;
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }
+            }
+        };
+
+        function renderAttTable(m={}) { 
+            const tb = document.getElementById('attendanceTableBody'); 
+            tb.innerHTML=''; 
+            currentStudents.forEach((s,i)=>{ 
+                s.status = m[s.id]||'Hadir'; 
+                let info = attType === 'class' ? (s.rmt === 'Ya' ? 'RMT' : '-') : s.kelas; 
+                tb.innerHTML += \`<tr class="bg-white border-b"><td class="px-6 py-4 font-mono text-xs">\${i+1}</td><td class="px-6 py-4 font-medium">\${s.nama}</td><td class="px-6 py-4 text-xs text-slate-500">\${info}</td><td class="px-6 py-4 text-center"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleAtt('\${s.id}',this)" \${s.status==='Hadir'?'checked':''}><div class="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label></td></tr>\`; 
+            }); 
+            updSum(); 
+        }
+        
+        window.toggleAtt=(id,b)=>{ const s=currentStudents.find(x=>x.id===id); if(s){s.status=b.checked?'Hadir':'Tidak Hadir';updSum();} };
+        
+        function updSum(){ 
+            const t=currentStudents.length, p=currentStudents.filter(s=>s.status==='Hadir').length, a=t-p; 
+            const pct = t ? ((p/t)*100).toFixed(2) : '0.00'; 
+            document.getElementById('summaryTotal').innerText=t; 
+            document.getElementById('summaryPresent').innerText=p; 
+            document.getElementById('summaryAbsent').innerText=a; 
+            document.getElementById('summaryPercentText').innerText=pct+'%'; 
+            document.getElementById('summaryProgressBar').style.width=pct+'%'; 
+        }
+
+        window.submitAttendance = async () => { 
+            const btn=document.getElementById('btnSubmitAttendance'); btn.classList.add('btn-loading'); 
+            const d=document.getElementById('attendanceDate').value; 
+            let gn = "", tp = attType, ei = ""; 
+            if (attType === 'class') gn = document.getElementById('teacherClassSelect').value; 
+            else { gn = document.getElementById('kokuUnitSelect').value; ei = "Minggu: " + document.getElementById('kokuWeek').value; } 
+            
+            if(!d || !gn) { btn.classList.remove('btn-loading'); return showToast("Pilih semua maklumat", "error"); } 
+            
+            const selectedTeacher = document.getElementById('activeTeacherName').value;
+            const tn = selectedTeacher || "Guru Bertugas"; 
+            
+            const ps = currentStudents.map(s => { 
+                const docId = \`\${d}_\${gn.replace(/\\s/g,'')}_\${s.id}_\${tp}\`; 
+                return getCollection('attendance').doc(docId).set({ date:d, class_name: gn, student_id:s.id, student_name:s.nama, status:s.status, teacher_id:'public_user', teacher_name:tn, type: tp, extra_info: ei, timestamp:firebase.firestore.FieldValue.serverTimestamp() }); 
+            }); 
+            await Promise.all(ps); 
+            await generateAndSendTelegramReport(false, tp, gn, d); 
+            btn.classList.remove('btn-loading'); showToast("Berjaya Disimpan"); 
+            loadLandingStats();
+        };
+        
+        window.loadKokuUnits=async()=>{const c=document.getElementById('kokuCategory').value,s=document.getElementById('kokuUnitSelect');s.innerHTML='<option value="">Memuatkan...</option>';s.disabled=true;if(!c){s.innerHTML='<option value="">Pilih Unit...</option>';return;}try{const sn=await getCollection('students').get();const u=new Set();sn.forEach(d=>{const da=d.data();let v=c==='unit_beruniform'?da.unit_beruniform:(c==='kelab_persatuan'?da.kelab_persatuan:da.sukan_permainan);if(v)u.add(v.trim());});s.innerHTML='<option value="">Pilih Unit...</option>';Array.from(u).sort().forEach(x=>{const o=document.createElement('option');o.value=x;o.text=x;s.appendChild(o);});s.disabled=false;}catch(e){showToast("Ralat","error");}};
+        
+        window.generateAndSendTelegramReport = async (toast=true, type='class', groupName='', overrideDate=null) => {
+            if(!telegramToken || !telegramChatId) { if(toast) showToast("Sila set Token","error"); return; }
+            let dateStr = overrideDate || document.getElementById('attendanceDate').value;
+            if(!dateStr) { if(toast) showToast("Pilih Tarikh","error"); return; }
+            const dateObj = new Date(dateStr);
+            const days = ['AHAD','ISNIN','SELASA','RABU','KHAMIS','JUMAAT','SABTU'];
+            const day = String(dateObj.getUTCDate()).padStart(2,'0'); const month = String(dateObj.getUTCMonth()+1).padStart(2,'0'); const year = dateObj.getUTCFullYear(); const fDate = \`\${day}/\${month}/\${year}\`;
+            if(toast) showToast("Menjana...", "info");
+            try {
+                const sSnap = await getCollection('students').get();
+                const shortNameMap = {}; const classMap = {}; const stRmt = {}; let gRmtTotal = 0; let gTotal = 0;
+                sSnap.forEach(d => { const dat = d.data(); const c = dat.kelas; const autoShort = toTitleCase(getShortName(dat.nama)); shortNameMap[d.id] = dat.nama_pendek ? dat.nama_pendek : autoShort; if (c) { if (!classMap[c]) classMap[c] = 0; classMap[c]++; gTotal++; if (dat.rmt && (dat.rmt === 'Ya' || dat.rmt.trim().toLowerCase() === 'ya')) { stRmt[d.id] = true; gRmtTotal++; } } });
+                const sortedClasses = Object.keys(classMap).sort(); const reportType = type || 'class';
+                const aSnap = await getCollection('attendance').where('date', '==', dateStr).where('type', '==', reportType).get();
+                const attData = {}; let gPres = 0; let gRmtPres = 0;
+                aSnap.forEach(d => { const r = d.data(); const c = r.class_name; if (!attData[c]) attData[c] = { p: 0, abs: [] }; if (r.status === 'Hadir') { attData[c].p++; gPres++; if (stRmt[r.student_id]) gRmtPres++; } else { const nameToUse = shortNameMap[r.student_id] || toTitleCase(getShortName(r.student_name)); attData[c].abs.push(nameToUse); } });
+                const ovPct = gTotal > 0 ? ((gPres / gTotal) * 100).toFixed(2) : '0.00'; let lines = [];
+                sortedClasses.forEach(c => { if (attData[c]) { const p = attData[c].p; const t = classMap[c]; const pct = ((p / t) * 100).toFixed(2); const abs = attData[c].abs.length > 0 ? \`   \${attData[c].abs.join(', ')}.\` : ''; lines.push(\`\${escapeHtml(c)}- \${p}/\${t} (\${pct}%)\${abs}\`); } else { lines.push(\`⚠️ \${escapeHtml(c)}\`); } });
+                const headerLine = \`\${days[dateObj.getUTCDay()]} (\${gPres}/\${gTotal}) (\${ovPct}%) . RMT: \${gRmtPres}/\${gRmtTotal}\`;
+                const msg = \`<b>\${headerLine}</b>\\n\${fDate}\\n\\n\${lines.join('\\n')}\`;
+                const payload = { chat_id: telegramChatId, text: msg, parse_mode: 'HTML' };
+                if(telegramTopicId) payload.message_thread_id = telegramTopicId;
+                await fetch(\`https://api.telegram.org/bot\${telegramToken}/sendMessage\`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (toast) showToast("Laporan dihantar");
+            } catch (e) { console.error(e); if (toast) showToast("Gagal hantar laporan", "error"); }
+        };
+    <\/script>
+</body>
+</html>`
+            }
+        ];
+        // =================================================================
 
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { 
@@ -403,6 +976,7 @@
         } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         // --- Configuration ---
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
         const firebaseConfig = {
             apiKey: "AIzaSyB8ywaXE0phvI4vIhHDDBZID7v2blO_J_o",
             authDomain: "semat-fa0b7.firebaseapp.com",
@@ -412,18 +986,14 @@
             appId: "1:361982206428:web:e7f4d5ed19238690736f19",
             measurementId: "G-0NH5EJD60N"
         };
+        
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // --- EXPOSE FIREBASE ---
-        window.db = db; window.auth = auth; window.collection = collection; window.addDoc = addDoc; window.serverTimestamp = serverTimestamp; window.getDocs = getDocs; window.query = query; window.where = where;
-
-        // --- State ---
-        let currentUser = null;
-        let isAdminMode = false;
-        let isSuperAdmin = false;
-        let appsData = [];
+        // --- EXPOSE FIREBASE TO WINDOW (Untuk Embedded Apps) ---
+        window.db = db;
+        window.auth = auth;
         let currentEditingId = null;
         let currentSelectedIcon = 'box';
         let currentSelectedColor = { bg: 'bg-blue-50', text: 'text-blue-600' };
