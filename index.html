@@ -228,24 +228,32 @@
         }
 
         function Header({ userData, view }) {
+           // New state for install prompt
            const [deferredPrompt, setDeferredPrompt] = useState(null);
 
            useEffect(() => {
              const handleBeforeInstallPrompt = (e) => {
+               // Prevent the mini-infobar from appearing on mobile
                e.preventDefault();
+               // Stash the event so it can be triggered later.
                setDeferredPrompt(e);
              };
+
              window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-             return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+             return () => {
+               window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+             };
            }, []);
 
            const handleInstallClick = async () => {
              if (!deferredPrompt) return;
+             // Show the install prompt
              deferredPrompt.prompt();
+             // Wait for the user to respond to the prompt
              const { outcome } = await deferredPrompt.userChoice;
-             if (outcome === 'accepted') {
-               setDeferredPrompt(null);
-             }
+             // We've used the prompt, and can't use it again, throw it away
+             setDeferredPrompt(null);
            };
 
            const titles = { mmi: "MMI", timetable: "Jadual Waktu Peribadi", logs: "Log Sistem", stats: "Statistik Penggunaan" };
@@ -254,8 +262,13 @@
               <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm z-10 no-print">
                  <h2 className="font-bold text-lg capitalize text-slate-800 flex items-center gap-2">{titles[view] || view}</h2>
                  <div className="flex items-center gap-3">
+                     {/* Install Button */}
                      {deferredPrompt && (
-                        <button onClick={handleInstallClick} className="flex items-center gap-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full text-xs font-bold transition-all" title="Install Aplikasi">
+                        <button 
+                            onClick={handleInstallClick}
+                            className="flex items-center gap-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
+                            title="Install Aplikasi"
+                        >
                             <Download size={16} />
                             <span className="hidden sm:inline">Install App</span>
                         </button>
@@ -1112,7 +1125,37 @@
             const isReadOnly = currentUserRole === 'pentadbir'; const [newRec, setNewRec] = useState({}); const [editingId, setEditingId] = useState(null); const [selectedIds, setSelectedIds] = useState([]); const [filterClass, setFilterClass] = useState(""); const [sortOrder, setSortOrder] = useState('asc');
             const classList = type === 'student' ? [...new Set(data.map(d => d.class))].sort() : [];
             const processedData = useMemo(() => { let r = [...data]; if (type === 'student' && filterClass) r = r.filter(d => d.class === filterClass); r.sort((a, b) => { const nA = (a.name || '').toLowerCase(); const nB = (b.name || '').toLowerCase(); return sortOrder === 'asc' ? nA.localeCompare(nB) : nB.localeCompare(nA); }); return r; }, [data, filterClass, sortOrder, type]);
-            const save = async (e) => { e.preventDefault(); if (isReadOnly) return; const col = type === 'student' ? 'portal_students' : 'portal_teachers'; if (editingId) await updateDoc(doc(db, col, editingId), newRec); else await addDoc(collection(db, col), newRec); setNewRec({}); setEditingId(null); alert("Disimpan!"); };
+            
+            // FIX: save function now correctly updates portal_users if teacher role is changed
+            const save = async (e) => { 
+                e.preventDefault(); 
+                if (isReadOnly) return; 
+                const col = type === 'student' ? 'portal_students' : 'portal_teachers'; 
+                
+                if (editingId) 
+                    await updateDoc(doc(db, col, editingId), newRec); 
+                else 
+                    await addDoc(collection(db, col), newRec); 
+
+                // --- FIX START: Sync Role to portal_users ---
+                if (type === 'teacher' && newRec.email) {
+                    try {
+                        const q = query(collection(db, 'portal_users'), where("email", "==", newRec.email));
+                        const snap = await getDocs(q);
+                        if (!snap.empty) {
+                            const batch = writeBatch(db);
+                            snap.forEach(d => {
+                                batch.update(doc(db, 'portal_users', d.id), { role: newRec.role });
+                            });
+                            await batch.commit();
+                        }
+                    } catch(err) { console.error("Sync role error:", err); }
+                }
+                // --- FIX END ---
+
+                setNewRec({}); setEditingId(null); alert("Disimpan!"); 
+            };
+
             const del = async (id) => { if (confirm("Padam?")) await deleteDoc(doc(db, type === 'student' ? 'portal_students' : 'portal_teachers', id)); };
             const bulkDel = async () => { if (confirm(`Padam ${selectedIds.length}?`)) { const b = writeBatch(db); selectedIds.forEach(id => b.delete(doc(db, type === 'student' ? 'portal_students' : 'portal_teachers', id))); await b.commit(); setSelectedIds([]); } };
             
