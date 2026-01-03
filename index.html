@@ -67,7 +67,7 @@
           BookOpen, Calculator, FlaskConical, Languages, 
           Trophy, Users, Palette, Utensils, Bus, Library, 
           MonitorPlay, Code2, GraduationCap, ShieldCheck, 
-          Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2, Calendar, ChevronLeft, Flag, MapPin, CalendarDays, ClipboardList, Clock, AlertTriangle, FileText, Printer, Check, Settings, LogIn, UserCheck, PieChart, Filter, HelpCircle, Award, RotateCcw, History, RefreshCw, List, CalendarClock, QrCode, Copy
+          Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2, Calendar, ChevronLeft, Flag, MapPin, CalendarDays, ClipboardList, Clock, AlertTriangle, FileText, Printer, Check, Settings, LogIn, UserCheck, PieChart, Filter, HelpCircle, Award, RotateCcw, History, RefreshCw, List, CalendarClock, QrCode, Copy, Camera
         } from 'lucide-react';
 
         // --- KONFIGURASI FIREBASE ---
@@ -216,15 +216,21 @@
 
         // --- 3. FEATURE COMPONENTS (FULL CODE) ---
 
-        // --- MMI MANAGER (NEW) ---
+        // --- MMI MANAGER (UPDATED WITH SCHEDULE INTEGRATION) ---
         function MMIManager({ userData, currentUid, students }) {
             const [logs, setLogs] = useState([]);
             const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
             const [loading, setLoading] = useState(true);
             const [showScan, setShowScan] = useState(false);
             const [timetable, setTimetable] = useState({});
+            const videoRef = useRef(null);
+            const [cameraActive, setCameraActive] = useState(false);
+            
+            // New state for selection popup
+            const [showSlotSelection, setShowSlotSelection] = useState(false);
+            const [detectedClass, setDetectedClass] = useState("");
+            const [availableSlots, setAvailableSlots] = useState([]);
 
-            // Get day name
             const getDay = (d) => {
                 const days = ['Ahad','Isnin','Selasa','Rabu','Khamis','Jumaat','Sabtu'];
                 return days[new Date(d).getDay()];
@@ -232,7 +238,6 @@
 
             const dayName = getDay(date);
 
-            // Fetch MMI logs and Timetable
             useEffect(() => {
                 const q = query(collection(db, 'portal_mmi'), where('createdBy', '==', currentUid), orderBy('date', 'desc'));
                 const unsub = onSnapshot(q, s => {
@@ -240,7 +245,6 @@
                     setLoading(false);
                 });
                 
-                // Fetch timetable for auto-detect
                 getDoc(doc(db, 'portal_timetables', currentUid)).then(snap => {
                     if (snap.exists()) setTimetable(snap.data().schedule || {});
                 });
@@ -248,23 +252,58 @@
                 return () => unsub();
             }, [currentUid]);
 
+            const startCamera = async () => {
+                setShowScan(true);
+                setCameraActive(true);
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                    }
+                } catch (err) {
+                    console.error("Camera error:", err);
+                    // Fallback handled by UI
+                }
+            };
+
+            const stopCamera = () => {
+                if (videoRef.current && videoRef.current.srcObject) {
+                    videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+                }
+                setCameraActive(false);
+                setShowScan(false);
+            };
+
             // Simulate QR Scan
             const handleScan = (cls) => {
-                // Auto detect time slot
+                setDetectedClass(cls);
+                stopCamera();
+                
+                // Fetch slots for this class on this day
                 const daySchedule = timetable[dayName] || {};
-                let foundSlot = null;
-                let foundSubject = "";
+                const slots = [];
 
-                // Find slot that matches the class name
                 Object.entries(daySchedule).forEach(([time, data]) => {
-                    if (data.class === cls) {
-                        foundSlot = time;
-                        foundSubject = data.subject;
+                    // Check if class matches partially (e.g. "4 Cerdik" matches "4") or exactly
+                    if (data.class && data.class.includes(cls)) {
+                        slots.push({ time, subject: data.subject, class: data.class });
                     }
                 });
 
-                saveMMI(cls, foundSlot || "Lain-lain", foundSubject || "Relief/Ganti");
-                setShowScan(false);
+                if (slots.length > 0) {
+                    setAvailableSlots(slots);
+                    setShowSlotSelection(true);
+                } else {
+                    // If no slots found in schedule, prompt manual entry
+                    if(confirm(`Tiada jadual dijumpai untuk kelas ${cls} pada hari ${dayName}. Adakah anda ingin rekod secara manual?`)) {
+                         saveMMI(cls, new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'}), "Relief / Ganti");
+                    }
+                }
+            };
+
+            const confirmSlot = (slot) => {
+                saveMMI(slot.class, slot.time, slot.subject);
+                setShowSlotSelection(false);
             };
 
             const saveMMI = async (cls, time, subject) => {
@@ -278,7 +317,7 @@
                     createdBy: currentUid,
                     timestamp: new Date().toISOString()
                 });
-                alert(`MMI Direkod: ${cls} - ${subject}`);
+                alert(`MMI Direkod: ${cls} - ${subject} (${time})`);
             };
 
             const copyToNextWeek = async (log) => {
@@ -295,6 +334,7 @@
                 alert(`Disalin ke ${formatDate(nextDateStr)}`);
             };
 
+            // Distinct class list for simulation buttons
             const classList = [...new Set(students.map(s => s.class))].sort();
 
             return (
@@ -306,7 +346,7 @@
                                 <input type="date" className="font-bold text-lg outline-none bg-transparent" value={date} onChange={e=>setDate(e.target.value)} />
                                 <span className="text-sm text-slate-500 ml-2">({dayName})</span>
                             </div>
-                            <button onClick={()=>setShowScan(true)} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 flex items-center gap-2 transition-transform hover:scale-105">
+                            <button onClick={startCamera} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 flex items-center gap-2 transition-transform hover:scale-105">
                                 <QrCode className="w-6 h-6"/> Scan QR Kelas
                             </button>
                         </div>
@@ -318,9 +358,9 @@
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <span className="font-bold text-indigo-700">{log.class}</span>
-                                            <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">{log.time}</span>
+                                            <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600 font-mono">{log.time}</span>
                                         </div>
-                                        <p className="text-sm text-slate-600">{log.subject}</p>
+                                        <p className="text-sm text-slate-600 font-bold">{log.subject}</p>
                                         <p className="text-[10px] text-slate-400 mt-1">{formatDate(log.date)} ({log.day})</p>
                                     </div>
                                     <div className="flex gap-2">
@@ -332,23 +372,49 @@
                         </div>
                     </div>
 
-                    {/* FAKE QR SCANNER MODAL */}
+                    {/* QR SCANNER & SIMULATION MODAL */}
                     {showScan && (
-                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 animate-fade-in">
-                            <div className="bg-white p-8 rounded-2xl w-96 text-center shadow-2xl relative">
-                                <button onClick={()=>setShowScan(false)} className="absolute top-4 right-4 text-slate-400 hover:text-red-500"><X/></button>
-                                <div className="w-24 h-24 bg-slate-100 rounded-lg mx-auto mb-4 flex items-center justify-center border-2 border-dashed border-slate-300">
-                                    <QrCode className="w-12 h-12 text-slate-400 animate-pulse"/>
+                        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 animate-fade-in">
+                            <div className="w-full max-w-md bg-white rounded-2xl overflow-hidden relative">
+                                <button onClick={stopCamera} className="absolute top-4 right-4 text-white z-10 bg-black/50 rounded-full p-2"><X/></button>
+                                
+                                <div className="relative bg-black h-64 flex items-center justify-center">
+                                    <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover"></video>
+                                    <div className="border-2 border-white/50 w-48 h-48 rounded-lg relative z-10"></div>
+                                    <p className="absolute bottom-4 text-white text-xs bg-black/50 px-2 py-1 rounded">Halakan kamera pada QR Code Kelas</p>
                                 </div>
-                                <h3 className="font-bold text-xl mb-2">Imbas QR Kelas</h3>
-                                <p className="text-sm text-slate-500 mb-6">Sila pilih kelas untuk simulasi imbasan (sebab tiada kamera sebenar).</p>
-                                <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
-                                    {classList.map(c => (
-                                        <button key={c} onClick={()=>handleScan(c)} className="bg-indigo-50 text-indigo-700 py-2 rounded font-bold text-sm hover:bg-indigo-100">
-                                            {c}
+
+                                <div className="p-6">
+                                    <h3 className="font-bold text-lg mb-2 text-center">Atau Pilih Kelas (Simulasi)</h3>
+                                    <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto">
+                                        {classList.map(c => (
+                                            <button key={c} onClick={()=>handleScan(c)} className="bg-slate-100 text-slate-700 py-2 rounded font-bold text-xs hover:bg-indigo-100 hover:text-indigo-700 transition-colors">
+                                                {c}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* SLOT SELECTION MODAL */}
+                    {showSlotSelection && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
+                            <div className="bg-white p-6 rounded-xl w-96 shadow-2xl">
+                                <h3 className="font-bold text-lg mb-1 text-slate-800">Sahkan Keberadaan</h3>
+                                <p className="text-sm text-slate-500 mb-4">Kelas: <b>{detectedClass}</b> pada <b>{dayName}</b></p>
+                                
+                                <div className="space-y-2 mb-4">
+                                    <p className="text-xs font-bold text-slate-400 uppercase">Pilih Slot Masa:</p>
+                                    {availableSlots.map((slot, idx) => (
+                                        <button key={idx} onClick={() => confirmSlot(slot)} className="w-full text-left p-3 border rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all group">
+                                            <div className="font-bold text-indigo-700 text-sm">{slot.subject}</div>
+                                            <div className="text-xs text-slate-500">{slot.time}</div>
                                         </button>
                                     ))}
                                 </div>
+                                <button onClick={() => setShowSlotSelection(false)} className="w-full text-slate-500 py-2 text-sm font-bold">Batal</button>
                             </div>
                         </div>
                     )}
