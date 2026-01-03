@@ -45,6 +45,7 @@
         /* Animations */
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         .animate-fade-in { animation: fade-in 0.3s ease-out; }
+        .diagonal-stripe { background-image: linear-gradient(45deg, #fcd34d 25%, #fbbf24 25%, #fbbf24 50%, #fcd34d 50%, #fcd34d 75%, #fbbf24 75%, #fbbf24 100%); background-size: 10px 10px; }
     </style>
 </head>
 <body>
@@ -66,7 +67,7 @@
           BookOpen, Calculator, FlaskConical, Languages, 
           Trophy, Users, Palette, Utensils, Bus, Library, 
           MonitorPlay, Code2, GraduationCap, ShieldCheck, 
-          Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2, Calendar, ChevronLeft, Flag, MapPin, CalendarDays, ClipboardList, Clock, AlertTriangle, FileText, Printer, Check, Settings, LogIn, UserCheck, PieChart, Filter, HelpCircle, Award, RotateCcw, History, RefreshCw, List, CalendarClock
+          Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2, Calendar, ChevronLeft, Flag, MapPin, CalendarDays, ClipboardList, Clock, AlertTriangle, FileText, Printer, Check, Settings, LogIn, UserCheck, PieChart, Filter, HelpCircle, Award, RotateCcw, History, RefreshCw, List, CalendarClock, QrCode, Copy
         } from 'lucide-react';
 
         // --- KONFIGURASI FIREBASE ---
@@ -181,6 +182,7 @@
         function Sidebar({ userData, view, setView, logout }) {
           const menus = [
              { id: 'dashboard', l: 'Utama', i: LayoutDashboard },
+             { id: 'mmi', l: 'MMI', i: QrCode }, 
              { id: 'timetable', l: 'Jadual Waktu', i: CalendarClock }, 
              { id: 'apps', l: 'Aplikasi', i: MonitorPlay },
              { id: 'takwim', l: 'Takwim', i: CalendarDays },
@@ -203,15 +205,156 @@
         }
 
         function Header({ userData, view }) {
+           const titles = { mmi: "MMI (Melindungi Masa Instruksional)", timetable: "Jadual Waktu Peribadi" };
            return (
               <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm z-10 no-print">
-                 <h2 className="font-bold text-lg capitalize text-slate-800 flex items-center gap-2">{view === 'timetable' ? 'Jadual Waktu' : view}</h2>
+                 <h2 className="font-bold text-lg capitalize text-slate-800 flex items-center gap-2">{titles[view] || view}</h2>
                  <span className="text-xs font-bold uppercase text-white bg-indigo-600 px-3 py-1 rounded-full tracking-wider shadow-sm">{userData.role}</span>
               </header>
            )
         }
 
         // --- 3. FEATURE COMPONENTS (FULL CODE) ---
+
+        // --- MMI MANAGER (NEW) ---
+        function MMIManager({ userData, currentUid, students }) {
+            const [logs, setLogs] = useState([]);
+            const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+            const [loading, setLoading] = useState(true);
+            const [showScan, setShowScan] = useState(false);
+            const [timetable, setTimetable] = useState({});
+
+            // Get day name
+            const getDay = (d) => {
+                const days = ['Ahad','Isnin','Selasa','Rabu','Khamis','Jumaat','Sabtu'];
+                return days[new Date(d).getDay()];
+            };
+
+            const dayName = getDay(date);
+
+            // Fetch MMI logs and Timetable
+            useEffect(() => {
+                const q = query(collection(db, 'portal_mmi'), where('createdBy', '==', currentUid), orderBy('date', 'desc'));
+                const unsub = onSnapshot(q, s => {
+                    setLogs(s.docs.map(d => ({id:d.id, ...d.data()})));
+                    setLoading(false);
+                });
+                
+                // Fetch timetable for auto-detect
+                getDoc(doc(db, 'portal_timetables', currentUid)).then(snap => {
+                    if (snap.exists()) setTimetable(snap.data().schedule || {});
+                });
+
+                return () => unsub();
+            }, [currentUid]);
+
+            // Simulate QR Scan
+            const handleScan = (cls) => {
+                // Auto detect time slot
+                const daySchedule = timetable[dayName] || {};
+                let foundSlot = null;
+                let foundSubject = "";
+
+                // Find slot that matches the class name
+                Object.entries(daySchedule).forEach(([time, data]) => {
+                    if (data.class === cls) {
+                        foundSlot = time;
+                        foundSubject = data.subject;
+                    }
+                });
+
+                saveMMI(cls, foundSlot || "Lain-lain", foundSubject || "Relief/Ganti");
+                setShowScan(false);
+            };
+
+            const saveMMI = async (cls, time, subject) => {
+                await addDoc(collection(db, 'portal_mmi'), {
+                    date,
+                    day: dayName,
+                    class: cls,
+                    time: time,
+                    subject: subject,
+                    teacher: userData.name,
+                    createdBy: currentUid,
+                    timestamp: new Date().toISOString()
+                });
+                alert(`MMI Direkod: ${cls} - ${subject}`);
+            };
+
+            const copyToNextWeek = async (log) => {
+                const nextWeekDate = new Date(log.date);
+                nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+                const nextDateStr = nextWeekDate.toISOString().split('T')[0];
+                
+                await addDoc(collection(db, 'portal_mmi'), {
+                    ...log,
+                    date: nextDateStr,
+                    day: getDay(nextDateStr),
+                    timestamp: new Date().toISOString()
+                });
+                alert(`Disalin ke ${formatDate(nextDateStr)}`);
+            };
+
+            const classList = [...new Set(students.map(s => s.class))].sort();
+
+            return (
+                <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+                    <div className="bg-white p-6 rounded-xl border shadow-sm">
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 uppercase block">Tarikh (Boleh Backdated)</label>
+                                <input type="date" className="font-bold text-lg outline-none bg-transparent" value={date} onChange={e=>setDate(e.target.value)} />
+                                <span className="text-sm text-slate-500 ml-2">({dayName})</span>
+                            </div>
+                            <button onClick={()=>setShowScan(true)} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 flex items-center gap-2 transition-transform hover:scale-105">
+                                <QrCode className="w-6 h-6"/> Scan QR Kelas
+                            </button>
+                        </div>
+                        
+                        <h3 className="font-bold text-slate-700 mb-4 border-b pb-2">Sejarah MMI (Rekod Keberadaan)</h3>
+                        <div className="space-y-3">
+                            {logs.length === 0 ? <p className="text-slate-400 italic text-center py-4">Tiada rekod MMI.</p> : logs.map(log => (
+                                <div key={log.id} className="p-4 border rounded-lg hover:bg-slate-50 transition-colors flex justify-between items-center">
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-indigo-700">{log.class}</span>
+                                            <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">{log.time}</span>
+                                        </div>
+                                        <p className="text-sm text-slate-600">{log.subject}</p>
+                                        <p className="text-[10px] text-slate-400 mt-1">{formatDate(log.date)} ({log.day})</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={()=>copyToNextWeek(log)} className="text-slate-400 hover:text-blue-600 p-2" title="Salin ke minggu depan"><Copy size={18}/></button>
+                                        <button onClick={()=>deleteDoc(doc(db,'portal_mmi',log.id))} className="text-slate-400 hover:text-red-600 p-2"><Trash2 size={18}/></button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* FAKE QR SCANNER MODAL */}
+                    {showScan && (
+                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 animate-fade-in">
+                            <div className="bg-white p-8 rounded-2xl w-96 text-center shadow-2xl relative">
+                                <button onClick={()=>setShowScan(false)} className="absolute top-4 right-4 text-slate-400 hover:text-red-500"><X/></button>
+                                <div className="w-24 h-24 bg-slate-100 rounded-lg mx-auto mb-4 flex items-center justify-center border-2 border-dashed border-slate-300">
+                                    <QrCode className="w-12 h-12 text-slate-400 animate-pulse"/>
+                                </div>
+                                <h3 className="font-bold text-xl mb-2">Imbas QR Kelas</h3>
+                                <p className="text-sm text-slate-500 mb-6">Sila pilih kelas untuk simulasi imbasan (sebab tiada kamera sebenar).</p>
+                                <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                                    {classList.map(c => (
+                                        <button key={c} onClick={()=>handleScan(c)} className="bg-indigo-50 text-indigo-700 py-2 rounded font-bold text-sm hover:bg-indigo-100">
+                                            {c}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
 
         function TimetableManager({ userData, currentUid, students }) {
            const [schedule, setSchedule] = useState({});
@@ -223,11 +366,10 @@
            const days = ['Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat'];
            const times = [
               "7:40 - 8:10", "8:10 - 8:40", "8:40 - 9:10", "9:10 - 9:40", "9:40 - 10:10",
-              "10:10 - 10:30 (REHAT)", // Rehat 20 minit
-              "10:30 - 11:00", "11:00 - 11:30", "11:30 - 12:00", "12:00 - 12:30", "12:30 - 1:00", "1:00 - 1:30" // Tamat 1:30
+              "10:10 - 10:30 (REHAT)", 
+              "10:30 - 11:00", "11:00 - 11:30", "11:30 - 12:00", "12:00 - 12:30", "12:30 - 1:00", "1:00 - 1:30"
            ];
 
-           // Dapatkan senarai kelas unik dari data pelajar
            const classList = useMemo(() => {
                if (!students || students.length === 0) return [];
                return [...new Set(students.map(s => s.class))].sort();
@@ -243,9 +385,8 @@
               return () => unsub();
            }, [currentUid]);
 
-           // Fungsi untuk memilih slot (multi-select)
            const toggleSlot = (day, time) => {
-               if (time.includes("REHAT")) return; // Rehat tak boleh dipilih
+               if (time.includes("REHAT")) return;
                const slotId = `${day}|${time}`;
                setSelectedSlots(prev => {
                    if (prev.includes(slotId)) return prev.filter(id => id !== slotId);
@@ -253,30 +394,30 @@
                });
            };
 
-           // Fungsi Simpan Batch (Isi borang sekali, masuk ke semua slot terpilih)
            const saveBatch = async () => {
                if (selectedSlots.length === 0) return alert("Sila pilih sekurang-kurangnya satu slot.");
-               
                const newSchedule = { ...schedule };
                selectedSlots.forEach(slotId => {
                    const [d, t] = slotId.split('|');
                    if (!newSchedule[d]) newSchedule[d] = {};
                    newSchedule[d][t] = formData;
                });
-
                try {
-                  await setDoc(doc(db, 'portal_timetables', currentUid), {
-                     schedule: newSchedule,
-                     teacherName: userData.name,
-                     updatedAt: new Date().toISOString()
-                  });
-                  setSelectedSlots([]);
-                  setShowModal(false);
-                  alert("Jadual berjaya dikemaskini!");
-               } catch(e) {
-                  console.error(e);
-                  alert("Ralat: " + e.message);
-               }
+                  await setDoc(doc(db, 'portal_timetables', currentUid), { schedule: newSchedule, teacherName: userData.name, updatedAt: new Date().toISOString() });
+                  setSelectedSlots([]); setShowModal(false); alert("Jadual berjaya dikemaskini!");
+               } catch(e) { console.error(e); alert("Ralat: " + e.message); }
+           };
+           
+           const clearSlots = async () => {
+               if (selectedSlots.length === 0) return alert("Pilih slot untuk dipadam.");
+               if (!confirm("Padam slot terpilih?")) return;
+               const newSchedule = { ...schedule };
+               selectedSlots.forEach(slotId => {
+                   const [d, t] = slotId.split('|');
+                   if (newSchedule[d]) delete newSchedule[d][t];
+               });
+               await setDoc(doc(db, 'portal_timetables', currentUid), { schedule: newSchedule, teacherName: userData.name, updatedAt: new Date().toISOString() });
+               setSelectedSlots([]);
            };
 
            if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-slate-400 w-8 h-8"/></div>;
@@ -289,19 +430,13 @@
                         <button onClick={() => window.print()} className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg font-bold hover:bg-slate-200 flex items-center gap-2"><Printer className="w-4 h-4"/> Cetak</button>
                     </div>
                  </div>
-
-                 {/* TABLE */}
                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print-container select-none">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm border-collapse">
                             <thead>
                                 <tr className="bg-slate-800 text-white">
                                     <th className="p-3 border border-slate-700 min-w-[100px]">Hari / Masa</th>
-                                    {times.map(t => (
-                                        <th key={t} className={`p-3 border border-slate-700 text-center whitespace-nowrap text-xs ${t.includes('REHAT') ? 'bg-amber-600' : ''}`}>
-                                            {t}
-                                        </th>
-                                    ))}
+                                    {times.map(t => (<th key={t} className={`p-3 border border-slate-700 text-center whitespace-nowrap text-xs ${t.includes('REHAT') ? 'bg-amber-600' : ''}`}>{t}</th>))}
                                 </tr>
                             </thead>
                             <tbody>
@@ -313,25 +448,10 @@
                                             const slotId = `${day}|${time}`;
                                             const isSelected = selectedSlots.includes(slotId);
                                             const data = schedule[day]?.[time] || { subject: '', class: '' };
-                                            
-                                            if (isRehat) {
-                                                return <td key={time} className="p-1 border border-slate-200 bg-amber-50 text-center font-bold text-amber-700 text-xs diagonal-stripe">REHAT</td>
-                                            }
-
+                                            if (isRehat) return <td key={time} className="p-1 border border-slate-200 bg-amber-50 text-center font-bold text-amber-700 text-xs diagonal-stripe">REHAT</td>
                                             return (
-                                                <td 
-                                                    key={time} 
-                                                    onClick={() => toggleSlot(day, time)}
-                                                    className={`p-1 border border-slate-200 min-w-[100px] h-16 cursor-pointer transition-all text-center relative ${isSelected ? 'bg-indigo-100 ring-2 ring-inset ring-indigo-500' : ''}`}
-                                                >
-                                                    {data.subject ? (
-                                                        <div className="flex flex-col justify-center h-full">
-                                                            <span className="font-bold text-slate-800 text-xs">{data.subject}</span>
-                                                            <span className="text-[10px] text-slate-500">{data.class}</span>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-slate-300 text-[10px]">-</span>
-                                                    )}
+                                                <td key={time} onClick={() => toggleSlot(day, time)} className={`p-1 border border-slate-200 min-w-[100px] h-16 cursor-pointer transition-all text-center relative ${isSelected ? 'bg-indigo-100 ring-2 ring-inset ring-indigo-500' : ''}`}>
+                                                    {data.subject ? (<div className="flex flex-col justify-center h-full"><span className="font-bold text-slate-800 text-xs">{data.subject}</span><span className="text-[10px] text-slate-500">{data.class}</span></div>) : (<span className="text-slate-300 text-[10px]">-</span>)}
                                                     {isSelected && <div className="absolute top-1 right-1 w-2 h-2 bg-indigo-600 rounded-full"></div>}
                                                 </td>
                                             )
@@ -342,182 +462,37 @@
                         </table>
                     </div>
                  </div>
-
-                 {/* ACTION BAR (FLOATING) */}
                  {selectedSlots.length > 0 && (
-                     <div className="fixed bottom-6 right-6 z-50 animate-fade-in no-print">
-                         <button 
-                            onClick={() => { setFormData({subject:'', class:''}); setShowModal(true); }}
-                            className="bg-indigo-600 text-white px-6 py-3 rounded-full font-bold shadow-xl hover:bg-indigo-700 flex items-center gap-3 transition-transform hover:scale-105"
-                         >
-                             <Edit3 className="w-5 h-5"/>
-                             Isi {selectedSlots.length} Slot Terpilih
-                         </button>
+                     <div className="fixed bottom-6 right-6 z-50 animate-fade-in no-print flex gap-2">
+                         <button onClick={clearSlots} className="bg-red-500 text-white px-4 py-3 rounded-full font-bold shadow-xl hover:bg-red-600 flex items-center gap-2"><Trash2 className="w-5 h-5"/> Padam</button>
+                         <button onClick={() => { setFormData({subject:'', class:''}); setShowModal(true); }} className="bg-indigo-600 text-white px-6 py-3 rounded-full font-bold shadow-xl hover:bg-indigo-700 flex items-center gap-3 transition-transform hover:scale-105"><Edit3 className="w-5 h-5"/> Isi {selectedSlots.length} Slot</button>
                      </div>
                  )}
-
-                 {/* POPUP BORANG */}
                  {showModal && (
                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in no-print">
                          <div className="bg-white p-6 rounded-xl w-80 shadow-2xl">
                              <h3 className="font-bold text-lg mb-4 text-slate-800">Kemaskini Slot</h3>
                              <div className="space-y-3">
-                                 <div>
-                                     <label className="lbl">Subjek</label>
-                                     <input className="inp w-full" autoFocus placeholder="Contoh: Matematik" value={formData.subject} onChange={e=>setFormData({...formData, subject: e.target.value})} />
-                                 </div>
-                                 <div>
-                                     <label className="lbl">Kelas</label>
-                                     <select className="inp w-full" value={formData.class} onChange={e=>setFormData({...formData, class: e.target.value})}>
-                                        <option value="">-- Pilih Kelas --</option>
-                                        {classList.length > 0 ? (
-                                            classList.map(c => <option key={c} value={c}>{c}</option>)
-                                        ) : (
-                                            <option disabled>Tiada data kelas (sila tambah murid)</option>
-                                        )}
-                                        {/* Pilihan manual sentiasa ada jika kelas tiada dalam senarai */}
-                                        <option value="Lain-lain">Lain-lain / Manual</option>
-                                     </select>
-                                     {formData.class === 'Lain-lain' && (
-                                         <input className="inp w-full mt-2" placeholder="Nama Kelas Manual" onChange={e=>setFormData({...formData, class: e.target.value})} />
-                                     )}
-                                 </div>
+                                 <div><label className="lbl">Subjek</label><input className="inp w-full" autoFocus placeholder="Contoh: Matematik" value={formData.subject} onChange={e=>setFormData({...formData, subject: e.target.value})} /></div>
+                                 <div><label className="lbl">Kelas</label><select className="inp w-full" value={formData.class} onChange={e=>setFormData({...formData, class: e.target.value})}><option value="">-- Pilih Kelas --</option>{classList.length > 0 ? classList.map(c => <option key={c} value={c}>{c}</option>) : <option disabled>Tiada data kelas</option>}<option value="Lain-lain">Lain-lain / Manual</option></select>{formData.class === 'Lain-lain' && <input className="inp w-full mt-2" placeholder="Nama Kelas Manual" onChange={e=>setFormData({...formData, class: e.target.value})} />}</div>
                              </div>
-                             <div className="flex justify-end gap-2 mt-6">
-                                 <button onClick={() => setShowModal(false)} className="px-4 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-100">Batal</button>
-                                 <button onClick={saveBatch} className="px-4 py-2 rounded text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700">Simpan</button>
-                             </div>
+                             <div className="flex justify-end gap-2 mt-6"><button onClick={() => setShowModal(false)} className="px-4 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-100">Batal</button><button onClick={saveBatch} className="px-4 py-2 rounded text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700">Simpan</button></div>
                          </div>
                      </div>
                  )}
-                 
-                 <div className="text-xs text-slate-400 italic text-center no-print mt-4">
-                     Klik pada kotak-kotak kosong untuk memilih masa, kemudian tekan butang terapung untuk mengisi butiran.
-                 </div>
               </div>
            );
         }
 
         function TakwimManager({ canEdit, role, currentUid }) {
-            const [date, setDate] = useState(new Date(2026, 0, 1)); 
-            const [events, setEvents] = useState([]); 
-            const [selectedDate, setSelectedDate] = useState(null); 
-            const [newEvent, setNewEvent] = useState({ title: '', unit: '' });
-            
-            useEffect(() => { 
-                const unsub = onSnapshot(query(collection(db, 'portal_events')), s => { 
-                    setEvents(s.docs.map(d => ({ id: d.id, ...d.data() }))); 
-                }, e => console.log(e)); 
-                return () => unsub(); 
-            }, []);
-            
+            const [date, setDate] = useState(new Date(2026, 0, 1)); const [events, setEvents] = useState([]); const [selectedDate, setSelectedDate] = useState(null); const [newEvent, setNewEvent] = useState({ title: '', unit: '' });
+            useEffect(() => { const unsub = onSnapshot(query(collection(db, 'portal_events')), s => { setEvents(s.docs.map(d => ({ id: d.id, ...d.data() }))); }); return () => unsub(); }, []);
             const allEvents = [...KPM_EVENTS, ...events];
-            
             const handleCellClick = (d) => { if (canEdit) { setSelectedDate(d); setNewEvent({ title: '', unit: '' }); } };
-            
-            const addEvent = async () => { 
-                if(!newEvent.title) return alert("Sila isi nama program."); 
-                const dateStr = selectedDate.toISOString().split('T')[0]; 
-                await addDoc(collection(db, 'portal_events'), { 
-                    title: newEvent.title, 
-                    unit: newEvent.unit, 
-                    start: dateStr, 
-                    end: dateStr, 
-                    type: 'event', 
-                    createdBy: currentUid 
-                }); 
-                setSelectedDate(null); 
-            };
-            
-            const deleteEvent = async (id, e) => { 
-                e.stopPropagation(); 
-                if(confirm("Padam aktiviti ini?")) await deleteDoc(doc(db, 'portal_events', id)); 
-            }
-            
-            const getEventForDate = (d) => { 
-                const dStr = d.toISOString().split('T')[0]; 
-                return allEvents.filter(e => dStr >= e.start && dStr <= (e.end || e.start)); 
-            };
-            
-            const renderMonth = (targetDate) => { 
-                const year = targetDate.getFullYear(); 
-                const month = targetDate.getMonth(); 
-                const daysInMonth = new Date(year, month + 1, 0).getDate(); 
-                const firstDay = new Date(year, month, 1).getDay(); 
-                const blanks = Array(firstDay).fill(null); 
-                const days = Array.from({length: daysInMonth}, (_, i) => i + 1); 
-                
-                return (
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                        <div className="flex justify-between mb-4 items-center">
-                            <button onClick={()=>setDate(new Date(year, month-1, 1))}><ChevronLeft/></button>
-                            <h3 className="font-bold text-lg uppercase text-slate-700">{targetDate.toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' })}</h3>
-                            <button onClick={()=>setDate(new Date(year, month+1, 1))}><ChevronRight/></button>
-                        </div>
-                        <div className="grid grid-cols-7 gap-1 mb-2 text-center text-xs font-bold text-slate-400">
-                            {['A','I','S','R','K','J','S'].map(d=><div key={d}>{d}</div>)}
-                        </div>
-                        <div className="grid grid-cols-7 gap-1">
-                            {blanks.map((_,i)=><div key={i}></div>)}
-                            {days.map(d => { 
-                                const currentDay = new Date(year, month, d); 
-                                const dailyEvents = getEventForDate(currentDay); 
-                                const isSchool = dailyEvents.some(e => e.type === 'school'); 
-                                const isHoliday = dailyEvents.some(e => e.type === 'holiday');
-                                const bgClass = isSchool ? 'bg-emerald-50' : (isHoliday ? 'bg-yellow-50' : 'bg-white hover:bg-slate-50'); 
-                                return (
-                                    <div key={d} onClick={() => handleCellClick(currentDay)} className={`min-h-[80px] border border-slate-100 rounded p-1 text-xs relative cursor-pointer transition-colors ${bgClass}`}>
-                                        <span className={`font-bold block mb-1 ${isSchool ? 'text-emerald-700' : (isHoliday ? 'text-yellow-700' : 'text-slate-700')}`}>{d}</span>
-                                        <div className="space-y-1">
-                                            {dailyEvents.map((ev, idx) => { 
-                                                if (ev.type === 'school') return null; 
-                                                const isHolidayItem = ev.type === 'holiday'; 
-                                                const canDelete = ev.type === 'event' && (role === 'admin' || ev.createdBy === currentUid); 
-                                                return (
-                                                    <div key={idx} className={`p-1 rounded text-[10px] leading-tight group relative ${isHolidayItem ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
-                                                        {ev.title}
-                                                        {canDelete && (<button onClick={(e)=>deleteEvent(ev.id, e)} className="hidden group-hover:block absolute top-0 right-0 bg-red-500 text-white rounded-full p-0.5"><X size={8}/></button>)}
-                                                    </div>
-                                                ) 
-                                            })}
-                                        </div>
-                                    </div>
-                                ) 
-                            })}
-                        </div>
-                    </div>
-                ) 
-            };
-            
-            return (
-                <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><CalendarDays className="w-6 h-6 text-indigo-600"/> Takwim Sekolah</h3>
-                    </div>
-                    {renderMonth(date)}
-                    <div className="flex gap-4 text-xs font-medium justify-center text-slate-600">
-                        <span className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-50 border border-emerald-200 rounded"></div> Sesi Sekolah</span>
-                        <span className="flex items-center gap-2"><div className="w-3 h-3 bg-yellow-100 border border-yellow-200 rounded"></div> Cuti</span>
-                        <span className="flex items-center gap-2"><div className="w-3 h-3 bg-blue-100 border border-blue-200 rounded"></div> Aktiviti</span>
-                    </div>
-                    {selectedDate && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
-                            <div className="bg-white p-6 rounded-xl w-80 shadow-2xl">
-                                <h3 className="font-bold text-lg mb-4 text-slate-800">Tambah Aktiviti</h3>
-                                <p className="text-xs text-slate-500 mb-4 font-mono">{selectedDate.toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                                <div className="space-y-3">
-                                    <div><label className="lbl">Nama Program</label><input autoFocus className="inp w-full" value={newEvent.title} onChange={e=>setNewEvent({...newEvent, title:e.target.value})} placeholder="Contoh: Mesyuarat Guru"/></div>
-                                    <div><label className="lbl">Unit / Panitia</label><input className="inp w-full" value={newEvent.unit} onChange={e=>setNewEvent({...newEvent, unit:e.target.value})} placeholder="Contoh: Kurikulum"/></div>
-                                </div>
-                                <div className="flex justify-end gap-2 mt-6">
-                                    <button onClick={()=>setSelectedDate(null)} className="px-4 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-100">Batal</button>
-                                    <button onClick={addEvent} className="px-4 py-2 rounded text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700">Simpan</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )
+            const addEvent = async () => { if(!newEvent.title) return alert("Isi nama program."); await addDoc(collection(db, 'portal_events'), { title: newEvent.title, unit: newEvent.unit, start: selectedDate.toISOString().split('T')[0], end: selectedDate.toISOString().split('T')[0], type: 'event', createdBy: currentUid }); setSelectedDate(null); };
+            const deleteEvent = async (id, e) => { e.stopPropagation(); if(confirm("Padam?")) await deleteDoc(doc(db, 'portal_events', id)); }
+            const renderMonth = (targetDate) => { const year = targetDate.getFullYear(); const month = targetDate.getMonth(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const firstDay = new Date(year, month, 1).getDay(); const blanks = Array(firstDay).fill(null); const days = Array.from({length: daysInMonth}, (_, i) => i + 1); return (<div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><div className="flex justify-between mb-4 items-center"><button onClick={()=>setDate(new Date(year, month-1, 1))}><ChevronLeft/></button><h3 className="font-bold text-lg uppercase text-slate-700">{targetDate.toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' })}</h3><button onClick={()=>setDate(new Date(year, month+1, 1))}><ChevronRight/></button></div><div className="grid grid-cols-7 gap-1 mb-2 text-center text-xs font-bold text-slate-400">{['A','I','S','R','K','J','S'].map(d=><div key={d}>{d}</div>)}</div><div className="grid grid-cols-7 gap-1">{blanks.map((_,i)=><div key={i}></div>)}{days.map(d => { const currentDay = new Date(year, month, d); const dStr = currentDay.toISOString().split('T')[0]; const dailyEvents = allEvents.filter(e => dStr >= e.start && dStr <= (e.end || e.start)); const isSchool = dailyEvents.some(e => e.type === 'school'); const isHoliday = dailyEvents.some(e => e.type === 'holiday'); const bgClass = isSchool ? 'bg-emerald-50' : (isHoliday ? 'bg-yellow-50' : 'bg-white hover:bg-slate-50'); return (<div key={d} onClick={() => handleCellClick(currentDay)} className={`min-h-[80px] border border-slate-100 rounded p-1 text-xs relative cursor-pointer transition-colors ${bgClass}`}><span className={`font-bold block mb-1 ${isSchool ? 'text-emerald-700' : (isHoliday ? 'text-yellow-700' : 'text-slate-700')}`}>{d}</span><div className="space-y-1">{dailyEvents.map((ev, idx) => { if (ev.type === 'school') return null; const isHolidayItem = ev.type === 'holiday'; const canDelete = ev.type === 'event' && (role === 'admin' || ev.createdBy === currentUid); return (<div key={idx} className={`p-1 rounded text-[10px] leading-tight group relative ${isHolidayItem ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>{ev.title}{canDelete && (<button onClick={(e)=>deleteEvent(ev.id, e)} className="hidden group-hover:block absolute top-0 right-0 bg-red-500 text-white rounded-full p-0.5"><X size={8}/></button>)}</div>) })}</div></div>) })}</div></div>) };
+            return (<div className="space-y-6"><div className="flex justify-between items-center"><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><CalendarDays className="w-6 h-6 text-indigo-600"/> Takwim Sekolah</h3></div>{renderMonth(date)}<div className="flex gap-4 text-xs font-medium justify-center text-slate-600"><span className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-50 border border-emerald-200 rounded"></div> Sesi Sekolah</span><span className="flex items-center gap-2"><div className="w-3 h-3 bg-yellow-100 border border-yellow-200 rounded"></div> Cuti</span><span className="flex items-center gap-2"><div className="w-3 h-3 bg-blue-100 border border-blue-200 rounded"></div> Aktiviti</span></div>{selectedDate && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in"><div className="bg-white p-6 rounded-xl w-80 shadow-2xl"><h3 className="font-bold text-lg mb-4 text-slate-800">Tambah Aktiviti</h3><div className="space-y-3"><div><label className="lbl">Nama Program</label><input autoFocus className="inp w-full" value={newEvent.title} onChange={e=>setNewEvent({...newEvent, title:e.target.value})}/></div><div><label className="lbl">Unit / Panitia</label><input className="inp w-full" value={newEvent.unit} onChange={e=>setNewEvent({...newEvent, unit:e.target.value})}/></div></div><div className="flex justify-end gap-2 mt-6"><button onClick={()=>setSelectedDate(null)} className="px-4 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-100">Batal</button><button onClick={addEvent} className="px-4 py-2 rounded text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700">Simpan</button></div></div></div>)}</div>)
         }
 
         function TaskManager({ userData, tasks, currentUid }) {
@@ -846,7 +821,7 @@
 
                         <div className="grid grid-cols-3 gap-4 mb-6 border border-slate-300 p-4 rounded-lg bg-slate-50/50">
                             <div><label className="text-xs font-bold uppercase text-slate-500 block mb-1">Tarikh</label><input type="date" className="w-full bg-transparent font-bold border-b border-slate-300 outline-none" value={formData.date} onChange={handleDateChange}/></div>
-                            <div><label className="text-xs font-bold uppercase text-slate-500 block mb-1">Hari</label><input className="w-full bg-transparent font-bold border-b border-slate-300 outline-none text-slate-500" value={formData.day} onChange={e=>setFormData({...formData, day:e.target.value})}/></div>
+                            <div><label className="text-xs font-bold uppercase text-slate-500 block mb-1">Hari</label><input className="w-full bg-transparent font-bold border-b border-slate-300 outline-none text-slate-500" value={formData.day} onChange={e=>setFormData({...formData, day:e.target.value})} /></div>
                             <div><label className="text-xs font-bold uppercase text-slate-500 block mb-1">Minggu</label><input type="number" className="w-full bg-transparent font-bold border-b border-slate-300 outline-none" placeholder="Contoh: 41" value={formData.week} onChange={e=>setFormData({...formData, week:e.target.value})}/></div>
                         </div>
                         
@@ -1350,6 +1325,7 @@
                         case 'students': return <DataTable type="student" data={students} currentUserRole={userData.role} />;
                         case 'teachers': return <DataTable type="teacher" data={teachers} currentUserRole={userData.role} />;
                         case 'timetable': return <TimetableManager userData={userData} currentUid={user.uid} students={students} />;
+                        case 'mmi': return <MMIManager userData={userData} currentUid={user.uid} students={students} />;
                         default: return <Dashboard userData={userData} apps={apps} students={students} teachers={teachers} tasks={tasks} setView={setView} />;
                       }
                    })()}
