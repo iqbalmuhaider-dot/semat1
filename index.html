@@ -42,22 +42,16 @@
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-        import React, { useState, useEffect, useRef } from 'react';
+        import React, { useState, useEffect } from 'react';
         import { createRoot } from 'react-dom/client';
         import { initializeApp } from 'firebase/app';
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, writeBatch, updateDoc, getDoc, setDoc, getDocs, where, orderBy } from 'firebase/firestore';
         import { 
-          getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged 
-        } from 'firebase/auth';
-        import { 
-          getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, writeBatch, updateDoc, getDoc, setDoc, getDocs, where, orderBy 
-        } from 'firebase/firestore';
-        import { 
-          LayoutDashboard, LogOut, ChevronRight, X, Search, 
-          Link as LinkIcon, ExternalLink, Lock, FileSpreadsheet, Plus, Trash2,
-          BookOpen, Calculator, FlaskConical, Languages, 
-          Trophy, Users, Palette, Utensils, Bus, Library, 
-          MonitorPlay, Code2, GraduationCap, ShieldCheck, 
-          Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2, Calendar, ChevronLeft, Flag, MapPin, CalendarDays, ClipboardList, Clock, AlertTriangle, FileText, Printer, Check, Settings
+          LayoutDashboard, LogOut, ChevronRight, X, Search, Link as LinkIcon, ExternalLink, Lock, FileSpreadsheet, Plus, Trash2,
+          BookOpen, Calculator, FlaskConical, Languages, Trophy, Users, Palette, Utensils, Bus, Library, MonitorPlay, Code2, 
+          GraduationCap, ShieldCheck, Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, 
+          User, Loader2, Calendar, ChevronLeft, Flag, MapPin, CalendarDays, ClipboardList, Clock, AlertTriangle, FileText, Printer, Check, Settings, UserCheck
         } from 'lucide-react';
 
         // --- KONFIGURASI FIREBASE ---
@@ -76,35 +70,13 @@
         const db = getFirestore(app);
         const googleProvider = new GoogleAuthProvider();
 
-        // --- ICONS ---
-        const ICONS = {
-          umum: { 
-            dashboard: { i: LayoutDashboard, color: 'text-blue-600', bg: 'bg-blue-50' }, 
-            portal: { i: Globe, color: 'text-indigo-600', bg: 'bg-indigo-50' }, 
-            admin: { i: ShieldCheck, color: 'text-slate-600', bg: 'bg-slate-100' } 
-          },
-          akademik: { 
-            buku: { i: BookOpen, color: 'text-emerald-600', bg: 'bg-emerald-50' }, 
-            math: { i: Calculator, color: 'text-violet-600', bg: 'bg-violet-50' }, 
-            sains: { i: FlaskConical, color: 'text-teal-600', bg: 'bg-teal-50' }, 
-            bahasa: { i: Languages, color: 'text-rose-600', bg: 'bg-rose-50' } 
-          },
-          koko: { 
-            sukan: { i: Trophy, color: 'text-orange-600', bg: 'bg-orange-50' }, 
-            seni: { i: Palette, color: 'text-pink-600', bg: 'bg-pink-50' }, 
-            kelab: { i: Users, color: 'text-cyan-600', bg: 'bg-cyan-50' }
-          },
-          fasiliti: { 
-            kantin: { i: Utensils, color: 'text-yellow-600', bg: 'bg-yellow-50' }, 
-            bas: { i: Bus, color: 'text-blue-800', bg: 'bg-blue-100' }, 
-            ps: { i: Library, color: 'text-amber-700', bg: 'bg-amber-50' } 
-          }
+        // --- ICONS & DATA ---
+        const ALL_ICONS = {
+             dashboard: { i: LayoutDashboard, color: 'text-blue-600', bg: 'bg-blue-50' }, 
+             portal: { i: Globe, color: 'text-indigo-600', bg: 'bg-indigo-50' }, 
+             admin: { i: ShieldCheck, color: 'text-slate-600', bg: 'bg-slate-100' }
         };
-        
-        const ALL_ICONS = {};
-        Object.values(ICONS).forEach(cat => Object.assign(ALL_ICONS, cat));
 
-        // --- DATA TAKWIM KPM 2026 (KUMPULAN B) ---
         const KPM_EVENTS = [
             { start: '2026-01-12', end: '2026-03-20', type: 'school', title: 'Sesi Persekolahan Penggal 1' },
             { start: '2026-03-21', end: '2026-03-29', type: 'holiday', title: 'Cuti Penggal 1' },
@@ -116,39 +88,15 @@
             { start: '2026-12-05', end: '2026-12-31', type: 'holiday', title: 'Cuti Akhir Persekolahan' },
         ];
 
-        // --- SENARAI TUGASAN RASMI (DEFAULT) ---
         const DEFAULT_TASKS = {
-            pentadbiran: [
-                "Guru Besar", "GPK Pentadbiran", "GPK HEM", "GPK Kokurikulum", "Guru Data", "Guru Bimbingan & Kaunseling", 
-                "Penyelaras ICT", "Guru Perpustakaan & Media (GPM)", "Penyelaras Prasekolah", "Penyelaras PPKI", 
-                "Penyelaras Bestari / Delima", "Pegawai Aset"
-            ],
-            kurikulum: [
-                "Setiausaha Kurikulum", "Setiausaha Peperiksaan / UASA", "Penyelaras PBD", "Penyelaras Jadual Waktu",
-                "Penyelaras Transisi Tahun 1", "Penyelaras Pemulihan Khas", "Penyelaras TS25 / PAK21", "Penyelaras KBAT / i-Think",
-                "Penyelaras HIP", "Penyelaras PLAN", "Penyelaras SPLKPM",
-                "KP Bahasa Melayu", "KP Bahasa Inggeris", "KP Matematik", "KP Sains", "KP Pendidikan Islam", 
-                "KP Pendidikan Moral / B. Arab", "KP Sejarah", "KP RBT", "KP PSV / Muzik", "KP PJPK"
-            ],
-            hem: [
-                "Setiausaha HEM", "Penyelaras APDM / IDME", "Penyelaras SPBT", "Penyelaras RMT & Susu (PSS)", "Penyelaras Kantin",
-                "Penyelaras 3K (Kebersihan, Kesihatan, Keselamatan)", "Penyelaras Disiplin & Pengawas", "Penyelaras BAP / KWAPM",
-                "Penyelaras PPDa", "Penyelaras Kebajikan & Bantuan", "Penyelaras Penempatan (Ting 1 / SBP)"
-            ],
-            kokurikulum: [
-                "Setiausaha Kokurikulum", "Setiausaha Sukan", "Penyelaras PAJSK", "Penyelaras Unit Beruniform", 
-                "Penyelaras Kelab & Persatuan", "Penyelaras Sukan & Permainan", "Penyelaras Rumah Sukan",
-                "Guru Penasihat Pengakap", "Guru Penasihat TKRS", "Guru Penasihat PPIM", "Guru Penasihat Tunas Puteri",
-                "Guru Penasihat B. Melayu / Kebudayaan", "Guru Penasihat B. Inggeris", "Guru Penasihat Agama Islam", "Guru Penasihat STEM / Doktor Muda", "Guru Penasihat Rukun Negara",
-                "Guru Penasihat Bola Sepak", "Guru Penasihat Bola Jaring", "Guru Penasihat Bola Baling", "Guru Penasihat Ping Pong", "Guru Penasihat Olahraga"
-            ],
-            kelas: [
-                "Guru Kelas Tahun 1", "Guru Kelas Tahun 2", "Guru Kelas Tahun 3", "Guru Kelas Tahun 4", "Guru Kelas Tahun 5", "Guru Kelas Tahun 6",
-                "Guru Kelas Prasekolah", "Guru Kelas PPKI"
-            ]
+            pentadbiran: ["Guru Besar", "GPK Pentadbiran", "GPK HEM", "GPK Kokurikulum", "Guru Data", "Guru Bimbingan & Kaunseling", "Penyelaras ICT", "Guru Perpustakaan & Media (GPM)", "Penyelaras Prasekolah", "Penyelaras PPKI", "Penyelaras Bestari / Delima", "Pegawai Aset"],
+            kurikulum: ["Setiausaha Kurikulum", "Setiausaha Peperiksaan / UASA", "Penyelaras PBD", "Penyelaras Jadual Waktu", "Penyelaras Transisi Tahun 1", "Penyelaras Pemulihan Khas", "Penyelaras TS25 / PAK21", "Penyelaras KBAT / i-Think", "Penyelaras HIP", "Penyelaras PLAN", "Penyelaras SPLKPM", "KP Bahasa Melayu", "KP Bahasa Inggeris", "KP Matematik", "KP Sains", "KP Pendidikan Islam", "KP Pendidikan Moral / B. Arab", "KP Sejarah", "KP RBT", "KP PSV / Muzik", "KP PJPK"],
+            hem: ["Setiausaha HEM", "Penyelaras APDM / IDME", "Penyelaras SPBT", "Penyelaras RMT & Susu (PSS)", "Penyelaras Kantin", "Penyelaras 3K (Kebersihan, Kesihatan, Keselamatan)", "Penyelaras Disiplin & Pengawas", "Penyelaras BAP / KWAPM", "Penyelaras PPDa", "Penyelaras Kebajikan & Bantuan", "Penyelaras Penempatan (Ting 1 / SBP)"],
+            kokurikulum: ["Setiausaha Kokurikulum", "Setiausaha Sukan", "Penyelaras PAJSK", "Penyelaras Unit Beruniform", "Penyelaras Kelab & Persatuan", "Penyelaras Sukan & Permainan", "Penyelaras Rumah Sukan", "Guru Penasihat Pengakap", "Guru Penasihat TKRS", "Guru Penasihat PPIM", "Guru Penasihat Tunas Puteri", "Guru Penasihat B. Melayu / Kebudayaan", "Guru Penasihat B. Inggeris", "Guru Penasihat Agama Islam", "Guru Penasihat STEM / Doktor Muda", "Guru Penasihat Rukun Negara", "Guru Penasihat Bola Sepak", "Guru Penasihat Bola Jaring", "Guru Penasihat Bola Baling", "Guru Penasihat Ping Pong", "Guru Penasihat Olahraga"],
+            kelas: ["Guru Kelas Tahun 1", "Guru Kelas Tahun 2", "Guru Kelas Tahun 3", "Guru Kelas Tahun 4", "Guru Kelas Tahun 5", "Guru Kelas Tahun 6", "Guru Kelas Prasekolah", "Guru Kelas PPKI"]
         };
 
-        // --- KOMPONEN UTAMA ---
+        // --- 1. MAIN APP COMPONENT ---
         function MainApp() {
           const [user, setUser] = useState(null); 
           const [userData, setUserData] = useState(null); 
@@ -160,8 +108,8 @@
           const [teachers, setTeachers] = useState([]);
           const [tasks, setTasks] = useState([]);
           const [reports, setReports] = useState([]);
+          const [attendances, setAttendances] = useState([]);
 
-          // 1. LOGIK AUTH
           useEffect(() => {
             const unsub = onAuthStateChanged(auth, async (currentUser) => {
               if (currentUser) {
@@ -171,53 +119,50 @@
                          const ref = doc(db, 'portal_users', currentUser.uid);
                          const superData = { name: currentUser.displayName || "Super Admin", email: currentUser.email, photo: currentUser.photoURL, role: 'admin', isSuperAdmin: true, createdAt: new Date().toISOString() };
                          await setDoc(ref, superData, { merge: true });
-                         setUser(currentUser); setUserData(superData); syncToLocalStorage(currentUser, 'admin'); setLoading(false); return;
+                         setUser(currentUser); setUserData(superData); setLoading(false); return;
                     }
-                    // USER BIASA
+                    // CHECK USER IN DB
                     const userRef = doc(db, 'portal_users', currentUser.uid);
                     const userSnap = await getDoc(userRef);
                     if (userSnap.exists()) {
-                        const data = userSnap.data();
-                        setUser(currentUser); setUserData(data); syncToLocalStorage(currentUser, data.role); setLoading(false);
+                        setUserData(userSnap.data());
+                        setUser(currentUser);
+                        setLoading(false);
                     } else {
+                        // CHECK IF TEACHER EMAIL EXISTS
                         const q = query(collection(db, 'portal_teachers'), where("email", "==", currentUser.email));
                         const querySnapshot = await getDocs(q);
                         if (!querySnapshot.empty) {
                             const teacherInfo = querySnapshot.docs[0].data();
-                            // Logic Role Assignment from Teacher DB
                             let assignedRole = 'guru';
                             if (teacherInfo.role && teacherInfo.role.toLowerCase().includes('admin')) assignedRole = 'admin';
                             else if (teacherInfo.role && teacherInfo.role.toLowerCase().includes('pentadbir')) assignedRole = 'pentadbir';
 
                             const newUserData = { name: teacherInfo.name, email: currentUser.email, photo: currentUser.photoURL, role: assignedRole, createdAt: new Date().toISOString() };
-                            await setDoc(userRef, newUserData); setUser(currentUser); setUserData(newUserData); syncToLocalStorage(currentUser, assignedRole); setLoading(false);
+                            await setDoc(userRef, newUserData); setUser(currentUser); setUserData(newUserData); setLoading(false);
                         } else {
-                            await signOut(auth); setUser(null); setUserData(null); localStorage.removeItem('portal_current_user'); alert("AKSES DITOLAK: E-mel tidak berdaftar."); setLoading(false);
+                            await signOut(auth); setUser(null); setUserData(null); alert("AKSES DITOLAK: E-mel tidak berdaftar."); setLoading(false);
                         }
                     }
-                } catch(e) { console.error(e); alert("Ralat: " + e.message); await signOut(auth); setLoading(false); }
-              } else { setUser(null); setUserData(null); localStorage.removeItem('portal_current_user'); setLoading(false); }
+                } catch(e) { console.error(e); alert("Ralat Login: " + e.message); await signOut(auth); setLoading(false); }
+              } else { setUser(null); setUserData(null); setLoading(false); }
             });
             return () => unsub();
           }, []);
 
-          const syncToLocalStorage = (u, r) => { localStorage.setItem('portal_current_user', JSON.stringify({ name: u.isAnonymous?"Demo":u.displayName, email: u.email, role: r, photo: u.photoURL })); };
-
           useEffect(() => {
             if (!user || !userData) return;
-            window.PortalAPI = { currentUser: user, saveData: async (colName, data) => { try { await addDoc(collection(db, colName), { ...data, createdAt: new Date().toISOString(), createdBy: user.uid }); return { success: true }; } catch(e) { return { success: false, error: e }; } } };
-            
             const unsubApps = onSnapshot(query(collection(db, 'portal_apps')), s => setApps(s.docs.map(d => ({id: d.id, ...d.data()}))));
             const unsubTasks = onSnapshot(query(collection(db, 'portal_tasks'), orderBy('deadline', 'asc')), s => setTasks(s.docs.map(d => ({id: d.id, ...d.data()}))));
             const unsubReports = onSnapshot(query(collection(db, 'portal_reports'), orderBy('date', 'desc')), s => setReports(s.docs.map(d => ({id: d.id, ...d.data()}))));
+            const unsubAttendance = onSnapshot(query(collection(db, 'portal_attendance')), s => setAttendances(s.docs.map(d => ({id: d.id, ...d.data()}))));
             
             let unsubStud = () => {}, unsubTeach = () => {};
-            // Admin & Pentadbir & Guru perlu data ini (Pentadbir view only)
             if (['admin', 'pentadbir', 'guru'].includes(userData.role)) {
                unsubStud = onSnapshot(query(collection(db, 'portal_students')), s => setStudents(s.docs.map(d => ({id: d.id, ...d.data()}))));
                unsubTeach = onSnapshot(query(collection(db, 'portal_teachers')), s => setTeachers(s.docs.map(d => ({id: d.id, ...d.data()}))));
             }
-            return () => { unsubApps(); unsubTasks(); unsubStud(); unsubTeach(); unsubReports(); };
+            return () => { unsubApps(); unsubTasks(); unsubStud(); unsubTeach(); unsubReports(); unsubAttendance(); };
           }, [user, userData]);
 
           const handleLogin = async () => { try { await signInWithPopup(auth, googleProvider); } catch (e) { console.error(e); alert("Gagal log masuk."); } };
@@ -225,7 +170,7 @@
 
           if (loading) return <div className="h-screen flex flex-col items-center justify-center bg-slate-50 text-indigo-600"><Loader2 className="w-10 h-10 animate-spin mb-4"/><span className="font-medium animate-pulse">Menyemak kelayakan...</span></div>;
           if (!user) return <LoginScreen onGoogleLogin={handleLogin} />;
-          if (!userData) return <div className="h-screen flex items-center justify-center">Memuatkan data...</div>;
+          if (!userData) return <div className="h-screen flex items-center justify-center">Memuatkan data pengguna...</div>;
 
           return (
             <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
@@ -235,21 +180,21 @@
                 <Header userData={userData} view={view} />
                 <main className="flex-1 overflow-y-auto p-6 md:p-8 scroll-smooth">
                    {(() => {
-                      // Guard clauses
                       if (view === 'builder' && userData.role !== 'admin') return <AccessDenied />;
                       if (['students','teachers','agihan'].includes(view) && !['admin', 'pentadbir'].includes(userData.role)) return <AccessDenied />;
 
                       switch(view) {
-                        case 'dashboard': return <Dashboard userData={userData} apps={apps} students={students} teachers={teachers} tasks={tasks} setView={setView} />;
+                        case 'dashboard': return <Dashboard userData={userData} apps={apps} students={students} teachers={teachers} tasks={tasks} attendances={attendances} setView={setView} />;
                         case 'apps': return <AppGallery apps={apps} />;
                         case 'takwim': return <TakwimManager canEdit={['admin', 'pentadbir'].includes(userData.role)} role={userData.role} currentUid={user.uid} />;
                         case 'tasks': return <TaskManager userData={userData} tasks={tasks} currentUid={user.uid} />;
                         case 'reports': return <WeeklyReportManager userData={userData} reports={reports} teachers={teachers} currentUid={user.uid} />;
+                        case 'attendance': return <AttendanceManager students={students} userData={userData} />;
                         case 'builder': return <AppBuilder apps={apps} />;
                         case 'agihan': return <AgihanTugasManager teachers={teachers} canEdit={['admin', 'pentadbir'].includes(userData.role)} />;
                         case 'students': return <DataTable type="student" data={students} currentUserRole={userData.role} />;
                         case 'teachers': return <DataTable type="teacher" data={teachers} currentUserRole={userData.role} />;
-                        default: return <Dashboard userData={userData} apps={apps} students={students} teachers={teachers} tasks={tasks} setView={setView} />;
+                        default: return <Dashboard userData={userData} apps={apps} students={students} teachers={teachers} tasks={tasks} attendances={attendances} setView={setView} />;
                       }
                    })()}
                 </main>
@@ -258,207 +203,179 @@
           );
         }
 
-        // --- AGIHAN TUGAS MANAGER (DENGAN POP-UP MODAL & EDIT/PADAM) ---
+        // --- 2. DASHBOARD ---
+        function Dashboard({ userData, apps, students, teachers, tasks, attendances, setView }) {
+          const role = userData.role;
+          const showStats = ['admin', 'pentadbir', 'guru'].includes(role);
+          const stats = [
+            { label: 'Aplikasi', val: apps.length, i: LayoutDashboard, c: 'text-blue-600', b: 'bg-blue-50' },
+            { label: 'Murid', val: showStats ? students.length : '-', i: GraduationCap, c: 'text-emerald-600', b: 'bg-emerald-50' },
+            { label: 'Guru', val: showStats ? teachers.length : '-', i: Users, c: 'text-indigo-600', b: 'bg-indigo-50' },
+          ];
+          const today = new Date().toISOString().split('T')[0];
+          const uniqueClasses = [...new Set(students.map(s => s.class))].sort();
+          const submittedClasses = attendances.filter(a => a.date === today).map(a => a.class);
+
+          return (
+            <div className="max-w-6xl mx-auto space-y-8 animate-fade-in">
+               <div className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm"><h2 className="text-2xl font-bold text-slate-800 mb-2">Hai, {userData.name}!</h2><p className="text-slate-500">Selamat datang ke papan pemuka SkolaHub.</p></div>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">{stats.map((s, i) => (<div key={i} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4"><div className={`w-14 h-14 rounded-full flex items-center justify-center ${s.b} ${s.c}`}><s.i className="w-7 h-7" /></div><div><p className="text-sm font-medium text-slate-500">{s.label}</p><h3 className="text-3xl font-bold text-slate-800">{s.val}</h3></div></div>))}</div>
+               
+               <div className="bg-white rounded-xl border border-slate-200 p-6">
+                   <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-slate-800 flex items-center gap-2"><UserCheck className="w-5 h-5 text-indigo-600"/> Kehadiran Hari Ini ({new Date().toLocaleDateString('ms-MY')})</h3><button onClick={()=>setView('attendance')} className="text-xs text-indigo-600 hover:underline font-bold">Urus</button></div>
+                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">{uniqueClasses.map(cls => { const isSubmitted = submittedClasses.includes(cls); return (<div key={cls} className={`p-3 rounded-lg border text-center transition-all ${isSubmitted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-400'}`}><span className="block text-sm font-bold truncate">{cls}</span><span className="text-[10px] uppercase font-bold">{isSubmitted ? 'Selesai' : 'Belum'}</span></div>)})}{uniqueClasses.length===0 && <p className="col-span-full text-center text-slate-400 text-sm">Tiada data kelas.</p>}</div>
+               </div>
+
+               <div className="bg-white rounded-xl border border-slate-200 p-6">
+                    <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Clock className="w-5 h-5 text-indigo-600"/> Tugasan Semasa</h3><button onClick={()=>setView('tasks')} className="text-xs text-indigo-600 hover:underline">Lihat Semua</button></div>
+                    {tasks.length === 0 ? <p className="text-slate-400 text-sm">Tiada tugasan aktif.</p> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{tasks.slice(0, 6).map(task => (<div key={task.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50 relative"><h4 className="font-bold text-slate-800 text-sm mb-1">{task.title}</h4><p className="text-xs text-slate-500 mb-3">Oleh: {task.assignedBy}</p><div className="flex items-center gap-2 text-xs font-bold"><Clock className="w-3 h-3 text-slate-400"/><span>{new Date(task.deadline).toLocaleDateString('ms-MY')}</span></div></div>))}</div>}
+               </div>
+            </div>
+          );
+        }
+
+        // --- 3. TASK MANAGER ---
+        function TaskManager({ userData, tasks, currentUid }) {
+            const isStaff = ['admin', 'pentadbir', 'guru'].includes(userData.role);
+            const [form, setForm] = useState({ title: '', deadline: '', assignTo: 'Semua Guru' });
+            
+            const addTask = async () => { 
+                if(!form.title || !form.deadline) return alert("Sila isi maklumat."); 
+                const assignedByRole = ['admin', 'pentadbir'].includes(userData.role) ? 'Guru Besar' : 'Guru';
+                await addDoc(collection(db, 'portal_tasks'), { ...form, assignedBy: userData.name, assignedByRole, createdAt: new Date().toISOString(), createdBy: currentUid }); 
+                setForm({ title: '', deadline: '', assignTo: 'Semua Guru' }); alert("Tugasan dihantar."); 
+            };
+            const deleteTask = async (id) => { if(confirm("Padam tugasan?")) await deleteDoc(doc(db, 'portal_tasks', id)); }
+            
+            return (<div className="grid lg:grid-cols-3 gap-6 h-[calc(100vh-140px)]"><div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col"><div className="p-4 border-b border-slate-100 bg-slate-50 font-bold text-slate-700">Senarai Tugasan</div><div className="flex-1 overflow-y-auto p-4 space-y-3">{tasks.map(task => (<div key={task.id} className="p-4 rounded-xl border border-slate-100 bg-white flex justify-between items-start"><div><div className="flex items-center gap-2 mb-1"><span className="text-xs text-slate-500 font-medium">Kepada: {task.assignTo}</span></div><h4 className="font-bold text-slate-800 text-lg">{task.title}</h4><p className="text-xs text-slate-500 mt-1">Oleh: {task.assignedBy} • Deadline: <b>{new Date(task.deadline).toLocaleDateString('ms-MY')}</b></p></div>{(userData.role === 'admin' || task.createdBy === currentUid) && <button onClick={()=>deleteTask(task.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button>}</div>))}</div></div>{isStaff && (<div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 h-fit"><h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><Plus className="w-5 h-5 text-indigo-600"/> Tambah Tugasan</h3><div className="space-y-4"><div><label className="lbl">Arahan / Tugasan</label><textarea className="inp h-24 resize-none" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} placeholder="Contoh: Hantar RPH"/></div><div><label className="lbl">Tarikh Akhir</label><input type="date" className="inp w-full" value={form.deadline} onChange={e=>setForm({...form, deadline:e.target.value})}/></div><div><label className="lbl">Sasaran</label><select className="inp w-full" value={form.assignTo} onChange={e=>setForm({...form, assignTo:e.target.value})}><option>Semua Guru</option><option>Ketua Panitia</option><option>Semua Murid</option><option>Pengawas</option></select></div><button onClick={addTask} className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-bold shadow-md hover:bg-indigo-700 transition">Hantar Arahan</button></div></div>)}</div>)
+        }
+
+        // --- 4. ATTENDANCE MANAGER ---
+        function AttendanceManager({ students, userData }) {
+            const [selectedClass, setSelectedClass] = useState('');
+            const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+            const [attendanceData, setAttendanceData] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const uniqueClasses = [...new Set(students.map(s => s.class))].sort();
+
+            useEffect(() => {
+                if (!selectedClass || !date) { setAttendanceData([]); return; }
+                const fetchAttendance = async () => {
+                    setLoading(true);
+                    const docId = `attendance_${date}_${selectedClass.replace(/\s+/g, '_')}`;
+                    const docRef = doc(db, 'portal_attendance', docId);
+                    const snap = await getDoc(docRef);
+                    if (snap.exists()) { setAttendanceData(snap.data().records); } 
+                    else {
+                        const classStudents = students.filter(s => s.class === selectedClass);
+                        setAttendanceData(classStudents.map(s => ({ studentId: s.id, name: s.name, status: 'Hadir', reason: '' })));
+                    }
+                    setLoading(false);
+                };
+                fetchAttendance();
+            }, [selectedClass, date, students]);
+
+            const updateStatus = (index, status) => { const newData = [...attendanceData]; newData[index].status = status; setAttendanceData(newData); };
+            const updateReason = (index, reason) => { const newData = [...attendanceData]; newData[index].reason = reason; setAttendanceData(newData); };
+            const handleSave = async () => {
+                if (!selectedClass) return alert("Sila pilih kelas.");
+                const docId = `attendance_${date}_${selectedClass.replace(/\s+/g, '_')}`;
+                try {
+                    await setDoc(doc(db, 'portal_attendance', docId), { date, class: selectedClass, records: attendanceData, lastUpdatedBy: userData.name, lastUpdatedAt: new Date().toISOString() });
+                    alert("Kehadiran berjaya disimpan!");
+                } catch (e) { console.error(e); alert("Gagal menyimpan."); }
+            };
+
+            return (
+                <div className="space-y-6 h-full flex flex-col">
+                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><UserCheck className="w-6 h-6 text-indigo-600"/> Pengurusan Kehadiran</h2></div>
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-end">
+                        <div className="w-full md:w-1/3"><label className="block text-xs font-bold uppercase text-slate-500 mb-1">Tarikh</label><input type="date" className="w-full p-2 border border-slate-300 rounded-lg outline-none" value={date} onChange={e => setDate(e.target.value)} /></div>
+                        <div className="w-full md:w-1/3"><label className="block text-xs font-bold uppercase text-slate-500 mb-1">Kelas</label><select className="w-full p-2 border border-slate-300 rounded-lg outline-none" value={selectedClass} onChange={e => setSelectedClass(e.target.value)}><option value="">-- Pilih Kelas --</option>{uniqueClasses.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm flex-1 overflow-hidden flex flex-col">
+                        <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center"><h3 className="font-bold text-slate-700">Senarai Murid {selectedClass ? `- ${selectedClass}` : ''}</h3><button onClick={handleSave} disabled={!selectedClass || loading} className={`px-4 py-2 rounded-lg font-bold text-white shadow-md flex items-center gap-2 ${!selectedClass || loading ? 'bg-slate-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}><Save className="w-4 h-4"/> Simpan</button></div>
+                        <div className="flex-1 overflow-y-auto">
+                            {!selectedClass ? <div className="h-full flex flex-col items-center justify-center text-slate-400"><UserCheck className="w-12 h-12 mb-2 opacity-50"/><p>Sila pilih kelas.</p></div> : loading ? <div className="h-full flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-indigo-600"/></div> : attendanceData.length === 0 ? <div className="p-8 text-center text-slate-400">Tiada murid.</div> : (
+                                <table className="w-full text-left text-sm"><thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold sticky top-0 z-10"><tr><th className="p-4 border-b w-10">Bil</th><th className="p-4 border-b">Nama Murid</th><th className="p-4 border-b text-center w-1/3">Status</th><th className="p-4 border-b">Catatan</th></tr></thead>
+                                <tbody className="divide-y divide-slate-100">{attendanceData.map((r, i) => (<tr key={r.studentId} className="hover:bg-slate-50"><td className="p-4 text-center text-xs text-slate-400">{i+1}</td><td className="p-4 font-bold">{r.name}</td><td className="p-4 flex justify-center gap-2"><button onClick={()=>updateStatus(i,'Hadir')} className={`px-3 py-1 rounded-full text-xs font-bold border ${r.status==='Hadir'?'bg-emerald-100 text-emerald-700 border-emerald-300':'bg-white text-slate-400'}`}>Hadir</button><button onClick={()=>updateStatus(i,'Tidak Hadir')} className={`px-3 py-1 rounded-full text-xs font-bold border ${r.status==='Tidak Hadir'?'bg-red-100 text-red-700 border-red-300':'bg-white text-slate-400'}`}>Tidak Hadir</button><button onClick={()=>updateStatus(i,'Lewat')} className={`px-3 py-1 rounded-full text-xs font-bold border ${r.status==='Lewat'?'bg-amber-100 text-amber-700 border-amber-300':'bg-white text-slate-400'}`}>Lewat</button></td><td className="p-4">{r.status!=='Hadir'&&<input className="w-full text-xs border-b outline-none bg-transparent" placeholder="Sebab" value={r.reason||''} onChange={e=>updateReason(i,e.target.value)}/>}</td></tr>))}</tbody></table>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- 5. AGIHAN TUGAS MANAGER ---
         function AgihanTugasManager({ teachers, canEdit }) {
             const [activeTab, setActiveTab] = useState('pentadbiran');
             const [assignments, setAssignments] = useState({});
             const [taskStructure, setTaskStructure] = useState(DEFAULT_TASKS);
             const [loading, setLoading] = useState(true);
             const [editMode, setEditMode] = useState(false);
-            
-            // State untuk Pop-up
             const [showAddModal, setShowAddModal] = useState(false);
             const [newTaskName, setNewTaskName] = useState("");
             const [showDeleteModal, setShowDeleteModal] = useState(false);
             const [taskToDelete, setTaskToDelete] = useState(null);
 
             useEffect(() => {
-                const unsubAssign = onSnapshot(collection(db, 'portal_assignments'), (snap) => {
-                    const data = {};
-                    snap.docs.forEach(doc => { data[doc.id] = doc.data(); });
+                const unsub = onSnapshot(collection(db, 'portal_assignments'), (snap) => {
+                    const data = {}; snap.docs.forEach(doc => data[doc.id] = doc.data());
                     setAssignments(data);
                 });
-
                 const fetchStructure = async () => {
-                    const docRef = doc(db, 'portal_settings', 'agihan_tugas_structure');
-                    const snap = await getDoc(docRef);
-                    if (snap.exists()) {
-                        setTaskStructure(snap.data().structure);
-                    } else {
-                        await setDoc(docRef, { structure: DEFAULT_TASKS });
-                        setTaskStructure(DEFAULT_TASKS);
-                    }
+                    const snap = await getDoc(doc(db, 'portal_settings', 'agihan_tugas_structure'));
+                    if (snap.exists()) setTaskStructure(snap.data().structure);
+                    else { await setDoc(doc(db, 'portal_settings', 'agihan_tugas_structure'), { structure: DEFAULT_TASKS }); setTaskStructure(DEFAULT_TASKS); }
                     setLoading(false);
                 };
                 fetchStructure();
-                return () => unsubAssign();
+                return () => unsub();
             }, []);
 
             const saveStructure = async (newStructure) => {
                 setTaskStructure(newStructure);
-                try { await setDoc(doc(db, 'portal_settings', 'agihan_tugas_structure'), { structure: newStructure }); } 
-                catch (e) { console.error(e); alert("Gagal menyimpan perubahan struktur."); }
+                try { await setDoc(doc(db, 'portal_settings', 'agihan_tugas_structure'), { structure: newStructure }); } catch(e) { console.error(e); alert("Ralat menyimpan."); }
             };
 
             const handleAssign = async (category, taskName, teacherId) => {
-                if (!canEdit) return alert("Anda tiada akses untuk mengedit.");
+                if (!canEdit) return alert("Tiada akses.");
                 const teacher = teachers.find(t => t.id === teacherId);
-                const teacherName = teacher ? teacher.name : '';
                 const docId = `${category}_${taskName.replace(/[^a-zA-Z0-9]/g, '_')}`;
-                try {
-                    await setDoc(doc(db, 'portal_assignments', docId), {
-                        category, taskName, teacherId, teacherName, updatedAt: new Date().toISOString()
-                    });
-                } catch (e) { console.error("Error assigning:", e); alert("Ralat semasa menyimpan."); }
-            };
-
-            // LOGIC BARU: TAMBAH JAWATAN
-            const openAddModal = () => {
-                setNewTaskName("");
-                setShowAddModal(true);
+                await setDoc(doc(db, 'portal_assignments', docId), { category, taskName, teacherId, teacherName: teacher?teacher.name:'', updatedAt: new Date().toISOString() });
             };
 
             const confirmAddTask = async () => {
-                if (!newTaskName.trim()) return alert("Sila masukkan nama jawatan.");
-                const newStruct = { ...taskStructure };
-                if (!newStruct[activeTab]) newStruct[activeTab] = [];
+                if(!newTaskName.trim()) return;
+                const newStruct = {...taskStructure};
+                if(!newStruct[activeTab]) newStruct[activeTab] = [];
                 newStruct[activeTab] = [...newStruct[activeTab], newTaskName];
-                await saveStructure(newStruct);
-                setShowAddModal(false);
-            };
-
-            // LOGIC BARU: PADAM JAWATAN
-            const openDeleteModal = (taskName) => {
-                setTaskToDelete(taskName);
-                setShowDeleteModal(true);
+                await saveStructure(newStruct); setShowAddModal(false);
             };
 
             const confirmDeleteTask = async () => {
-                if (!taskToDelete) return;
-                const newStruct = { ...taskStructure };
+                const newStruct = {...taskStructure};
                 newStruct[activeTab] = newStruct[activeTab].filter(t => t !== taskToDelete);
-                await saveStructure(newStruct);
-                setShowDeleteModal(false);
-                setTaskToDelete(null);
+                await saveStructure(newStruct); setShowDeleteModal(false);
             };
 
-            const categories = [
-                { id: 'pentadbiran', label: 'Pentadbiran' },
-                { id: 'kurikulum', label: 'Kurikulum' },
-                { id: 'hem', label: 'Hal Ehwal Murid' },
-                { id: 'kokurikulum', label: 'Kokurikulum' },
-                { id: 'kelas', label: 'Guru Kelas' },
-            ];
+            const categories = [{id:'pentadbiran',label:'Pentadbiran'},{id:'kurikulum',label:'Kurikulum'},{id:'hem',label:'Hal Ehwal Murid'},{id:'kokurikulum',label:'Kokurikulum'},{id:'kelas',label:'Guru Kelas'}];
 
             return (
                 <div className="space-y-6 h-full flex flex-col relative">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Briefcase className="w-6 h-6 text-indigo-600"/> Agihan Tugas Guru 2026</h2>
-                        <div className="flex gap-2 items-center">
-                            {canEdit && (
-                                <button onClick={() => setEditMode(!editMode)} className={`text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 transition-colors ${editMode ? 'bg-amber-100 text-amber-700 border border-amber-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                                    {editMode ? <CheckSquare className="w-3 h-3"/> : <Settings className="w-3 h-3"/>}
-                                    {editMode ? 'Selesai Edit' : 'Urus Senarai Tugas'}
-                                </button>
-                            )}
-                            <div className="text-xs text-slate-500 bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full font-medium border border-emerald-100 flex items-center gap-1"><Save className="w-3 h-3"/> Auto-Save</div>
-                        </div>
+                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Briefcase className="w-6 h-6 text-indigo-600"/> Agihan Tugas Guru 2026</h2><div className="flex gap-2 items-center">{canEdit && <button onClick={()=>setEditMode(!editMode)} className={`text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 transition-colors ${editMode?'bg-amber-100 text-amber-700':'bg-slate-100 text-slate-600'}`}>{editMode?<CheckSquare className="w-3 h-3"/>:<Settings className="w-3 h-3"/>} {editMode?'Selesai':'Urus'}</button>}</div></div>
+                    <div className="flex gap-2 overflow-x-auto pb-2 border-b border-slate-200">{categories.map(c=>(<button key={c.id} onClick={()=>setActiveTab(c.id)} className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${activeTab===c.id?'bg-indigo-600 text-white shadow-md':'bg-white text-slate-600 border border-slate-200'}`}>{c.label}</button>))}</div>
+                    <div className={`bg-white border ${editMode?'border-amber-300':'border-slate-200'} rounded-xl shadow-sm flex-1 overflow-hidden flex flex-col relative`}>
+                        {editMode && <div className="absolute top-0 left-0 right-0 bg-amber-50 text-amber-800 text-[10px] py-1 text-center font-bold border-b border-amber-200 z-10">MOD SUNTINGAN AKTIF</div>}
+                        <div className="overflow-y-auto flex-1 p-6">{loading ? <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin"/></div> : <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">{(taskStructure[activeTab]||[]).map((t,i)=>{ const docId = `${activeTab}_${t.replace(/[^a-zA-Z0-9]/g, '_')}`; const ad = assignments[docId]||{}; return (<div key={i} className="flex flex-col gap-1 border-b border-slate-100 pb-3 last:border-0"><div className="flex justify-between items-center"><label className={`text-sm font-bold ${editMode?'text-indigo-700':'text-slate-700'}`}>{t}</label>{editMode && <button onClick={()=>{setTaskToDelete(t);setShowDeleteModal(true);}} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4"/></button>}</div>{!editMode && <div className="relative"><select className="w-full p-2 border border-slate-200 rounded-lg text-sm bg-slate-50 outline-none" value={ad.teacherId||""} onChange={e=>handleAssign(activeTab,t,e.target.value)} disabled={!canEdit}><option value="">-- Belum Dilantik --</option>{teachers.map(tc=>(<option key={tc.id} value={tc.id}>{tc.name}</option>))}</select></div>}</div>)})} {editMode && <button onClick={()=>{setNewTaskName("");setShowAddModal(true);}} className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-indigo-200 rounded-xl text-indigo-500 font-bold hover:bg-indigo-50"><Plus className="w-5 h-5"/> Tambah Jawatan</button>}</div>}</div>
                     </div>
-
-                    <div className="flex gap-2 overflow-x-auto pb-2 border-b border-slate-200">
-                        {categories.map(cat => (
-                            <button key={cat.id} onClick={() => setActiveTab(cat.id)} className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${activeTab === cat.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'}`}>
-                                {cat.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className={`bg-white border ${editMode ? 'border-amber-300' : 'border-slate-200'} rounded-xl shadow-sm flex-1 overflow-hidden flex flex-col relative`}>
-                        {editMode && <div className="absolute top-0 left-0 right-0 bg-amber-50 text-amber-800 text-[10px] py-1 text-center font-bold border-b border-amber-200 z-10">MOD SUNTINGAN AKTIF - Anda boleh tambah atau padam nama jawatan</div>}
-                        
-                        <div className="overflow-y-auto flex-1 p-6">
-                            {loading ? (
-                                <div className="flex justify-center items-center h-full text-slate-400"><Loader2 className="w-8 h-8 animate-spin"/></div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                                    {(taskStructure[activeTab] || []).map((task, idx) => {
-                                        const docId = `${activeTab}_${task.replace(/[^a-zA-Z0-9]/g, '_')}`;
-                                        const assignedData = assignments[docId] || {};
-                                        return (
-                                            <div key={idx} className="flex flex-col gap-1 border-b border-slate-100 pb-3 last:border-0 group">
-                                                <div className="flex justify-between items-center">
-                                                    <label className={`text-sm font-bold ${editMode ? 'text-indigo-700' : 'text-slate-700'}`}>{task}</label>
-                                                    {editMode && (
-                                                        <button onClick={() => openDeleteModal(task)} className="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50" title="Padam Jawatan Ini"><Trash2 className="w-4 h-4"/></button>
-                                                    )}
-                                                </div>
-                                                {!editMode && (
-                                                    <div className="relative">
-                                                        <select className="w-full p-2 border border-slate-200 rounded-lg text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-100 transition-all cursor-pointer hover:bg-white appearance-none" value={assignedData.teacherId || ""} onChange={(e) => handleAssign(activeTab, task, e.target.value)} disabled={!canEdit}>
-                                                            <option value="">-- Belum Dilantik --</option>
-                                                            {teachers.map(t => (<option key={t.id} value={t.id}>{t.name}</option>))}
-                                                        </select>
-                                                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400"><ChevronRight className="w-4 h-4 rotate-90"/></div>
-                                                    </div>
-                                                )}
-                                                {!editMode && assignedData.updatedAt && (<span className="text-[10px] text-slate-400 text-right italic">Dikemaskini: {new Date(assignedData.updatedAt).toLocaleDateString()}</span>)}
-                                            </div>
-                                        );
-                                    })}
-                                    {editMode && (
-                                        <button onClick={openAddModal} className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-indigo-200 rounded-xl text-indigo-500 font-bold hover:bg-indigo-50 hover:border-indigo-300 transition-all"><Plus className="w-5 h-5"/> Tambah Jawatan Baru</button>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* MODAL TAMBAH JAWATAN */}
-                    {showAddModal && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
-                            <div className="bg-white p-6 rounded-xl w-96 shadow-2xl">
-                                <h3 className="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2"><Plus className="w-5 h-5 text-indigo-600"/> Tambah Jawatan Baru</h3>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-xs font-bold uppercase text-slate-500 mb-1 block">Nama Jawatan</label>
-                                        <input 
-                                            autoFocus
-                                            className="w-full border border-slate-300 p-2.5 rounded-lg text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                            placeholder="Contoh: Penyelaras Bilik Khas"
-                                            value={newTaskName}
-                                            onChange={e => setNewTaskName(e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="bg-indigo-50 p-3 rounded-lg text-xs text-indigo-700">
-                                        Jawatan ini akan ditambah ke dalam kategori <b>{categories.find(c => c.id === activeTab)?.label}</b>.
-                                    </div>
-                                </div>
-                                <div className="flex justify-end gap-2 mt-6">
-                                    <button onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-100">Batal</button>
-                                    <button onClick={confirmAddTask} className="px-4 py-2 rounded-lg text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 shadow-md">Simpan</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* MODAL PADAM JAWATAN */}
-                    {showDeleteModal && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
-                            <div className="bg-white p-6 rounded-xl w-96 shadow-2xl">
-                                <h3 className="font-bold text-lg mb-2 text-red-600 flex items-center gap-2"><AlertTriangle className="w-5 h-5"/> Padam Jawatan?</h3>
-                                <p className="text-slate-600 mb-6 text-sm">Adakah anda pasti mahu memadam jawatan <b>"{taskToDelete}"</b>? Data lantikan guru untuk jawatan ini (jika ada) akan kekal dalam sejarah tetapi jawatan ini akan hilang dari senarai.</p>
-                                <div className="flex justify-end gap-2">
-                                    <button onClick={() => setShowDeleteModal(false)} className="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-100">Batal</button>
-                                    <button onClick={confirmDeleteTask} className="px-4 py-2 rounded-lg text-sm font-bold bg-red-600 text-white hover:bg-red-700 shadow-md">Ya, Padam</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    {showAddModal && <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-white p-6 rounded-xl w-96 shadow-2xl"><h3 className="font-bold text-lg mb-4">Tambah Jawatan</h3><input autoFocus className="w-full border p-2 rounded" placeholder="Nama Jawatan" value={newTaskName} onChange={e=>setNewTaskName(e.target.value)}/><div className="flex justify-end gap-2 mt-4"><button onClick={()=>setShowAddModal(false)} className="px-4 py-2 rounded text-slate-600">Batal</button><button onClick={confirmAddTask} className="px-4 py-2 rounded bg-indigo-600 text-white">Simpan</button></div></div></div>}
+                    {showDeleteModal && <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-white p-6 rounded-xl w-96 shadow-2xl"><h3 className="font-bold text-lg mb-2 text-red-600">Padam Jawatan?</h3><p className="text-slate-600 mb-4 text-sm">Adakah anda pasti mahu memadam <b>"{taskToDelete}"</b>?</p><div className="flex justify-end gap-2"><button onClick={()=>setShowDeleteModal(false)} className="px-4 py-2 rounded text-slate-600">Batal</button><button onClick={confirmDeleteTask} className="px-4 py-2 rounded bg-red-600 text-white">Padam</button></div></div></div>}
                 </div>
             );
         }
 
-        // --- WEEKLY REPORT MANAGER ---
+        // --- 6. WEEKLY REPORT MANAGER ---
         function WeeklyReportManager({ userData, reports, teachers, currentUid }) {
             const [mode, setMode] = useState('list'); 
             const [formData, setFormData] = useState(null);
@@ -478,286 +395,174 @@
                 "Semua murid bersurai dalam keadaan baik."
             ];
             
-            const initialForm = {
-                week: '', date: new Date().toISOString().split('T')[0], day: '',
-                teachersOnDuty: [{ name: userData.name, note: 'Hadir' }], 
-                teachersAbsent: [],
-                activities: '',
-                attendance: { d1: '', d2: '', d3: '', d4: '', d5: '', d6: '', pk: '', pra: '' },
-                checks: {
-                    kantin: { level: 'Baik', comment: '' },
-                    makanan: { level: 'Baik', comment: '' },
-                    sekolah: { level: 'Baik', comment: '' },
-                    tandas: { level: 'Baik', comment: '' }
-                },
-                health: '', other: '',
-                preparedBy: userData.name,
-                verifiedBy: '', verifiedAt: null, verifiedId: null 
-            };
-
-            const groupedReports = reports.reduce((acc, r) => {
-                const w = r.week ? r.week.toString() : 'Lain-lain';
-                if (!acc[w]) acc[w] = [];
-                acc[w].push(r);
-                return acc;
-            }, {});
-
-            const sortedWeeks = Object.keys(groupedReports).sort((a, b) => {
-                if(a === 'Lain-lain') return 1;
-                if(b === 'Lain-lain') return -1;
-                return parseInt(b) - parseInt(a);
-            });
-
-            const toggleWeek = (weekNum) => {
-                setExpandedWeeks(prev => ({...prev, [weekNum]: !prev[weekNum]}));
-            };
-
-            const handleAddNew = () => { setFormData(initialForm); setMode('form'); };
-
-            const handleDuplicate = (originalReport) => {
-                const { id, createdAt, createdBy, verifiedBy, verifiedAt, verifiedId, ...cleanData } = originalReport;
-                const newData = {
-                    ...cleanData,
-                    date: new Date().toISOString().split('T')[0],
-                    preparedBy: userData.name
-                };
-                setFormData(newData);
-                setMode('form');
-                alert("Laporan disalin. Sila kemaskini Tarikh dan Hari sebelum simpan.");
-            };
-
+            const initialForm = { week: '', date: new Date().toISOString().split('T')[0], day: '', teachersOnDuty: [{ name: userData.name, note: 'Hadir' }], teachersAbsent: [], activities: '', attendance: { d1: '', d2: '', d3: '', d4: '', d5: '', d6: '', pk: '', pra: '' }, checks: { kantin: { level: 'Baik', comment: '' }, makanan: { level: 'Baik', comment: '' }, sekolah: { level: 'Baik', comment: '' }, tandas: { level: 'Baik', comment: '' } }, health: '', other: '', preparedBy: userData.name, verifiedBy: '', verifiedAt: null, verifiedId: null };
+            
+            const groupedReports = reports.reduce((acc, r) => { const w = r.week ? r.week.toString() : 'Lain-lain'; if (!acc[w]) acc[w] = []; acc[w].push(r); return acc; }, {});
+            const sortedWeeks = Object.keys(groupedReports).sort((a, b) => (a === 'Lain-lain' ? 1 : b === 'Lain-lain' ? -1 : parseInt(b) - parseInt(a)));
+            const toggleWeek = (weekNum) => { setExpandedWeeks(prev => ({...prev, [weekNum]: !prev[weekNum]})); };
+            
             const handleSave = async () => {
                 if(!formData.week || !formData.date) return alert("Sila isi Minggu dan Tarikh.");
                 const dataToSave = { ...formData, teachersAbsent: formData.teachersAbsent || [] };
-                
-                if (formData.id) {
-                    await updateDoc(doc(db, 'portal_reports', formData.id), { ...dataToSave, updatedAt: new Date().toISOString() });
-                    alert("Laporan dikemaskini.");
-                } else {
-                    await addDoc(collection(db, 'portal_reports'), { ...dataToSave, createdBy: currentUid, createdAt: new Date().toISOString() });
-                    alert("Laporan disimpan!");
-                }
-                setMode('list');
+                if (formData.id) await updateDoc(doc(db, 'portal_reports', formData.id), { ...dataToSave, updatedAt: new Date().toISOString() });
+                else await addDoc(collection(db, 'portal_reports'), { ...dataToSave, createdBy: currentUid, createdAt: new Date().toISOString() });
+                alert("Disimpan!"); setMode('list');
             };
 
             const handleVerify = async () => {
-                if(confirm("Sahkan laporan ini sebagai Pentadbir?")) {
-                    const verifierName = userData.name || userData.email || "Pentadbir";
-                    const verifiedData = { verifiedBy: verifierName, verifiedAt: new Date().toISOString(), verifiedId: currentUid };
-                    setFormData(prev => ({ ...prev, ...verifiedData }));
-                    if (formData.id) {
-                        try {
-                            await updateDoc(doc(db, 'portal_reports', formData.id), verifiedData);
-                            alert("Laporan telah disahkan oleh " + verifierName + ".");
-                        } catch (e) {
-                            console.error("Ralat pengesahan:", e);
-                            alert("Ralat sistem: Gagal mengemaskini status pengesahan.");
-                        }
-                    } else {
-                        alert("Status disahkan. Sila tekan butang 'Simpan Laporan' untuk merekodkan data baru ini.");
-                    }
+                if(confirm("Sahkan?")) {
+                    const vData = { verifiedBy: userData.name || userData.email || "Pentadbir", verifiedAt: new Date().toISOString(), verifiedId: currentUid };
+                    setFormData(prev => ({ ...prev, ...vData }));
+                    if (formData.id) await updateDoc(doc(db, 'portal_reports', formData.id), vData);
+                    alert("Disahkan!");
                 }
             };
-
-            const requestDelete = (id, ownerId, e) => {
-                if(e) e.stopPropagation();
-                if(userData.role !== 'admin' && ownerId !== currentUid) return alert("Anda tiada hak memadam laporan ini.");
-                setReportToDelete(id);
-            };
-
-            const executeDeleteReport = async () => {
-                if (reportToDelete) {
-                    try {
-                        await deleteDoc(doc(db, 'portal_reports', reportToDelete));
-                        setReportToDelete(null); 
-                    } catch (error) {
-                        console.error("Gagal memadam:", error);
-                        alert("Ralat semasa memadam laporan.");
-                    }
-                }
-            };
-
-            const handlePrint = () => { window.print(); };
-
-            const insertSuggestion = (text) => {
-                setFormData(prev => ({ ...prev, activities: prev.activities ? prev.activities + '\n• ' + text : '• ' + text }));
-            };
+            
+            const executeDeleteReport = async () => { if (reportToDelete) { await deleteDoc(doc(db, 'portal_reports', reportToDelete)); setReportToDelete(null); } };
+            const insertSuggestion = (text) => { setFormData(prev => ({ ...prev, activities: prev.activities ? prev.activities + '\n• ' + text : '• ' + text })); };
 
             if(mode === 'list') return (
-                <div className="space-y-6 h-full flex flex-col relative">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><FileText className="w-6 h-6 text-indigo-600"/> Arkib Laporan Mingguan</h2>
-                        <button onClick={handleAddNew} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold shadow-md hover:bg-indigo-700 flex items-center gap-2"><Plus className="w-4 h-4"/> Laporan Baru</button>
-                    </div>
-                    
-                    <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-                        {sortedWeeks.length === 0 ? (
-                            <div className="p-12 text-center border-2 border-dashed border-slate-200 rounded-xl text-slate-400">
-                                <p className="mb-2">Tiada laporan direkodkan.</p>
-                                <button onClick={handleAddNew} className="text-indigo-600 font-bold hover:underline">Buat Laporan Pertama</button>
-                            </div>
-                        ) : (
-                            sortedWeeks.map(weekNum => {
-                                const weekReports = groupedReports[weekNum];
-                                const isOpen = expandedWeeks[weekNum];
-                                return (
-                                    <div key={weekNum} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden transition-all">
-                                        <div onClick={() => toggleWeek(weekNum)} className={`p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition-colors ${isOpen ? 'bg-indigo-50/50 border-b border-indigo-100' : ''}`}>
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-sm ${isOpen ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{weekNum === 'Lain-lain' ? '?' : weekNum}</div>
-                                                <div><h3 className={`font-bold text-lg ${isOpen ? 'text-indigo-900' : 'text-slate-700'}`}>Minggu {weekNum === 'Lain-lain' ? 'Umum' : weekNum}</h3><p className="text-xs text-slate-500 font-medium">{weekReports.length} Laporan Harian</p></div>
-                                            </div>
-                                            <ChevronRight className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`}/>
-                                        </div>
-                                        {isOpen && (
-                                            <div className="bg-slate-50/50 divide-y divide-slate-100 animate-fade-in">
-                                                 <div className="grid grid-cols-12 px-4 py-2 bg-slate-100/50 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                                                    <div className="col-span-2">Hari / Tarikh</div>
-                                                    <div className="col-span-4">Guru Bertugas</div>
-                                                    <div className="col-span-3">Status</div>
-                                                    <div className="col-span-3 text-right">Tindakan</div>
-                                                 </div>
-                                                {weekReports.map(r => (
-                                                    <div key={r.id} className="grid grid-cols-12 px-4 py-3 items-center hover:bg-white transition-colors text-sm border-l-4 border-transparent hover:border-indigo-500">
-                                                        <div className="col-span-2"><span className="block font-bold text-slate-700">{r.day || '-'}</span><span className="text-xs text-slate-500 font-mono">{new Date(r.date).toLocaleDateString('ms-MY')}</span></div>
-                                                        <div className="col-span-4 text-slate-600 text-xs line-clamp-2">{r.teachersOnDuty.map(t=>t.name).join(', ')}</div>
-                                                        <div className="col-span-3">{r.verifiedBy ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200"><CheckCircle className="w-3 h-3"/> Disahkan</span> : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold border border-amber-200"><Clock className="w-3 h-3"/> Pending</span>}</div>
-                                                        <div className="col-span-3 text-right flex justify-end gap-2">
-                                                            <button onClick={()=>handleDuplicate(r)} className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded" title="Salin"><ClipboardList className="w-4 h-4"/></button>
-                                                            <button onClick={()=>{setFormData({...initialForm, ...r}); setMode('form');}} className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded" title="Edit"><Edit3 className="w-4 h-4"/></button>
-                                                            {(userData.role === 'admin' || r.createdBy === currentUid) && (
-                                                                <button onClick={(e)=>requestDelete(r.id, r.createdBy, e)} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded" title="Padam"><Trash2 className="w-4 h-4"/></button>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-                    {reportToDelete && (
-                        <ConfirmModal title="Padam Laporan?" msg="Adakah anda pasti mahu memadam laporan ini? Tindakan ini tidak boleh diundur." onConfirm={executeDeleteReport} onCancel={() => setReportToDelete(null)} />
-                    )}
+                <div className="space-y-6 h-full flex flex-col relative"><div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><FileText className="w-6 h-6 text-indigo-600"/> Arkib Laporan</h2><button onClick={()=>{setFormData(initialForm);setMode('form');}} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold shadow-md flex items-center gap-2"><Plus className="w-4 h-4"/> Baru</button></div>
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-4">{sortedWeeks.map(wn => (<div key={wn} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden"><div onClick={()=>toggleWeek(wn)} className="p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50"><h3 className="font-bold text-lg text-slate-700">Minggu {wn}</h3><ChevronRight className={`w-5 h-5 transition ${expandedWeeks[wn]?'rotate-90':''}`}/></div>{expandedWeeks[wn] && <div className="bg-slate-50 divide-y divide-slate-100">{groupedReports[wn].map(r=>(<div key={r.id} className="grid grid-cols-12 px-4 py-3 items-center hover:bg-white text-sm"><div className="col-span-2 font-bold">{r.day}</div><div className="col-span-4 truncate">{r.teachersOnDuty.map(t=>t.name).join(', ')}</div><div className="col-span-3">{r.verifiedBy?<span className="text-emerald-600 font-bold flex items-center gap-1"><CheckCircle className="w-3 h-3"/> Disahkan</span>:<span className="text-amber-600 font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> Pending</span>}</div><div className="col-span-3 text-right flex gap-2 justify-end"><button onClick={()=>{setFormData({...initialForm,...r});setMode('form');}} className="text-blue-500"><Edit3 className="w-4 h-4"/></button>{(userData.role==='admin'||r.createdBy===currentUid)&&<button onClick={(e)=>{e.stopPropagation();setReportToDelete(r.id);}} className="text-red-500"><Trash2 className="w-4 h-4"/></button>}</div></div>))}</div>}</div>))}</div>
+                    {reportToDelete && <ConfirmModal title="Padam?" msg="Tiada undo." onConfirm={executeDeleteReport} onCancel={()=>setReportToDelete(null)}/>}
                 </div>
             );
 
             return (
                 <div className="max-w-4xl mx-auto space-y-6">
-                    <div className="flex justify-between items-center no-print sticky top-0 bg-[#F8FAFC] py-4 z-20 border-b border-slate-200">
-                        <button onClick={()=>setMode('list')} className="text-slate-500 hover:text-indigo-600 font-bold flex items-center gap-1 bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-sm"><ChevronLeft className="w-4 h-4"/> Kembali ke Senarai</button>
-                        <div className="flex gap-2">
-                             {(userData.role === 'pentadbir' || userData.role === 'admin') && !formData.verifiedBy && (
-                                <button onClick={handleVerify} className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-emerald-700 flex items-center gap-2 animate-pulse"><CheckCircle className="w-4 h-4"/> Sahkan</button>
-                             )}
-                            <button onClick={handlePrint} className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg font-bold hover:bg-slate-200 flex items-center gap-2"><Printer className="w-4 h-4"/> Cetak</button>
-                            <button onClick={handleSave} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg hover:bg-indigo-700 flex items-center gap-2"><Save className="w-4 h-4"/> Simpan Laporan</button>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-8 md:p-12 shadow-lg border border-slate-200 print-container" id="report-print">
-                        <div className="text-center border-b-2 border-slate-800 pb-4 mb-6">
-                            <h1 className="text-2xl font-bold uppercase tracking-wide">SK Masjid Tanah (Integ)</h1>
-                            <p className="text-sm text-slate-600">78300 Masjid Tanah, Melaka</p>
-                            <h2 className="text-xl font-bold mt-4 uppercase underline decoration-2 underline-offset-4">Laporan Harian Guru Bertugas</h2>
-                        </div>
-
+                    <div className="flex justify-between items-center no-print sticky top-0 bg-[#F8FAFC] py-4 z-20 border-b border-slate-200"><button onClick={()=>setMode('list')} className="text-slate-500 font-bold flex items-center gap-1"><ChevronLeft className="w-4 h-4"/> Kembali</button><div className="flex gap-2">{(userData.role==='pentadbir'||userData.role==='admin')&&!formData.verifiedBy&&<button onClick={handleVerify} className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold">Sahkan</button>}<button onClick={()=>window.print()} className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg font-bold">Cetak</button><button onClick={handleSave} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold">Simpan</button></div></div>
+                    <div className="bg-white p-8 md:p-12 shadow-lg border border-slate-200 print-container">
+                        <div className="text-center border-b-2 border-slate-800 pb-4 mb-6"><h1 className="text-2xl font-bold uppercase">SK Masjid Tanah (Integ)</h1><h2 className="text-xl font-bold mt-4 uppercase">Laporan Harian Guru Bertugas</h2></div>
                         <div className="grid grid-cols-3 gap-4 mb-6 border border-slate-300 p-4 rounded-lg bg-slate-50/50">
-                            <div><label className="text-xs font-bold uppercase text-slate-500 block mb-1">Hari</label><select className="w-full bg-transparent font-bold border-b border-slate-300 outline-none" value={formData.day} onChange={e=>setFormData({...formData, day:e.target.value})}><option value="">Pilih Hari</option><option>Isnin</option><option>Selasa</option><option>Rabu</option><option>Khamis</option><option>Jumaat</option></select></div>
-                            <div><label className="text-xs font-bold uppercase text-slate-500 block mb-1">Tarikh</label><input type="date" className="w-full bg-transparent font-bold border-b border-slate-300 outline-none" value={formData.date} onChange={e=>setFormData({...formData, date:e.target.value})}/></div>
-                            <div><label className="text-xs font-bold uppercase text-slate-500 block mb-1">Minggu</label><input type="number" className="w-full bg-transparent font-bold border-b border-slate-300 outline-none" placeholder="Contoh: 41" value={formData.week} onChange={e=>setFormData({...formData, week:e.target.value})}/></div>
+                             <div><label className="text-xs font-bold block mb-1">Hari</label><select className="w-full bg-transparent font-bold outline-none" value={formData.day} onChange={e=>setFormData({...formData, day:e.target.value})}><option value="">Pilih</option><option>Isnin</option><option>Selasa</option><option>Rabu</option><option>Khamis</option><option>Jumaat</option></select></div>
+                             <div><label className="text-xs font-bold block mb-1">Tarikh</label><input type="date" className="w-full bg-transparent font-bold outline-none" value={formData.date} onChange={e=>setFormData({...formData, date:e.target.value})}/></div>
+                             <div><label className="text-xs font-bold block mb-1">Minggu</label><input className="w-full bg-transparent font-bold outline-none" value={formData.week} onChange={e=>setFormData({...formData, week:e.target.value})}/></div>
                         </div>
-
-                        <div className="mb-6">
-                            <div className="flex justify-between items-center mb-2"><h3 className="font-bold text-sm uppercase bg-slate-100 px-2 py-1 inline-block">Guru Bertugas</h3><button onClick={()=>setFormData({...formData, teachersOnDuty: [...formData.teachersOnDuty, {name:'', note:''}]})} className="text-xs text-blue-600 hover:underline no-print">+ Tambah Guru</button></div>
-                            <table className="w-full text-sm border-collapse border border-slate-300 mb-6">
-                                <thead><tr className="bg-slate-100"><th className="border border-slate-300 p-2 w-10">Bil</th><th className="border border-slate-300 p-2">Nama Guru</th><th className="border border-slate-300 p-2 w-1/3">Catatan / Kawasan</th><th className="border border-slate-300 p-2 w-10 no-print"></th></tr></thead>
-                                <tbody>
-                                    {formData.teachersOnDuty.map((t, idx) => (
-                                        <tr key={idx}>
-                                            <td className="border border-slate-300 p-2 text-center">{idx+1}</td>
-                                            <td className="border border-slate-300 p-2"><select className="w-full outline-none bg-transparent" value={t.name} onChange={(e)=>{const newT = [...formData.teachersOnDuty]; newT[idx].name = e.target.value; setFormData({...formData, teachersOnDuty: newT});}}><option value="">Pilih Guru</option>{teachers.map(teacher => <option key={teacher.id} value={teacher.name}>{teacher.name}</option>)}</select></td>
-                                            <td className="border border-slate-300 p-2"><input className="w-full outline-none bg-transparent" placeholder="Pintu Pagar / Kantin / Dewan" value={t.note} onChange={(e)=>{const newT = [...formData.teachersOnDuty]; newT[idx].note = e.target.value; setFormData({...formData, teachersOnDuty: newT});}}/></td>
-                                            <td className="border border-slate-300 p-2 text-center no-print"><button onClick={()=>{const newT = formData.teachersOnDuty.filter((_, i) => i !== idx); setFormData({...formData, teachersOnDuty: newT});}} className="text-red-500 hover:bg-red-50 p-1 rounded"><X size={14}/></button></td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                            
-                            <div className="flex justify-between items-center mb-2 mt-4"><h3 className="font-bold text-sm uppercase bg-red-50 text-red-700 px-2 py-1 inline-block">Guru Tidak Hadir</h3><button onClick={()=>setFormData({...formData, teachersAbsent: [...(formData.teachersAbsent||[]), {name:'', note:''}]})} className="text-xs text-blue-600 hover:underline no-print">+ Tambah Guru Tidak Hadir</button></div>
-                            <table className="w-full text-sm border-collapse border border-slate-300">
-                                <thead><tr className="bg-red-50"><th className="border border-slate-300 p-2 w-10">Bil</th><th className="border border-slate-300 p-2">Nama Guru</th><th className="border border-slate-300 p-2 w-1/3">Sebab</th><th className="border border-slate-300 p-2 w-10 no-print"></th></tr></thead>
-                                <tbody>
-                                    {(formData.teachersAbsent || []).length === 0 ? <tr><td colSpan="4" className="border border-slate-300 p-2 text-center text-slate-400 italic">Tiada guru tidak hadir.</td></tr> : (formData.teachersAbsent || []).map((t, idx) => (
-                                        <tr key={idx}>
-                                            <td className="border border-slate-300 p-2 text-center">{idx+1}</td>
-                                            <td className="border border-slate-300 p-2"><select className="w-full outline-none bg-transparent" value={t.name} onChange={(e)=>{const newT = [...(formData.teachersAbsent||[])]; newT[idx].name = e.target.value; setFormData({...formData, teachersAbsent: newT});}}><option value="">Pilih Guru</option>{teachers.map(teacher => <option key={teacher.id} value={teacher.name}>{teacher.name}</option>)}</select></td>
-                                            <td className="border border-slate-300 p-2"><input className="w-full outline-none bg-transparent" placeholder="MC / CRK / Kursus" value={t.note} onChange={(e)=>{const newT = [...(formData.teachersAbsent||[])]; newT[idx].note = e.target.value; setFormData({...formData, teachersAbsent: newT});}}/></td>
-                                            <td className="border border-slate-300 p-2 text-center no-print"><button onClick={()=>{const newT = (formData.teachersAbsent||[]).filter((_, i) => i !== idx); setFormData({...formData, teachersAbsent: newT});}} className="text-red-500 hover:bg-red-50 p-1 rounded"><X size={14}/></button></td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div className="mb-6">
-                            <h3 className="font-bold text-sm uppercase bg-slate-100 px-2 py-1 inline-block mb-2">Aktiviti Harian / Laporan Perhimpunan</h3>
-                            <div className="mb-2 flex flex-wrap gap-1 no-print bg-indigo-50 p-2 rounded border border-indigo-100"><span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wide mr-2 self-center">Cadangan (Klik untuk masukkan):</span>{suggestions.map((text, i) => (<button key={i} onClick={() => insertSuggestion(text)} className="bg-white hover:bg-indigo-600 hover:text-white text-indigo-700 text-[10px] px-2 py-1 rounded border border-indigo-200 shadow-sm transition-colors">+ {text.split(' ').slice(0, 3).join(' ')}...</button>))}</div>
-                            <textarea className="w-full border border-slate-300 rounded p-3 text-sm h-32 resize-none focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="1. Murid masuk ke kelas dengan tertib..." value={formData.activities} onChange={e=>setFormData({...formData, activities:e.target.value})}></textarea>
-                        </div>
-
-                        <div className="mb-6">
-                            <h3 className="font-bold text-sm uppercase bg-slate-100 px-2 py-1 inline-block mb-2">Kehadiran Murid</h3>
-                            <div className="grid grid-cols-8 border border-slate-300 text-center text-sm">{['D1','D2','D3','D4','D5','D6','PK','PRA'].map(cls => (<div key={cls} className="border-r border-slate-300 last:border-r-0"><div className="bg-slate-100 font-bold p-1 border-b border-slate-300">{cls}</div><input className="w-full p-2 text-center outline-none" placeholder="0/0" value={formData.attendance[cls.toLowerCase()]} onChange={e=>setFormData({...formData, attendance: {...formData.attendance, [cls.toLowerCase()]: e.target.value}})}/></div>))}</div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-6 mb-6">
-                            {Object.entries({kantin:'Kantin Sekolah', makanan:'Kualiti Makanan', sekolah:'Persekitaran Sekolah', tandas:'Kebersihan Tandas'}).map(([key, label]) => (
-                                <div key={key} className="border border-slate-300 rounded p-3">
-                                    <h4 className="font-bold text-xs uppercase mb-2 text-slate-700">{label}</h4>
-                                    <select className="w-full border border-slate-300 rounded p-2 text-sm mb-2 outline-none bg-white focus:border-indigo-500" value={formData.checks[key].level} onChange={e=>setFormData({...formData, checks: {...formData.checks, [key]: {...formData.checks[key], level: e.target.value}}})}><option value="Cemerlang">Cemerlang</option><option value="Baik">Baik</option><option value="Sederhana">Sederhana</option><option value="Lemah">Lemah</option></select>
-                                    <input className="w-full text-xs border-b border-slate-200 outline-none py-1 italic text-slate-500" placeholder="Komen / Catatan..." value={formData.checks[key].comment} onChange={e=>setFormData({...formData, checks: {...formData.checks, [key]: {...formData.checks[key], comment: e.target.value}}})}/>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-6 mb-8">
-                            <div><h3 className="font-bold text-sm uppercase bg-slate-100 px-2 py-1 inline-block mb-2">Murid Ke Klinik / Sakit</h3><textarea className="w-full border border-slate-300 rounded p-2 text-sm h-20 resize-none outline-none" value={formData.health} onChange={e=>setFormData({...formData, health:e.target.value})} placeholder="Senarai nama murid..."></textarea></div>
-                            <div><h3 className="font-bold text-sm uppercase bg-slate-100 px-2 py-1 inline-block mb-2">Hal-hal Lain</h3><textarea className="w-full border border-slate-300 rounded p-2 text-sm h-20 resize-none outline-none" value={formData.other} onChange={e=>setFormData({...formData, other:e.target.value})} placeholder="Catatan tambahan..."></textarea></div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-12 mt-12 pt-4">
-                            <div className="text-center"><p className="text-sm font-bold border-b border-black mb-1 pb-1">{formData.preparedBy}</p><p className="text-xs text-slate-500 uppercase">Disediakan Oleh (Guru Bertugas)</p></div>
-                            <div className="text-center"><p className="text-sm font-bold border-b border-black mb-1 pb-1 text-slate-900 min-h-[20px]">{formData.verifiedBy || '.'}</p><p className="text-xs text-slate-500 uppercase">Disahkan Oleh (Pentadbir) {formData.verifiedAt && <span className="block text-[10px] normal-case mt-1 text-emerald-600">(Disahkan pada {new Date(formData.verifiedAt).toLocaleDateString()})</span>}</p></div>
-                        </div>
+                        <div className="mb-6"><h3 className="font-bold text-sm bg-slate-100 px-2 py-1 inline-block mb-2">Guru Bertugas</h3>{formData.teachersOnDuty.map((t,i)=>(<div key={i} className="flex gap-2 mb-2"><select className="flex-1 border p-1 rounded" value={t.name} onChange={e=>{const n=[...formData.teachersOnDuty];n[i].name=e.target.value;setFormData({...formData,teachersOnDuty:n});}}><option value="">Pilih Guru</option>{teachers.map(tc=><option key={tc.id} value={tc.name}>{tc.name}</option>)}</select><input className="flex-1 border p-1 rounded" placeholder="Catatan" value={t.note} onChange={e=>{const n=[...formData.teachersOnDuty];n[i].note=e.target.value;setFormData({...formData,teachersOnDuty:n});}}/></div>))}<button onClick={()=>setFormData({...formData,teachersOnDuty:[...formData.teachersOnDuty,{name:'',note:''}]})} className="text-xs text-blue-600 font-bold">+ Tambah</button></div>
+                        <div className="mb-6"><h3 className="font-bold text-sm bg-slate-100 px-2 py-1 inline-block mb-2">Aktiviti</h3><div className="mb-2 flex flex-wrap gap-1 no-print">{suggestions.map((t,i)=>(<button key={i} onClick={()=>insertSuggestion(t)} className="bg-indigo-50 text-indigo-700 text-[10px] px-2 py-1 rounded hover:bg-indigo-100 border border-indigo-200">+ {t.substring(0,15)}...</button>))}</div><textarea className="w-full border p-2 h-32 rounded" value={formData.activities} onChange={e=>setFormData({...formData,activities:e.target.value})}></textarea></div>
+                        <div className="grid grid-cols-2 gap-12 mt-12 pt-4"><div className="text-center"><p className="font-bold border-b border-black pb-1">{formData.preparedBy}</p><p className="text-xs">Disediakan Oleh</p></div><div className="text-center"><p className="font-bold border-b border-black pb-1">{formData.verifiedBy||'.'}</p><p className="text-xs">Disahkan Oleh</p></div></div>
                     </div>
                 </div>
             );
         }
 
-        // --- COMPONENTS ---
+        // --- 7. TAKWIM MANAGER ---
+        function TakwimManager({ canEdit, role, currentUid }) {
+            const [view, setView] = useState('month'); const [date, setDate] = useState(new Date(2026, 0, 1)); const [events, setEvents] = useState([]); const [selectedDate, setSelectedDate] = useState(null); const [newEvent, setNewEvent] = useState({ title: '', unit: '' });
+            useEffect(() => { const unsub = onSnapshot(query(collection(db, 'portal_events')), s => { setEvents(s.docs.map(d => ({ id: d.id, ...d.data() }))); }); return () => unsub(); }, []);
+            const allEvents = [...KPM_EVENTS, ...events];
+            const handleCellClick = (d) => { if (canEdit) { setSelectedDate(d); setNewEvent({ title: '', unit: '' }); } };
+            const addEvent = async () => { if(!newEvent.title) return alert("Sila isi nama program."); const dateStr = selectedDate.toISOString().split('T')[0]; await addDoc(collection(db, 'portal_events'), { title: newEvent.title, unit: newEvent.unit, start: dateStr, end: dateStr, type: 'event', createdBy: currentUid }); setSelectedDate(null); };
+            const deleteEvent = async (id, e) => { e.stopPropagation(); if(confirm("Padam aktiviti ini?")) await deleteDoc(doc(db, 'portal_events', id)); }
+            const getEventForDate = (d) => { const dStr = d.toISOString().split('T')[0]; return allEvents.filter(e => dStr >= e.start && dStr <= (e.end || e.start)); };
+            const renderMonth = (targetDate) => { const year = targetDate.getFullYear(); const month = targetDate.getMonth(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const firstDay = new Date(year, month, 1).getDay(); const blanks = Array(firstDay).fill(null); const days = Array.from({length: daysInMonth}, (_, i) => i + 1); return (<div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><div className="flex justify-between mb-4 items-center"><button onClick={()=>setDate(new Date(year, month-1, 1))}><ChevronLeft/></button><h3 className="font-bold text-lg uppercase text-slate-700">{targetDate.toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' })}</h3><button onClick={()=>setDate(new Date(year, month+1, 1))}><ChevronRight/></button></div><div className="grid grid-cols-7 gap-1 mb-2 text-center text-xs font-bold text-slate-400">{['A','I','S','R','K','J','S'].map(d=><div key={d}>{d}</div>)}</div><div className="grid grid-cols-7 gap-1">{blanks.map((_,i)=><div key={i}></div>)}{days.map(d => { const currentDay = new Date(year, month, d); const dailyEvents = getEventForDate(currentDay); const isSchool = dailyEvents.some(e => e.type === 'school'); const bgClass = isSchool ? 'bg-emerald-50' : 'bg-white hover:bg-slate-50'; return (<div key={d} onClick={() => handleCellClick(currentDay)} className={`min-h-[80px] border border-slate-100 rounded p-1 text-xs relative cursor-pointer transition-colors ${bgClass}`}><span className={`font-bold block mb-1 ${isSchool ? 'text-emerald-700' : 'text-slate-700'}`}>{d}</span><div className="space-y-1">{dailyEvents.map((ev, idx) => { if (ev.type === 'school') return null; const isHoliday = ev.type === 'holiday'; const canDelete = ev.type === 'event' && (role === 'admin' || ev.createdBy === currentUid); return (<div key={idx} className={`p-1 rounded text-[10px] leading-tight group relative ${isHoliday ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>{ev.title}{canDelete && (<button onClick={(e)=>deleteEvent(ev.id, e)} className="hidden group-hover:block absolute top-0 right-0 bg-red-500 text-white rounded-full p-0.5"><X size={8}/></button>)}</div>) })}</div></div>) })}</div></div>) };
+            return (<div className="space-y-6"><div className="flex justify-between items-center"><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><CalendarDays className="w-6 h-6 text-indigo-600"/> Takwim Sekolah</h3></div>{renderMonth(date)}<div className="flex gap-4 text-xs font-medium justify-center text-slate-600"><span className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-50 border border-emerald-200 rounded"></div> Sesi Sekolah</span><span className="flex items-center gap-2"><div className="w-3 h-3 bg-yellow-100 border border-yellow-200 rounded"></div> Cuti</span><span className="flex items-center gap-2"><div className="w-3 h-3 bg-blue-100 border border-blue-200 rounded"></div> Aktiviti</span></div>{selectedDate && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in"><div className="bg-white p-6 rounded-xl w-80 shadow-2xl"><h3 className="font-bold text-lg mb-4 text-slate-800">Tambah Aktiviti</h3><p className="text-xs text-slate-500 mb-4 font-mono">{selectedDate.toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p><div className="space-y-3"><div><label className="lbl">Nama Program</label><input autoFocus className="inp w-full" value={newEvent.title} onChange={e=>setNewEvent({...newEvent, title:e.target.value})} placeholder="Contoh: Mesyuarat Guru"/></div><div><label className="lbl">Unit / Panitia</label><input className="inp w-full" value={newEvent.unit} onChange={e=>setNewEvent({...newEvent, unit:e.target.value})} placeholder="Contoh: Kurikulum"/></div></div><div className="flex justify-end gap-2 mt-6"><button onClick={()=>setSelectedDate(null)} className="px-4 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-100">Batal</button><button onClick={addEvent} className="px-4 py-2 rounded text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700">Simpan</button></div></div></div>)}</div>)
+        }
 
-        function LoginScreen({ onGoogleLogin, onDemoLogin }) {
+        // --- 8. OTHER COMPONENTS (AppBuilder, AppGallery, DataTable, Shared) ---
+        
+        function AppBuilder({ apps }) {
+          const [form, setForm] = useState({ title: '', desc: '', iconKey: 'portal', category: 'umum', type: 'link', content: '' });
+          const [confirmDel, setConfirmDel] = useState(null);
+          const handleSave = async () => { if(!form.title) return; await addDoc(collection(db, 'portal_apps'), form); setForm({...form, title:''}); alert("Disimpan!"); };
+          const executeDelete = async () => { if(confirmDel) { await deleteDoc(doc(db, 'portal_apps', confirmDel)); setConfirmDel(null); } };
+          return (<div className="grid lg:grid-cols-12 gap-8"><div className="lg:col-span-8 bg-white rounded-xl border border-slate-200 p-6"><h3 className="font-bold mb-4">Bina App</h3><div className="space-y-4"><input className="inp" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} placeholder="Tajuk"/><textarea className="inp h-20" value={form.desc} onChange={e=>setForm({...form, desc:e.target.value})} placeholder="Deskripsi"/><div className="flex gap-2"><button onClick={()=>setForm({...form, type:'link'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='link'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>Link</button><button onClick={()=>setForm({...form, type:'html'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='html'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>HTML</button></div>{form.type==='link'?<input className="inp" value={form.content} onChange={e=>setForm({...form, content:e.target.value})} placeholder="URL..."/>:<textarea className="inp h-40 font-mono text-xs bg-slate-900 text-green-400" value={form.content} onChange={e=>setForm({...form, content:e.target.value})} placeholder="HTML Code..."/>}<div className="flex gap-3 overflow-x-auto pb-4 pt-1">{Object.entries(ALL_ICONS).map(([k, d]) => (<button key={k} onClick={() => setForm({...form, iconKey: k})} className={`p-3 rounded-xl border transition-all flex-shrink-0 ${form.iconKey === k ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`} title={k}><d.i className={`w-6 h-6 ${d.color}`}/></button>))}</div><button onClick={handleSave} className="bg-indigo-600 text-white w-full py-2 rounded-lg font-bold">Terbitkan</button></div></div><div className="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-4"><h3 className="font-bold text-sm mb-4">Senarai</h3>{apps.map(a=>(<div key={a.id} className="flex justify-between items-center p-2 hover:bg-slate-50 border-b border-slate-100 last:border-0"><span className="text-sm font-bold truncate w-40">{a.title}</span><button onClick={()=>setConfirmDel(a.id)} className="text-red-500"><Trash2 className="w-4 h-4"/></button></div>))}</div>{confirmDel && <ConfirmModal title="Padam?" msg="Tiada undo." onConfirm={executeDelete} onCancel={()=>setConfirmDel(null)}/>}</div>);
+        }
+
+        function AppGallery({ apps }) {
+          const [sel, setSel] = useState(null);
+          if(sel) return (<div className="h-[80vh] bg-white rounded-xl border border-slate-200 flex flex-col"><div className="p-4 border-b flex justify-between"><button onClick={()=>setSel(null)} className="flex items-center gap-1 font-bold text-slate-600"><ChevronRight className="rotate-180 w-4 h-4"/> Kembali</button><h3 className="font-bold">{sel.title}</h3>{sel.type==='link' && <a href={sel.content} target="_blank" className="text-blue-600 text-xs font-bold flex items-center gap-1">Tab Baru <ExternalLink className="w-3 h-3"/></a>}</div><div className="flex-1 relative bg-white">{sel.type === 'html' ? <iframe srcDoc={sel.content} className="w-full h-full border-none" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"/> : <iframe src={sel.content} className="w-full h-full border-none"/>}</div></div>);
+          return (<div className="grid grid-cols-2 md:grid-cols-4 gap-4">{apps.map(a=>(<div key={a.id} onClick={()=>setSel(a)} className="bg-white p-4 rounded-xl border hover:shadow-md cursor-pointer flex flex-col h-40 justify-between"><div className="flex justify-between"><div className={`p-2 rounded-lg ${ALL_ICONS[a.iconKey]?.bg || 'bg-slate-100'}`}>{React.createElement(ALL_ICONS[a.iconKey]?.i || Globe, { className: `w-6 h-6 ${ALL_ICONS[a.iconKey]?.color || 'text-slate-600'}` })}</div></div><div><h4 className="font-bold truncate">{a.title}</h4><p className="text-xs text-slate-500 line-clamp-2">{a.desc}</p></div></div>))}</div>);
+        }
+
+        function DataTable({ type, data, currentUserRole }) {
+          const isReadOnly = currentUserRole === 'pentadbir';
+          const [newRec, setNewRec] = useState({});
+          const [csvFile, setCsvFile] = useState(null);
+          const [uploading, setUploading] = useState(false);
+          const [editingId, setEditingId] = useState(null);
+          const [selectedIds, setSelectedIds] = useState([]);
+          const col = type === 'student' ? 'portal_students' : 'portal_teachers';
+
+          const save = async (e) => { 
+              e.preventDefault(); if (isReadOnly) return alert("Tiada akses.");
+              if(newRec.name) {
+                  const payload = { ...newRec };
+                  if (type === 'teacher') { payload.role = payload.role || 'guru'; payload.position = payload.position || 'GAB'; } else { payload.class = payload.class || 'Umum'; }
+                  try {
+                      if (editingId) { await updateDoc(doc(db, col, editingId), { ...payload, updatedAt: new Date().toISOString() }); alert("Dikemaskini."); setEditingId(null); } 
+                      else { await addDoc(collection(db, col), { ...payload, createdAt: new Date().toISOString() }); alert("Disimpan."); }
+                      setNewRec({}); 
+                  } catch(e) { console.error(e); alert("Ralat."); }
+              } 
+          };
+
+          const del = async (id) => { if (isReadOnly) return; if(confirm("Padam?")) await deleteDoc(doc(db, col, id)); };
+          const handleBulkDelete = async () => { if (isReadOnly) return; if (selectedIds.length === 0) return; if (confirm(`Padam ${selectedIds.length} rekod?`)) { try { const batch = writeBatch(db); selectedIds.forEach(id => { const ref = doc(db, col, id); batch.delete(ref); }); await batch.commit(); setSelectedIds([]); alert("Berjaya."); } catch(e) { console.error(e); alert("Gagal."); } } };
+          const toggleSelectAll = () => { if (isReadOnly) return; if (selectedIds.length === data.length) setSelectedIds([]); else setSelectedIds(data.map(d => d.id)); };
+          const toggleSelect = (id) => { if (isReadOnly) return; if (selectedIds.includes(id)) setSelectedIds(prev => prev.filter(i => i !== id)); else setSelectedIds(prev => [...prev, id]); };
+          const startEdit = (rec) => { if (isReadOnly) return; setNewRec(rec); setEditingId(rec.id); };
+          const cancelEdit = () => { setNewRec({}); setEditingId(null); };
+
+          const handleCsvUpload = async () => {
+              if (isReadOnly) return alert("Tiada akses.");
+              if (!csvFile) return alert("Pilih fail CSV.");
+              setUploading(true);
+              const reader = new FileReader();
+              reader.onload = async (e) => {
+                  try {
+                      const text = e.target.result; const lines = text.split('\n'); const batch = writeBatch(db); let count = 0;
+                      lines.forEach((line, index) => {
+                          if (index === 0 || !line.trim()) return; 
+                          const cols = line.split(',').map(c => c.trim());
+                          if (cols.length < 2) return; 
+                          const ref = doc(collection(db, col)); let data = {};
+                          if (type === 'teacher') {
+                              const name = cols[0]; const email = cols[1]; const roleRaw = cols[2] ? cols[2].toLowerCase() : 'guru'; const position = cols[3] || 'GAB';
+                              if (!name || !email) return;
+                              let sysRole = 'guru'; if (roleRaw.includes('admin')) sysRole = 'admin'; else if (roleRaw.includes('pentadbir')) sysRole = 'pentadbir';
+                              data = { name, email, role: sysRole, position, createdAt: new Date().toISOString() };
+                          } else {
+                              const name = cols[0]; const className = cols[1] || 'Umum'; if (!name) return;
+                              data = { name, class: className, createdAt: new Date().toISOString() };
+                          }
+                          batch.set(ref, data); count++;
+                      });
+                      if (count > 0) { await batch.commit(); alert(`${count} rekod dimuat naik!`); setCsvFile(null); document.getElementById('csvInput').value = ""; } else { alert("Tiada data sah."); }
+                  } catch (err) { console.error(err); alert("Ralat."); }
+                  setUploading(false);
+              };
+              reader.readAsText(csvFile);
+          };
+
           return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 animate-fade-in">
-                 <div className="max-w-md w-full bg-white p-10 rounded-2xl shadow-xl border border-slate-100 text-center">
-                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-100">
-                        <img src="https://i.postimg.cc/k4N1mPR1/semat-04.png" alt="Logo Sekolah" className="w-14 h-14 object-contain"/>
+            <div className="grid lg:grid-cols-12 gap-8 h-[calc(100vh-100px)]">
+                {!isReadOnly && (
+                <div className="lg:col-span-4 space-y-6 overflow-y-auto pr-2">
+                    <div className={`bg-white p-6 rounded-xl border shadow-sm transition-colors ${editingId ? 'border-amber-300 bg-amber-50' : 'border-slate-200'}`}>
+                        <h3 className={`font-bold mb-4 flex items-center gap-2 ${editingId ? 'text-amber-700' : 'text-slate-800'}`}>{editingId ? <Edit3 className="w-5 h-5"/> : <Plus className="w-5 h-5 text-indigo-600"/>} {editingId ? 'Kemaskini Data' : `Daftar ${type === 'teacher' ? 'Guru' : 'Murid'} Baru`}</h3>
+                        <form onSubmit={save} className="space-y-3">
+                            <div><label className="lbl">Nama Penuh</label><input className="inp" required value={newRec.name||''} onChange={e=>setNewRec({...newRec, name:e.target.value})} placeholder="Contoh: Ali bin Abu"/></div>
+                            {type === 'student' ? (<div><label className="lbl">Kelas</label><input className="inp" required value={newRec.class||''} onChange={e=>setNewRec({...newRec, class:e.target.value})} placeholder="Contoh: 6 Cerdik"/></div>) : (<><div><label className="lbl">Alamat Emel</label><input className="inp" type="email" required value={newRec.email||''} onChange={e=>setNewRec({...newRec, email:e.target.value})} placeholder="nama@sekolah.edu.my"/></div><div className="grid grid-cols-2 gap-2"><div><label className="lbl">Akses Sistem</label><select className="inp" value={newRec.role||'guru'} onChange={e=>setNewRec({...newRec, role:e.target.value})}><option value="guru">Guru Biasa</option><option value="pentadbir">Pentadbir (Semakan)</option><option value="admin">Admin Sistem</option></select></div><div><label className="lbl">Jawatan</label><select className="inp" value={newRec.position||'GAB'} onChange={e=>setNewRec({...newRec, position:e.target.value})}><option value="GAB">GAB</option><option value="GB">Guru Besar</option><option value="GPK">GPK</option><option value="Kaunselor">Kaunselor</option></select></div></div></>)}
+                            <div className="flex gap-2 mt-4">{editingId && (<button type="button" onClick={cancelEdit} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-2.5 rounded-lg font-bold transition-all">Batal</button>)}<button type="submit" className={`flex-1 text-white py-2.5 rounded-lg font-bold shadow-md transition-all flex justify-center items-center gap-2 ${editingId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}><Save className="w-4 h-4"/> {editingId ? 'Kemaskini' : 'Simpan'}</button></div>
+                        </form>
                     </div>
-                    <h2 className="text-2xl font-bold text-slate-800 mb-1">SkolaHub</h2>
-                    <p className="text-slate-500 mb-8 font-medium">SK Masjid Tanah (Integ)</p>
-                    <button onClick={onGoogleLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all group shadow-sm mb-6">
-                       <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6" alt="Google" />
-                       <span className="font-bold text-slate-700">Log Masuk Google</span>
-                    </button>
-                    <div className="text-xs text-slate-400 mt-6">
-                        Sistem Pengurusan Sekolah Digital v2.0
+                    {!editingId && (<div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden"><div className="absolute top-0 right-0 p-2 opacity-10"><FileSpreadsheet className="w-24 h-24 text-green-600"/></div><h3 className="font-bold mb-2 flex items-center gap-2 text-slate-800"><FileSpreadsheet className="w-5 h-5 text-green-600"/> Import CSV (Pukal)</h3><div className="space-y-3"><input id="csvInput" type="file" accept=".csv" onChange={(e) => setCsvFile(e.target.files[0])} className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer bg-slate-50 rounded-lg border border-slate-200"/><button onClick={handleCsvUpload} disabled={uploading || !csvFile} className={`w-full py-2.5 rounded-lg font-bold flex justify-center items-center gap-2 transition-all text-sm ${uploading || !csvFile ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white shadow-md'}`}>{uploading ? <Loader2 className="w-4 h-4 animate-spin"/> : <FileSpreadsheet className="w-4 h-4"/>} {uploading ? 'Sedang Memproses...' : 'Muat Naik CSV'}</button></div></div>)}
+                </div>
+                )}
+                <div className={`${isReadOnly ? 'col-span-12' : 'lg:col-span-8'} bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full`}>
+                    <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center shrink-0"><div className="flex items-center gap-4"><div><h3 className="font-bold text-slate-800 text-lg">Senarai {type === 'teacher' ? 'Guru' : 'Murid'}</h3><p className="text-xs text-slate-500">Jumlah: <b>{data.length}</b> rekod berdaftar</p></div>{!isReadOnly && selectedIds.length > 0 && (<button onClick={handleBulkDelete} className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-red-100 transition animate-fade-in border border-red-200"><Trash2 className="w-3 h-3"/> Padam {selectedIds.length} Terpilih</button>)}</div></div>
+                    <div className="overflow-y-auto flex-1">
+                        <table className="w-full text-left text-sm"><thead className="bg-white text-slate-500 uppercase text-[10px] font-bold sticky top-0 z-10 shadow-sm"><tr><th className="p-4 bg-slate-50 border-b w-10 text-center">{!isReadOnly && <button onClick={toggleSelectAll} className="text-slate-400 hover:text-indigo-600">{selectedIds.length > 0 && selectedIds.length === data.length ? <CheckSquare className="w-4 h-4 text-indigo-600"/> : <Square className="w-4 h-4"/>}</button>}</th><th className="p-4 bg-slate-50 border-b w-10">Bil</th><th className="p-4 bg-slate-50 border-b">Nama</th>{type === 'teacher' && <th className="p-4 bg-slate-50 border-b">Jawatan</th>}<th className="p-4 bg-slate-50 border-b">Info / Hubungan</th>{!isReadOnly && <th className="p-4 bg-slate-50 border-b text-right">Tindakan</th>}</tr></thead><tbody className="divide-y divide-slate-50">{data.length === 0 ? (<tr><td colSpan="6" className="p-12 text-center text-slate-400 italic bg-slate-50/50"><div className="flex flex-col items-center gap-2"><div className="p-3 bg-slate-100 rounded-full"><Search className="w-6 h-6 text-slate-300"/></div><span>Tiada data direkodkan.</span></div></td></tr>) : (data.map((d, idx)=>(<tr key={d.id} className={`hover:bg-indigo-50/30 group transition-colors ${selectedIds.includes(d.id) ? 'bg-indigo-50' : ''}`}><td className="p-4 text-center">{!isReadOnly && <button onClick={()=>toggleSelect(d.id)} className="text-slate-300 hover:text-indigo-600">{selectedIds.includes(d.id) ? <CheckSquare className="w-4 h-4 text-indigo-600"/> : <Square className="w-4 h-4"/>}</button>}</td><td className="p-4 text-slate-400 text-xs font-mono">{idx + 1}</td><td className="p-4"><div className="font-bold text-slate-700">{d.name}</div>{type === 'teacher' && (<div className="flex gap-1 mt-1">{d.role === 'admin' && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold uppercase inline-block tracking-wider">Admin</span>}{d.role === 'pentadbir' && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold uppercase inline-block tracking-wider">Pentadbir</span>}</div>)}</td>{type === 'teacher' && (<td className="p-4"><span className={`text-[10px] font-bold px-2 py-1 rounded border uppercase ${d.position === 'GB' ? 'bg-purple-50 text-purple-700 border-purple-200' : d.position === 'GPK' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>{d.position || 'GAB'}</span></td>)}<td className="p-4 text-slate-500 text-xs">{type==='student' ? (<div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 w-fit px-2 py-1 rounded border border-emerald-100 font-bold"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> {d.class}</div>) : (<div className="flex items-center gap-2 font-mono text-slate-500"><div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> {d.email}</div>)}</td>{!isReadOnly && <td className="p-4 text-right flex justify-end gap-1"><button onClick={()=>startEdit(d)} className="text-slate-300 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-all" title="Edit"><Edit3 className="w-4 h-4"/></button><button onClick={()=>del(d.id)} className="text-slate-300 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-all" title="Padam"><Trash2 className="w-4 h-4"/></button></td>}</tr>)))}</tbody></table>
                     </div>
-                 </div>
+                </div>
             </div>
           );
         }
+
+        function AccessDenied() { return <div className="h-full flex flex-col items-center justify-center text-slate-400 font-bold"><Lock className="w-12 h-12 mb-4 opacity-50"/><p>Akses Terhad</p></div>; }
+        
+        function ConfirmModal({ title, msg, onConfirm, onCancel }) { return <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-white p-6 rounded-xl w-80 shadow-2xl"><h3 className="font-bold text-lg mb-2">{title}</h3><p className="text-slate-500 mb-4 text-sm">{msg}</p><div className="flex justify-end gap-2"><button onClick={onCancel} className="px-4 py-2 rounded text-sm font-bold text-slate-600">Batal</button><button onClick={onConfirm} className="px-4 py-2 rounded text-sm font-bold bg-red-600 text-white">Ya</button></div></div></div>; }
 
         function Sidebar({ userData, view, setView, logout }) {
           const menus = [
@@ -766,6 +571,7 @@
              { id: 'takwim', l: 'Takwim', i: CalendarDays },
              { id: 'tasks', l: 'Tugasan', i: ClipboardList },
              { id: 'reports', l: 'Laporan', i: FileText },
+             { id: 'attendance', l: 'Kehadiran', i: UserCheck },
              { id: 'agihan', l: 'Agihan Tugas', i: Briefcase, access: ['admin', 'pentadbir'] },
              { id: 'builder', l: 'Bina App', i: Code2, access: ['admin'] },
              { id: 'students', l: 'Data Murid', i: GraduationCap, access: ['admin', 'pentadbir'] },
@@ -804,309 +610,26 @@
            )
         }
 
-        function Dashboard({ userData, apps, students, teachers, tasks, setView }) {
-          const role = userData.role;
-          const showStats = ['admin', 'pentadbir', 'guru'].includes(role);
-          const stats = [
-            { label: 'Aplikasi', val: apps.length, i: LayoutDashboard, c: 'text-blue-600', b: 'bg-blue-50' },
-            { label: 'Murid', val: showStats ? students.length : '-', i: GraduationCap, c: 'text-emerald-600', b: 'bg-emerald-50' },
-            { label: 'Guru', val: showStats ? teachers.length : '-', i: Users, c: 'text-indigo-600', b: 'bg-indigo-50' },
-          ];
-
+        function LoginScreen({ onGoogleLogin }) {
           return (
-            <div className="max-w-6xl mx-auto space-y-8 animate-fade-in">
-               <div className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm"><h2 className="text-2xl font-bold text-slate-800 mb-2">Hai, {userData.name}!</h2><p className="text-slate-500">Selamat datang ke papan pemuka.</p></div>
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">{stats.map((s, i) => (<div key={i} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4"><div className={`w-14 h-14 rounded-full flex items-center justify-center ${s.b} ${s.c}`}><s.i className="w-7 h-7" /></div><div><p className="text-sm font-medium text-slate-500">{s.label}</p><h3 className="text-3xl font-bold text-slate-800">{s.val}</h3></div></div>))}</div>
-               
-               <div className="bg-white rounded-xl border border-slate-200 p-6">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-bold text-slate-800 flex items-center gap-2"><Clock className="w-5 h-5 text-indigo-600"/> Tugasan Semasa</h3>
-                        <button onClick={()=>setView('tasks')} className="text-xs text-indigo-600 hover:underline">Lihat Semua</button>
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 animate-fade-in">
+                 <div className="max-w-md w-full bg-white p-10 rounded-2xl shadow-xl border border-slate-100 text-center">
+                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-100">
+                        <img src="https://i.postimg.cc/k4N1mPR1/semat-04.png" alt="Logo Sekolah" className="w-14 h-14 object-contain"/>
                     </div>
-                    {tasks.length === 0 ? <p className="text-slate-400 text-sm">Tiada tugasan aktif.</p> : 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {tasks.slice(0, 6).map(task => {
-                                const diff = new Date(task.deadline) - new Date();
-                                const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-                                const isUrgent = days <= 3 && days >= 0;
-                                const isAdminTask = ['admin','pentadbir','Guru Besar'].includes(task.assignedByRole);
-                                return (
-                                    <div key={task.id} className={`p-4 rounded-lg border ${isUrgent ? 'border-red-200 bg-red-50' : 'border-slate-100 bg-slate-50'} relative`}>
-                                        {isAdminTask && <span className="absolute top-2 right-2 text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full">Arahan Pentadbir</span>}
-                                        <h4 className="font-bold text-slate-800 text-sm mb-1">{task.title}</h4>
-                                        <p className="text-xs text-slate-500 mb-3">Oleh: {task.assignedBy}</p>
-                                        <div className="flex items-center gap-2 text-xs font-bold">
-                                            <Clock className={`w-3 h-3 ${isUrgent ? 'text-red-500' : 'text-slate-400'}`}/>
-                                            <span className={isUrgent ? 'text-red-600' : 'text-slate-600'}>{days < 0 ? 'Tamat Tempoh' : `${days} hari lagi`}</span>
-                                        </div>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    }
-               </div>
-
-               <div>
-                  <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-bold text-slate-800">Aplikasi Pilihan</h3><button onClick={() => setView('apps')} className="text-sm text-indigo-600 hover:underline">Lihat Semua</button></div>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">{apps.slice(0, 4).map(app => (<div key={app.id} onClick={() => setView('apps')} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md cursor-pointer"><h4 className="font-bold text-slate-800 mb-1">{app.title}</h4><p className="text-sm text-slate-500 line-clamp-2">{app.desc}</p></div>))}</div>
-               </div>
-
-               <TakwimManager canEdit={['admin', 'pentadbir', 'guru'].includes(role)} role={role} currentUid={userData.uid} />
+                    <h2 className="text-2xl font-bold text-slate-800 mb-1">SkolaHub</h2>
+                    <p className="text-slate-500 mb-8 font-medium">SK Masjid Tanah (Integ)</p>
+                    <button onClick={onGoogleLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all group shadow-sm mb-6">
+                       <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6" alt="Google" />
+                       <span className="font-bold text-slate-700">Log Masuk Google</span>
+                    </button>
+                    <div className="text-xs text-slate-400 mt-6">
+                        Sistem Pengurusan Sekolah Digital v2.0
+                    </div>
+                 </div>
             </div>
           );
         }
-
-        function TaskManager({ userData, tasks, currentUid }) {
-            const isStaff = ['admin', 'pentadbir', 'guru'].includes(userData.role);
-            const [form, setForm] = useState({ title: '', deadline: '', assignTo: 'Semua Guru' });
-            
-            const addTask = async () => { 
-                if(!form.title || !form.deadline) return alert("Sila isi maklumat."); 
-                // Pentadbir/Admin dianggap sebagai 'Guru Besar' / 'Pentadbir' untuk label
-                const assignedByRole = ['admin', 'pentadbir'].includes(userData.role) ? 'Guru Besar' : 'Guru';
-                await addDoc(collection(db, 'portal_tasks'), { 
-                    ...form, 
-                    assignedBy: userData.name, 
-                    assignedByRole, 
-                    createdAt: new Date().toISOString(), 
-                    createdBy: currentUid 
-                }); 
-                setForm({ title: '', deadline: '', assignTo: 'Semua Guru' }); 
-                alert("Tugasan dihantar."); 
-            };
-            
-            const deleteTask = async (id) => { if(confirm("Padam tugasan?")) await deleteDoc(doc(db, 'portal_tasks', id)); }
-            
-            return (<div className="grid lg:grid-cols-3 gap-6 h-[calc(100vh-140px)]"><div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col"><div className="p-4 border-b border-slate-100 bg-slate-50 font-bold text-slate-700">Senarai Tugasan</div><div className="flex-1 overflow-y-auto p-4 space-y-3">{tasks.map(task => { const isGB = task.assignedByRole === 'Guru Besar'; const canDelete = userData.role === 'admin' || task.createdBy === currentUid; return (<div key={task.id} className={`p-4 rounded-xl border flex justify-between items-start ${isGB ? 'bg-indigo-50 border-indigo-100' : 'bg-white border-slate-100'}`}><div><div className="flex items-center gap-2 mb-1">{isGB && <span className="bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase">PENTADBIR</span>}<span className="text-xs text-slate-500 font-medium">Kepada: {task.assignTo}</span></div><h4 className="font-bold text-slate-800 text-lg">{task.title}</h4><p className="text-xs text-slate-500 mt-1">Oleh: {task.assignedBy} • Tarikh Akhir: <b>{new Date(task.deadline).toLocaleDateString('ms-MY')}</b></p></div>{canDelete && <button onClick={()=>deleteTask(task.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button>}</div>)})}</div></div>{isStaff && (<div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 h-fit"><h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><Plus className="w-5 h-5 text-indigo-600"/> Tambah Tugasan</h3><div className="space-y-4"><div><label className="lbl">Arahan / Tugasan</label><textarea className="inp h-24 resize-none" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} placeholder="Contoh: Hantar RPH sebelum Jumaat"/></div><div><label className="lbl">Tarikh Akhir (Deadline)</label><input type="date" className="inp w-full" value={form.deadline} onChange={e=>setForm({...form, deadline:e.target.value})}/></div><div><label className="lbl">Sasaran</label><select className="inp w-full" value={form.assignTo} onChange={e=>setForm({...form, assignTo:e.target.value})}><option>Semua Guru</option><option>Ketua Panitia</option><option>Semua Murid</option><option>Pengawas</option></select></div><button onClick={addTask} className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-bold shadow-md hover:bg-indigo-700 transition">Hantar Arahan</button></div></div>)}</div>)
-        }
-
-        function TakwimManager({ canEdit, role, currentUid }) {
-            const [view, setView] = useState('month'); const [date, setDate] = useState(new Date(2026, 0, 1)); const [events, setEvents] = useState([]); const [selectedDate, setSelectedDate] = useState(null); const [newEvent, setNewEvent] = useState({ title: '', unit: '' });
-            useEffect(() => { const unsub = onSnapshot(query(collection(db, 'portal_events')), s => { setEvents(s.docs.map(d => ({ id: d.id, ...d.data() }))); }); return () => unsub(); }, []);
-            const allEvents = [...KPM_EVENTS, ...events];
-            const handleCellClick = (d) => { if (canEdit) { setSelectedDate(d); setNewEvent({ title: '', unit: '' }); } };
-            const addEvent = async () => { if(!newEvent.title) return alert("Sila isi nama program."); const dateStr = selectedDate.toISOString().split('T')[0]; await addDoc(collection(db, 'portal_events'), { title: newEvent.title, unit: newEvent.unit, start: dateStr, end: dateStr, type: 'event', createdBy: currentUid }); setSelectedDate(null); };
-            const deleteEvent = async (id, e) => { e.stopPropagation(); if(confirm("Padam aktiviti ini?")) await deleteDoc(doc(db, 'portal_events', id)); }
-            const getEventForDate = (d) => { const dStr = d.toISOString().split('T')[0]; return allEvents.filter(e => dStr >= e.start && dStr <= (e.end || e.start)); };
-            const renderMonth = (targetDate) => { const year = targetDate.getFullYear(); const month = targetDate.getMonth(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const firstDay = new Date(year, month, 1).getDay(); const blanks = Array(firstDay).fill(null); const days = Array.from({length: daysInMonth}, (_, i) => i + 1); return (<div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><div className="flex justify-between mb-4 items-center"><button onClick={()=>setDate(new Date(year, month-1, 1))}><ChevronLeft/></button><h3 className="font-bold text-lg uppercase text-slate-700">{targetDate.toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' })}</h3><button onClick={()=>setDate(new Date(year, month+1, 1))}><ChevronRight/></button></div><div className="grid grid-cols-7 gap-1 mb-2 text-center text-xs font-bold text-slate-400">{['A','I','S','R','K','J','S'].map(d=><div key={d}>{d}</div>)}</div><div className="grid grid-cols-7 gap-1">{blanks.map((_,i)=><div key={i}></div>)}{days.map(d => { const currentDay = new Date(year, month, d); const dailyEvents = getEventForDate(currentDay); const isSchool = dailyEvents.some(e => e.type === 'school'); const bgClass = isSchool ? 'bg-emerald-50' : 'bg-white hover:bg-slate-50'; return (<div key={d} onClick={() => handleCellClick(currentDay)} className={`min-h-[80px] border border-slate-100 rounded p-1 text-xs relative cursor-pointer transition-colors ${bgClass}`}><span className={`font-bold block mb-1 ${isSchool ? 'text-emerald-700' : 'text-slate-700'}`}>{d}</span><div className="space-y-1">{dailyEvents.map((ev, idx) => { if (ev.type === 'school') return null; const isHoliday = ev.type === 'holiday'; const canDelete = ev.type === 'event' && (role === 'admin' || ev.createdBy === currentUid); return (<div key={idx} className={`p-1 rounded text-[10px] leading-tight group relative ${isHoliday ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>{ev.title}{canDelete && (<button onClick={(e)=>deleteEvent(ev.id, e)} className="hidden group-hover:block absolute top-0 right-0 bg-red-500 text-white rounded-full p-0.5"><X size={8}/></button>)}</div>) })}</div></div>) })}</div></div>) };
-            return (<div className="space-y-6"><div className="flex justify-between items-center"><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><CalendarDays className="w-6 h-6 text-indigo-600"/> Takwim Sekolah</h3></div>{renderMonth(date)}<div className="flex gap-4 text-xs font-medium justify-center text-slate-600"><span className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-50 border border-emerald-200 rounded"></div> Sesi Sekolah</span><span className="flex items-center gap-2"><div className="w-3 h-3 bg-yellow-100 border border-yellow-200 rounded"></div> Cuti</span><span className="flex items-center gap-2"><div className="w-3 h-3 bg-blue-100 border border-blue-200 rounded"></div> Aktiviti</span></div>{selectedDate && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in"><div className="bg-white p-6 rounded-xl w-80 shadow-2xl"><h3 className="font-bold text-lg mb-4 text-slate-800">Tambah Aktiviti</h3><p className="text-xs text-slate-500 mb-4 font-mono">{selectedDate.toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p><div className="space-y-3"><div><label className="lbl">Nama Program</label><input autoFocus className="inp w-full" value={newEvent.title} onChange={e=>setNewEvent({...newEvent, title:e.target.value})} placeholder="Contoh: Mesyuarat Guru"/></div><div><label className="lbl">Unit / Panitia</label><input className="inp w-full" value={newEvent.unit} onChange={e=>setNewEvent({...newEvent, unit:e.target.value})} placeholder="Contoh: Kurikulum"/></div></div><div className="flex justify-end gap-2 mt-6"><button onClick={()=>setSelectedDate(null)} className="px-4 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-100">Batal</button><button onClick={addEvent} className="px-4 py-2 rounded text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700">Simpan</button></div></div></div>)}</div>)
-        }
-
-        function AppBuilder({ apps }) {
-          const [form, setForm] = useState({ title: '', desc: '', iconKey: 'portal', category: 'umum', type: 'link', content: '' });
-          const [confirmDel, setConfirmDel] = useState(null);
-          const handleSave = async () => { if(!form.title) return; await addDoc(collection(db, 'portal_apps'), form); setForm({...form, title:''}); alert("Disimpan!"); };
-          const executeDelete = async () => { if(confirmDel) { await deleteDoc(doc(db, 'portal_apps', confirmDel)); setConfirmDel(null); } };
-          return (<div className="grid lg:grid-cols-12 gap-8"><div className="lg:col-span-8 bg-white rounded-xl border border-slate-200 p-6"><h3 className="font-bold mb-4">Bina App</h3><div className="space-y-4"><input className="inp" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} placeholder="Tajuk"/><textarea className="inp h-20" value={form.desc} onChange={e=>setForm({...form, desc:e.target.value})} placeholder="Deskripsi"/><div className="flex gap-2"><button onClick={()=>setForm({...form, type:'link'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='link'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>Link</button><button onClick={()=>setForm({...form, type:'html'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='html'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>HTML</button></div>{form.type==='link'?<input className="inp" value={form.content} onChange={e=>setForm({...form, content:e.target.value})} placeholder="URL..."/>:<textarea className="inp h-40 font-mono text-xs bg-slate-900 text-green-400" value={form.content} onChange={e=>setForm({...form, content:e.target.value})} placeholder="HTML Code..."/>}<div className="flex gap-3 overflow-x-auto pb-4 pt-1">{Object.entries(ALL_ICONS).map(([k, d]) => (<button key={k} onClick={() => setForm({...form, iconKey: k})} className={`p-3 rounded-xl border transition-all flex-shrink-0 ${form.iconKey === k ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`} title={k}><d.i className={`w-6 h-6 ${d.color}`}/></button>))}</div><button onClick={handleSave} className="bg-indigo-600 text-white w-full py-2 rounded-lg font-bold">Terbitkan</button></div></div><div className="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-4"><h3 className="font-bold text-sm mb-4">Senarai</h3>{apps.map(a=>(<div key={a.id} className="flex justify-between items-center p-2 hover:bg-slate-50 border-b border-slate-100 last:border-0"><span className="text-sm font-bold truncate w-40">{a.title}</span><button onClick={()=>setConfirmDel(a.id)} className="text-red-500"><Trash2 className="w-4 h-4"/></button></div>))}</div>{confirmDel && <ConfirmModal title="Padam?" msg="Tiada undo." onConfirm={executeDelete} onCancel={()=>setConfirmDel(null)}/>}</div>);
-        }
-
-        function AppGallery({ apps }) {
-          const [sel, setSel] = useState(null);
-          if(sel) return (<div className="h-[80vh] bg-white rounded-xl border border-slate-200 flex flex-col"><div className="p-4 border-b flex justify-between"><button onClick={()=>setSel(null)} className="flex items-center gap-1 font-bold text-slate-600"><ChevronRight className="rotate-180 w-4 h-4"/> Kembali</button><h3 className="font-bold">{sel.title}</h3>{sel.type==='link' && <a href={sel.content} target="_blank" className="text-blue-600 text-xs font-bold flex items-center gap-1">Tab Baru <ExternalLink className="w-3 h-3"/></a>}</div><div className="flex-1 relative bg-white">{sel.type === 'html' ? <iframe srcDoc={sel.content} className="w-full h-full border-none" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"/> : <iframe src={sel.content} className="w-full h-full border-none"/>}</div></div>);
-          return (<div className="grid grid-cols-2 md:grid-cols-4 gap-4">{apps.map(a=>(<div key={a.id} onClick={()=>setSel(a)} className="bg-white p-4 rounded-xl border hover:shadow-md cursor-pointer flex flex-col h-40 justify-between"><div className="flex justify-between"><div className={`p-2 rounded-lg ${ALL_ICONS[a.iconKey]?.bg || 'bg-slate-100'}`}>{React.createElement(ALL_ICONS[a.iconKey]?.i || Globe, { className: `w-6 h-6 ${ALL_ICONS[a.iconKey]?.color || 'text-slate-600'}` })}</div></div><div><h4 className="font-bold truncate">{a.title}</h4><p className="text-xs text-slate-500 line-clamp-2">{a.desc}</p></div></div>))}</div>);
-        }
-
-        function DataTable({ type, data, currentUserRole }) {
-          // Hanya Admin boleh edit. Pentadbir hanya view.
-          const isReadOnly = currentUserRole === 'pentadbir';
-
-          const [newRec, setNewRec] = useState({});
-          const [csvFile, setCsvFile] = useState(null);
-          const [uploading, setUploading] = useState(false);
-          const [editingId, setEditingId] = useState(null);
-          const [selectedIds, setSelectedIds] = useState([]);
-          
-          const col = type === 'student' ? 'portal_students' : 'portal_teachers';
-
-          const save = async (e) => { 
-              e.preventDefault(); 
-              if (isReadOnly) return alert("Anda tiada akses untuk menyunting.");
-              if(newRec.name) {
-                  const payload = { ...newRec };
-                  if (type === 'teacher') {
-                      payload.role = payload.role || 'guru';
-                      payload.position = payload.position || 'GAB';
-                  } else {
-                      payload.class = payload.class || 'Umum';
-                  }
-                  
-                  try {
-                      if (editingId) {
-                          await updateDoc(doc(db, col, editingId), { ...payload, updatedAt: new Date().toISOString() });
-                          alert("Data berjaya dikemaskini.");
-                          setEditingId(null);
-                      } else {
-                          await addDoc(collection(db, col), { ...payload, createdAt: new Date().toISOString() }); 
-                          alert("Data berjaya disimpan.");
-                      }
-                      setNewRec({}); 
-                  } catch(e) { console.error(e); alert("Ralat menyimpan data."); }
-              } 
-          };
-
-          const del = async (id) => { 
-              if (isReadOnly) return;
-              if(confirm("Adakah anda pasti mahu memadam data ini?")) await deleteDoc(doc(db, col, id)); 
-          };
-
-          const handleBulkDelete = async () => {
-              if (isReadOnly) return;
-              if (selectedIds.length === 0) return;
-              if (confirm(`Adakah anda pasti mahu memadam ${selectedIds.length} rekod terpilih? Tindakan ini tidak boleh diundur.`)) {
-                  try {
-                      const batch = writeBatch(db);
-                      selectedIds.forEach(id => { const ref = doc(db, col, id); batch.delete(ref); });
-                      await batch.commit(); setSelectedIds([]); alert("Rekod berjaya dipadam.");
-                  } catch(e) { console.error(e); alert("Gagal memadam rekod."); }
-              }
-          };
-
-          const toggleSelectAll = () => {
-              if (isReadOnly) return;
-              if (selectedIds.length === data.length) setSelectedIds([]);
-              else setSelectedIds(data.map(d => d.id));
-          };
-
-          const toggleSelect = (id) => {
-              if (isReadOnly) return;
-              if (selectedIds.includes(id)) setSelectedIds(prev => prev.filter(i => i !== id));
-              else setSelectedIds(prev => [...prev, id]);
-          };
-
-          const startEdit = (rec) => { if (isReadOnly) return; setNewRec(rec); setEditingId(rec.id); };
-          const cancelEdit = () => { setNewRec({}); setEditingId(null); };
-
-          const handleCsvUpload = async () => {
-              if (isReadOnly) return alert("Anda tiada akses untuk memuat naik data.");
-              if (!csvFile) return alert("Sila pilih fail CSV dahulu.");
-              setUploading(true);
-              const reader = new FileReader();
-              reader.onload = async (e) => {
-                  try {
-                      const text = e.target.result; const lines = text.split('\n'); const batch = writeBatch(db); let count = 0;
-                      lines.forEach((line, index) => {
-                          if (index === 0 || !line.trim()) return; 
-                          const cols = line.split(',').map(c => c.trim());
-                          if (cols.length < 2) return; 
-                          const ref = doc(collection(db, col)); let data = {};
-                          if (type === 'teacher') {
-                              const name = cols[0]; const email = cols[1]; const roleRaw = cols[2] ? cols[2].toLowerCase() : 'guru'; const position = cols[3] || 'GAB';
-                              if (!name || !email) return;
-                              // LOGIC ROLE BARU
-                              let sysRole = 'guru';
-                              if (roleRaw.includes('admin')) sysRole = 'admin';
-                              else if (roleRaw.includes('pentadbir')) sysRole = 'pentadbir';
-                              
-                              data = { name, email, role: sysRole, position, createdAt: new Date().toISOString() };
-                          } else {
-                              const name = cols[0]; const className = cols[1] || 'Umum'; if (!name) return;
-                              data = { name, class: className, createdAt: new Date().toISOString() };
-                          }
-                          batch.set(ref, data); count++;
-                      });
-                      if (count > 0) { await batch.commit(); alert(`${count} rekod berjaya dimuat naik!`); setCsvFile(null); document.getElementById('csvInput').value = ""; } else { alert("Tiada data sah ditemui dalam fail CSV."); }
-                  } catch (err) { console.error(err); alert("Ralat memproses fail."); }
-                  setUploading(false);
-              };
-              reader.readAsText(csvFile);
-          };
-
-          return (
-            <div className="grid lg:grid-cols-12 gap-8 h-[calc(100vh-100px)]">
-                {/* SIDEBAR FORM & CSV (Only for Admin) */}
-                { !isReadOnly && (
-                <div className="lg:col-span-4 space-y-6 overflow-y-auto pr-2">
-                    <div className={`bg-white p-6 rounded-xl border shadow-sm transition-colors ${editingId ? 'border-amber-300 bg-amber-50' : 'border-slate-200'}`}>
-                        <h3 className={`font-bold mb-4 flex items-center gap-2 ${editingId ? 'text-amber-700' : 'text-slate-800'}`}>
-                           {editingId ? <Edit3 className="w-5 h-5"/> : <Plus className="w-5 h-5 text-indigo-600"/>} 
-                           {editingId ? 'Kemaskini Data' : `Daftar ${type === 'teacher' ? 'Guru' : 'Murid'} Baru`}
-                        </h3>
-                        <form onSubmit={save} className="space-y-3">
-                            <div><label className="lbl">Nama Penuh</label><input className="inp" required value={newRec.name||''} onChange={e=>setNewRec({...newRec, name:e.target.value})} placeholder="Contoh: Ali bin Abu"/></div>
-                            {type === 'student' ? (
-                                <div><label className="lbl">Kelas</label><input className="inp" required value={newRec.class||''} onChange={e=>setNewRec({...newRec, class:e.target.value})} placeholder="Contoh: 6 Cerdik"/></div>
-                            ) : (
-                                <>
-                                    <div><label className="lbl">Alamat Emel</label><input className="inp" type="email" required value={newRec.email||''} onChange={e=>setNewRec({...newRec, email:e.target.value})} placeholder="nama@sekolah.edu.my"/></div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div><label className="lbl">Akses Sistem</label><select className="inp" value={newRec.role||'guru'} onChange={e=>setNewRec({...newRec, role:e.target.value})}><option value="guru">Guru Biasa</option><option value="pentadbir">Pentadbir (Semakan)</option><option value="admin">Admin Sistem</option></select></div>
-                                        <div><label className="lbl">Jawatan</label><select className="inp" value={newRec.position||'GAB'} onChange={e=>setNewRec({...newRec, position:e.target.value})}><option value="GAB">GAB</option><option value="GB">Guru Besar</option><option value="GPK">GPK</option><option value="Kaunselor">Kaunselor</option></select></div>
-                                    </div>
-                                </>
-                            )}
-                            <div className="flex gap-2 mt-4">{editingId && (<button type="button" onClick={cancelEdit} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-2.5 rounded-lg font-bold transition-all">Batal</button>)}<button type="submit" className={`flex-1 text-white py-2.5 rounded-lg font-bold shadow-md transition-all flex justify-center items-center gap-2 ${editingId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}><Save className="w-4 h-4"/> {editingId ? 'Kemaskini' : 'Simpan'}</button></div>
-                        </form>
-                    </div>
-                    {!editingId && (
-                        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
-                             <div className="absolute top-0 right-0 p-2 opacity-10"><FileSpreadsheet className="w-24 h-24 text-green-600"/></div>
-                             <h3 className="font-bold mb-2 flex items-center gap-2 text-slate-800"><FileSpreadsheet className="w-5 h-5 text-green-600"/> Import CSV (Pukal)</h3>
-                             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 mb-4 text-xs text-slate-600 space-y-1"><p className="font-bold text-slate-800">Format Fail:</p>{type === 'teacher' ? (<><div className="font-mono bg-slate-200 p-1 rounded text-[10px]">Nama,Email,Role,Jawatan</div><ul className="list-disc list-inside pl-1 text-[10px]"><li><b>Role:</b> Admin, Pentadbir, Guru</li><li><b>Jawatan:</b> GB, GPK, GAB</li></ul></>) : (<div className="font-mono bg-slate-200 p-1 rounded text-[10px]">Nama,Kelas</div>)}</div>
-                             <div className="space-y-3"><input id="csvInput" type="file" accept=".csv" onChange={(e) => setCsvFile(e.target.files[0])} className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer bg-slate-50 rounded-lg border border-slate-200"/><button onClick={handleCsvUpload} disabled={uploading || !csvFile} className={`w-full py-2.5 rounded-lg font-bold flex justify-center items-center gap-2 transition-all text-sm ${uploading || !csvFile ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white shadow-md'}`}>{uploading ? <Loader2 className="w-4 h-4 animate-spin"/> : <FileSpreadsheet className="w-4 h-4"/>} {uploading ? 'Sedang Memproses...' : 'Muat Naik CSV'}</button></div>
-                        </div>
-                    )}
-                </div>
-                )}
-
-                {/* TABLE DISPLAY */}
-                <div className={`${isReadOnly ? 'col-span-12' : 'lg:col-span-8'} bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full`}>
-                    <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
-                        <div className="flex items-center gap-4">
-                            <div><h3 className="font-bold text-slate-800 text-lg">Senarai {type === 'teacher' ? 'Guru' : 'Murid'}</h3><p className="text-xs text-slate-500">Jumlah: <b>{data.length}</b> rekod berdaftar</p></div>
-                            {!isReadOnly && selectedIds.length > 0 && (<button onClick={handleBulkDelete} className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-red-100 transition animate-fade-in border border-red-200"><Trash2 className="w-3 h-3"/> Padam {selectedIds.length} Terpilih</button>)}
-                        </div>
-                    </div>
-                    <div className="overflow-y-auto flex-1">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-white text-slate-500 uppercase text-[10px] font-bold sticky top-0 z-10 shadow-sm">
-                                <tr>
-                                    <th className="p-4 bg-slate-50 border-b w-10 text-center">{!isReadOnly && <button onClick={toggleSelectAll} className="text-slate-400 hover:text-indigo-600">{selectedIds.length > 0 && selectedIds.length === data.length ? <CheckSquare className="w-4 h-4 text-indigo-600"/> : <Square className="w-4 h-4"/>}</button>}</th>
-                                    <th className="p-4 bg-slate-50 border-b w-10">Bil</th>
-                                    <th className="p-4 bg-slate-50 border-b">Nama</th>
-                                    {type === 'teacher' && <th className="p-4 bg-slate-50 border-b">Jawatan</th>}
-                                    <th className="p-4 bg-slate-50 border-b">Info / Hubungan</th>
-                                    {!isReadOnly && <th className="p-4 bg-slate-50 border-b text-right">Tindakan</th>}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {data.length === 0 ? (
-                                    <tr><td colSpan="6" className="p-12 text-center text-slate-400 italic bg-slate-50/50"><div className="flex flex-col items-center gap-2"><div className="p-3 bg-slate-100 rounded-full"><Search className="w-6 h-6 text-slate-300"/></div><span>Tiada data direkodkan.</span></div></td></tr>
-                                ) : (
-                                    data.map((d, idx)=>(
-                                    <tr key={d.id} className={`hover:bg-indigo-50/30 group transition-colors ${selectedIds.includes(d.id) ? 'bg-indigo-50' : ''}`}>
-                                        <td className="p-4 text-center">{!isReadOnly && <button onClick={()=>toggleSelect(d.id)} className="text-slate-300 hover:text-indigo-600">{selectedIds.includes(d.id) ? <CheckSquare className="w-4 h-4 text-indigo-600"/> : <Square className="w-4 h-4"/>}</button>}</td>
-                                        <td className="p-4 text-slate-400 text-xs font-mono">{idx + 1}</td>
-                                        <td className="p-4">
-                                            <div className="font-bold text-slate-700">{d.name}</div>
-                                            {type === 'teacher' && (
-                                                <div className="flex gap-1 mt-1">
-                                                    {d.role === 'admin' && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold uppercase inline-block tracking-wider">Admin</span>}
-                                                    {d.role === 'pentadbir' && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold uppercase inline-block tracking-wider">Pentadbir</span>}
-                                                </div>
-                                            )}
-                                        </td>
-                                        {type === 'teacher' && (
-                                            <td className="p-4"><span className={`text-[10px] font-bold px-2 py-1 rounded border uppercase ${d.position === 'GB' ? 'bg-purple-50 text-purple-700 border-purple-200' : d.position === 'GPK' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>{d.position || 'GAB'}</span></td>
-                                        )}
-                                        <td className="p-4 text-slate-500 text-xs">
-                                            {type==='student' ? (
-                                                <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 w-fit px-2 py-1 rounded border border-emerald-100 font-bold"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> {d.class}</div>
-                                            ) : (<div className="flex items-center gap-2 font-mono text-slate-500"><div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> {d.email}</div>)}
-                                        </td>
-                                        {!isReadOnly && <td className="p-4 text-right flex justify-end gap-1"><button onClick={()=>startEdit(d)} className="text-slate-300 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-all" title="Edit"><Edit3 className="w-4 h-4"/></button><button onClick={()=>del(d.id)} className="text-slate-300 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-all" title="Padam"><Trash2 className="w-4 h-4"/></button></td>}
-                                    </tr>
-                                )))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-          );
-        }
-
-        function AccessDenied() { return <div className="h-full flex flex-col items-center justify-center text-slate-400 font-bold"><Lock className="w-12 h-12 mb-4 opacity-50"/><p>Akses Terhad</p></div>; }
-        
-        function ConfirmModal({ title, msg, onConfirm, onCancel }) { return <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-white p-6 rounded-xl w-80 shadow-2xl"><h3 className="font-bold text-lg mb-2">{title}</h3><p className="text-slate-500 mb-4 text-sm">{msg}</p><div className="flex justify-end gap-2"><button onClick={onCancel} className="px-4 py-2 rounded text-sm font-bold text-slate-600">Batal</button><button onClick={onConfirm} className="px-4 py-2 rounded text-sm font-bold bg-red-600 text-white">Ya</button></div></div></div>; }
 
         const styles = `.lbl{display:block;font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:0.5rem;text-transform:uppercase}.inp{width:100%;padding:0.6rem 0.8rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.875rem;outline:none;background-color:#f8fafc;color:#1e293b}.inp:focus{background-color:white;border-color:#4f46e5}@keyframes fade-in{from{opacity:0}to{opacity:1}}@keyframes scale-up{from{transform:scale(0.95);opacity:0}to{transform:scale(1);opacity:1}}.animate-fade-in{animation:fade-in 0.2s ease-out}.animate-scale-up{animation:scale-up 0.2s cubic-bezier(0.16,1,0.3,1)}`;
 
