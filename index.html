@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SkolaHub - SK Masjid Tanah</title>
     
+    <!-- Manifest untuk PWA (Data URI) -->
+    <link rel="manifest" href='data:application/manifest+json,{"name":"SkolaHub SK Masjid Tanah","short_name":"SkolaHub","start_url":".","display":"standalone","background_color":"#f8fafc","theme_color":"#4f46e5","icons":[{"src":"https://i.postimg.cc/k4N1mPR1/semat-04.png","sizes":"192x192","type":"image/png"},{"src":"https://i.postimg.cc/k4N1mPR1/semat-04.png","sizes":"512x512","type":"image/png"}]}'>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -36,13 +39,19 @@
             body { background-color: white; }
             .print-container { padding: 0; margin: 0; border: none; box-shadow: none; }
         }
+        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Animations */
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         .animate-fade-in { animation: fade-in 0.3s ease-out; }
-        .diagonal-stripe { background-image: linear-gradient(45deg, #fcd34d 25%, #fbbf24 25%, #fbbf24 50%, #fcd34d 50%, #fcd34d 75%, #fbbf24 75%, #fbbf24 100%); background-size: 10px 10px; }
+        .diagonal-stripe { 
+            background-image: linear-gradient(45deg, #fcd34d 25%, #fbbf24 25%, #fbbf24 50%, #fcd34d 50%, #fcd34d 75%, #fbbf24 75%, #fbbf24 100%); 
+            background-size: 10px 10px; 
+        }
     </style>
 </head>
 <body>
@@ -52,9 +61,20 @@
         import React, { useState, useEffect, useRef, useMemo } from 'react';
         import { createRoot } from 'react-dom/client';
         import { initializeApp } from 'firebase/app';
-        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, writeBatch, updateDoc, getDoc, setDoc, getDocs, where, orderBy } from 'firebase/firestore';
-        import { LayoutDashboard, LogOut, ChevronRight, X, Search, Link as LinkIcon, ExternalLink, Lock, FileSpreadsheet, Plus, Trash2, BookOpen, Calculator, FlaskConical, Languages, Trophy, Users, Palette, Utensils, Bus, Library, MonitorPlay, Code2, GraduationCap, ShieldCheck, Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2, Calendar, ChevronLeft, Flag, MapPin, CalendarDays, ClipboardList, Clock, AlertTriangle, FileText, Printer, Check, Settings, LogIn, UserCheck, PieChart, Filter, HelpCircle, Award, RotateCcw, History, RefreshCw, List, CalendarClock, QrCode, Copy, Camera, ChevronDown } from 'lucide-react';
+        import { 
+          getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously 
+        } from 'firebase/auth';
+        import { 
+          getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, writeBatch, updateDoc, getDoc, setDoc, getDocs, where, orderBy, limit 
+        } from 'firebase/firestore';
+        import { 
+          LayoutDashboard, LogOut, ChevronRight, X, Search, 
+          Link as LinkIcon, ExternalLink, Lock, FileSpreadsheet, Plus, Trash2,
+          BookOpen, Calculator, FlaskConical, Languages, 
+          Trophy, Users, Palette, Utensils, Bus, Library, 
+          MonitorPlay, Code2, GraduationCap, ShieldCheck, 
+          Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2, Calendar, ChevronLeft, Flag, MapPin, CalendarDays, ClipboardList, Clock, AlertTriangle, FileText, Printer, Check, Settings, LogIn, UserCheck, PieChart, Filter, HelpCircle, Award, RotateCcw, History, RefreshCw, List, CalendarClock, QrCode, Copy, Camera, ChevronDown, Activity, BarChart3, Download
+        } from 'lucide-react';
 
         // --- KONFIGURASI FIREBASE ---
         const firebaseConfig = {
@@ -180,30 +200,136 @@
              { id: 'students', l: 'Data Murid', i: GraduationCap, access: ['admin', 'pentadbir'] },
              { id: 'teachers', l: 'Data Guru', i: Users, access: ['admin', 'pentadbir'] },
           ];
+          
+          const adminMenus = [
+              { id: 'logs', l: 'Log Sistem', i: Activity, access: ['admin'] },
+              { id: 'stats', l: 'Statistik', i: BarChart3, access: ['admin'] }
+          ];
+          
           return (
-             <aside className="w-20 md:w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 z-20 no-print transition-all duration-300">
+             <aside className="w-20 md:w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 z-20 no-print transition-all duration-300 h-full overflow-hidden">
                 <div className="h-20 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-100 gap-3"><img src="https://i.postimg.cc/k4N1mPR1/semat-04.png" className="w-10 h-10 object-contain"/><div className="hidden md:block"><span className="block font-bold text-lg text-slate-800 leading-tight">SkolaHub</span><span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">SK Masjid Tanah</span></div></div>
-                <div className="p-4 border-b border-slate-100 flex items-center gap-3"><img src={userData.photo || "https://ui-avatars.com/api/?name="+userData.name} className="w-10 h-10 rounded-full border border-slate-200"/><div className="hidden md:block overflow-hidden"><p className="text-sm font-bold text-slate-700 truncate">{userData.name}</p><p className="text-xs text-slate-500 uppercase font-bold tracking-wider">{userData.role}</p></div></div>
-                <nav className="p-2 md:p-4 space-y-1 flex-1 overflow-y-auto">{menus.map(m => (!m.access || m.access.includes(userData.role)) && <button key={m.id} onClick={() => setView(m.id)} title={m.l} className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${view === m.id ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}><m.i className={`w-5 h-5 ${view === m.id ? 'text-indigo-600' : 'text-slate-400'}`} /><span className="hidden md:block">{m.l}</span></button>)}</nav>
+                <div className="p-4 border-b border-slate-100 flex items-center gap-3 relative group-user">
+                   <img src={userData.photo || "https://ui-avatars.com/api/?name="+userData.name} className="w-10 h-10 rounded-full border border-slate-200"/><div className="hidden md:block overflow-hidden"><p className="text-sm font-bold text-slate-700 truncate">{userData.name}</p><p className="text-xs text-slate-500 uppercase font-bold tracking-wider">{userData.role}</p></div>
+                </div>
+                <nav className="p-2 md:p-4 space-y-1 flex-1 overflow-y-auto">
+                    {menus.map(m => (!m.access || m.access.includes(userData.role)) && <button key={m.id} onClick={() => setView(m.id)} title={m.l} className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${view === m.id ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}><m.i className={`w-5 h-5 ${view === m.id ? 'text-indigo-600' : 'text-slate-400'}`} /><span className="hidden md:block">{m.l}</span></button>)}
+                    
+                    {userData.role === 'admin' && (
+                        <>
+                            <div className="my-2 border-t border-slate-100 mx-2"></div>
+                            {adminMenus.map(m => <button key={m.id} onClick={() => setView(m.id)} title={m.l} className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${view === m.id ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}><m.i className={`w-5 h-5 ${view === m.id ? 'text-indigo-600' : 'text-slate-400'}`} /><span className="hidden md:block">{m.l}</span></button>)}
+                        </>
+                    )}
+                </nav>
                 <div className="p-4 border-t border-slate-100"><button onClick={logout} className="flex items-center justify-center md:justify-start gap-3 text-slate-400 hover:text-red-600 hover:bg-red-50 text-sm font-medium w-full px-3 py-3 rounded-lg transition-colors"><LogOut className="w-5 h-5" /><span className="hidden md:block">Keluar</span></button></div>
              </aside>
           )
         }
 
         function Header({ userData, view }) {
-           const titles = { mmi: "MMI (Melindungi Masa Instruksional)", timetable: "Jadual Waktu Peribadi" };
+           const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+           useEffect(() => {
+             const handleBeforeInstallPrompt = (e) => {
+               e.preventDefault();
+               setDeferredPrompt(e);
+             };
+             window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+             return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+           }, []);
+
+           const handleInstallClick = async () => {
+             if (!deferredPrompt) return;
+             deferredPrompt.prompt();
+             const { outcome } = await deferredPrompt.userChoice;
+             if (outcome === 'accepted') {
+               setDeferredPrompt(null);
+             }
+           };
+
+           const titles = { mmi: "MMI", timetable: "Jadual Waktu Peribadi", logs: "Log Sistem", stats: "Statistik Penggunaan" };
+           
            return (
               <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm z-10 no-print">
                  <h2 className="font-bold text-lg capitalize text-slate-800 flex items-center gap-2">{titles[view] || view}</h2>
-                 <span className="text-xs font-bold uppercase text-white bg-indigo-600 px-3 py-1 rounded-full tracking-wider shadow-sm">{userData.role}</span>
+                 <div className="flex items-center gap-3">
+                     {deferredPrompt && (
+                        <button onClick={handleInstallClick} className="flex items-center gap-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full text-xs font-bold transition-all" title="Install Aplikasi">
+                            <Download size={16} />
+                            <span className="hidden sm:inline">Install App</span>
+                        </button>
+                     )}
+                     <span className="text-xs font-bold uppercase text-white bg-indigo-600 px-3 py-1 rounded-full tracking-wider shadow-sm">{userData.role}</span>
+                 </div>
               </header>
            )
         }
 
         // --- 3. FEATURE COMPONENTS ---
+        
+        function SystemLogs() {
+            const [logs, setLogs] = useState([]);
+            useEffect(() => { const q = query(collection(db, 'portal_access_logs'), orderBy('timestamp', 'desc'), limit(50)); const unsub = onSnapshot(q, (snap) => { setLogs(snap.docs.map(d => ({id: d.id, ...d.data()}))); }); return () => unsub(); }, []);
+            return (
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-xs">
+                                <tr>
+                                    <th className="p-4 border-b">Nama Guru</th>
+                                    <th className="p-4 border-b">E-mel</th>
+                                    <th className="p-4 border-b">Peranan</th>
+                                    <th className="p-4 border-b text-right">Waktu Log Masuk</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {logs.map(log => (
+                                    <tr key={log.id} className="hover:bg-slate-50">
+                                        <td className="p-4 font-bold text-slate-700">{log.name}</td>
+                                        <td className="p-4 text-slate-500">{log.email}</td>
+                                        <td className="p-4"><span className="uppercase text-[10px] bg-slate-100 px-2 py-1 rounded font-bold">{log.role}</span></td>
+                                        <td className="p-4 text-right font-mono text-xs text-slate-500">
+                                            {formatDate(log.timestamp)} {new Date(log.timestamp).toLocaleTimeString('ms-MY')}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {logs.length === 0 && <tr><td colSpan="4" className="p-8 text-center text-slate-400 italic">Tiada rekod log masuk.</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+        
+        function UsageStats() {
+            const [stats, setStats] = useState({ logs: 0, mmi: 0, reports: 0 });
+            useEffect(() => { 
+                const unsub1 = onSnapshot(collection(db, 'portal_access_logs'), s => setStats(p => ({...p, logs: s.size}))); 
+                const unsub2 = onSnapshot(collection(db, 'portal_mmi'), s => setStats(p => ({...p, mmi: s.size}))); 
+                const unsub3 = onSnapshot(collection(db, 'portal_reports'), s => setStats(p => ({...p, reports: s.size}))); 
+                return () => { unsub1(); unsub2(); unsub3(); }; 
+            }, []);
+            
+            return (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center"><Activity/></div>
+                        <div><p className="text-sm text-slate-500 font-bold">Jumlah Log Masuk</p><h3 className="text-2xl font-bold">{stats.logs}</h3></div>
+                    </div>
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                        <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center"><QrCode/></div>
+                        <div><p className="text-sm text-slate-500 font-bold">Rekod MMI</p><h3 className="text-2xl font-bold">{stats.mmi}</h3></div>
+                    </div>
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                        <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center"><FileText/></div>
+                        <div><p className="text-sm text-slate-500 font-bold">Laporan Harian</p><h3 className="text-2xl font-bold">{stats.reports}</h3></div>
+                    </div>
+                </div>
+            );
+        }
 
-        // --- MMI MANAGER (UPDATED) ---
-        function MMIManager({ userData, currentUid, students }) {
+        function MMIManager({ userData, currentUid, students, teachers }) {
             const [logs, setLogs] = useState([]);
             const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
             const [loading, setLoading] = useState(true);
@@ -211,448 +337,151 @@
             const [timetable, setTimetable] = useState({});
             const videoRef = useRef(null);
             const [cameraActive, setCameraActive] = useState(false);
-            
-            // New state for selection popup
+            const [selectedTeacherId, setSelectedTeacherId] = useState("");
+            const isAdminOrPentadbir = ['admin', 'pentadbir'].includes(userData.role);
             const [showSlotSelection, setShowSlotSelection] = useState(false);
             const [detectedClass, setDetectedClass] = useState("");
             const [availableSlots, setAvailableSlots] = useState([]);
             const [manualWeek, setManualWeek] = useState("");
-            
-            // Multi-delete state
             const [selectedIds, setSelectedIds] = useState([]);
             const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
             const [expandedWeeks, setExpandedWeeks] = useState({});
-
-            const getDay = (d) => {
-                const days = ['Ahad','Isnin','Selasa','Rabu','Khamis','Jumaat','Sabtu'];
-                return days[new Date(d).getDay()];
-            };
-
+            
+            const getDay = (d) => { const days = ['Ahad','Isnin','Selasa','Rabu','Khamis','Jumaat','Sabtu']; return days[new Date(d).getDay()]; };
             const dayName = getDay(date);
+            const targetUid = isAdminOrPentadbir && selectedTeacherId ? selectedTeacherId : currentUid;
 
             useEffect(() => {
-                const q = query(collection(db, 'portal_mmi'), where('createdBy', '==', currentUid), orderBy('date', 'desc'));
-                const unsub = onSnapshot(q, s => {
-                    setLogs(s.docs.map(d => ({id:d.id, ...d.data()})));
-                    setLoading(false);
-                });
-                
-                getDoc(doc(db, 'portal_timetables', currentUid)).then(snap => {
-                    if (snap.exists()) setTimetable(snap.data().schedule || {});
-                });
-
+                if (isAdminOrPentadbir && !selectedTeacherId) { setLogs([]); setLoading(false); return; }
+                const q = query(collection(db, 'portal_mmi'), where('createdBy', '==', targetUid), orderBy('date', 'desc'));
+                const unsub = onSnapshot(q, s => { setLogs(s.docs.map(d => ({id:d.id, ...d.data()}))); setLoading(false); });
+                getDoc(doc(db, 'portal_timetables', targetUid)).then(snap => { if (snap.exists()) setTimetable(snap.data().schedule || {}); else setTimetable({}); });
                 return () => unsub();
-            }, [currentUid]);
+            }, [targetUid, isAdminOrPentadbir, selectedTeacherId]);
 
-            // Group logs by week
-            const groupedLogs = useMemo(() => {
-                return logs.reduce((acc, log) => {
-                    const w = log.week || 'Tiada Minggu';
-                    if (!acc[w]) acc[w] = [];
-                    acc[w].push(log);
-                    return acc;
-                }, {});
-            }, [logs]);
-
-            const sortedWeeks = Object.keys(groupedLogs).sort((a, b) => {
-                // sort numeric strings descending
-                return parseInt(b) || 0 - parseInt(a) || 0;
-            });
-
-            const startCamera = async () => {
-                setShowScan(true);
-                setCameraActive(true);
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = stream;
-                    }
-                } catch (err) {
-                    console.error("Camera error:", err);
-                    // Fallback handled by UI
-                }
+            const groupedLogs = useMemo(() => { return logs.reduce((acc, log) => { const w = log.week || 'Tiada Minggu'; if (!acc[w]) acc[w] = []; acc[w].push(log); return acc; }, {}); }, [logs]);
+            const sortedWeeks = Object.keys(groupedLogs).sort((a, b) => { return parseInt(b) || 0 - parseInt(a) || 0; });
+            
+            const startCamera = async () => { setShowScan(true); setCameraActive(true); try { const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); if (videoRef.current) { videoRef.current.srcObject = stream; } } catch (err) { console.error("Camera error:", err); } };
+            const stopCamera = () => { if (videoRef.current && videoRef.current.srcObject) { videoRef.current.srcObject.getTracks().forEach(track => track.stop()); } setCameraActive(false); setShowScan(false); };
+            
+            const handleScan = (cls) => { 
+                setDetectedClass(cls); 
+                stopCamera(); 
+                const daySchedule = timetable[dayName] || {}; 
+                const slots = []; 
+                Object.entries(daySchedule).forEach(([time, data]) => { if (data.class && data.class.includes(cls)) { slots.push({ time, subject: data.subject, class: data.class }); } }); 
+                setAvailableSlots(slots); 
+                setShowSlotSelection(true); 
             };
-
-            const stopCamera = () => {
-                if (videoRef.current && videoRef.current.srcObject) {
-                    videoRef.current.srcObject.getTracks().forEach(track => track.stop());
-                }
-                setCameraActive(false);
-                setShowScan(false);
+            
+            const confirmSlot = (slot) => { 
+                if (!manualWeek) return alert("Sila masukkan nombor minggu."); 
+                saveMMI(slot.class, slot.time, slot.subject, manualWeek); 
+                setShowSlotSelection(false); 
             };
-
-            const handleScan = (cls) => {
-                setDetectedClass(cls);
-                stopCamera();
-                
-                const daySchedule = timetable[dayName] || {};
-                const slots = [];
-
-                Object.entries(daySchedule).forEach(([time, data]) => {
-                    if (data.class && data.class.includes(cls)) {
-                        slots.push({ time, subject: data.subject, class: data.class });
-                    }
-                });
-
-                setAvailableSlots(slots);
-                // Prompt for week input in the modal
-                setShowSlotSelection(true);
+            
+            const saveMMI = async (cls, time, subject, weekVal) => { 
+                await addDoc(collection(db, 'portal_mmi'), { date, day: dayName, class: cls, time: time, subject: subject, week: weekVal, teacher: userData.name, createdBy: currentUid, timestamp: new Date().toISOString() }); 
+                alert(`MMI Direkod: ${cls} - ${subject} (${time})`); 
             };
-
-            const confirmSlot = (slot) => {
-                if (!manualWeek) return alert("Sila masukkan nombor minggu.");
-                saveMMI(slot.class, slot.time, slot.subject, manualWeek);
-                setShowSlotSelection(false);
+            
+            const copyWeekToNext = async (weekNum, logsInWeek) => { 
+                if (!confirm(`Salin semua rekod Minggu ${weekNum} ke minggu hadapan?`)) return; 
+                const batch = writeBatch(db); 
+                const nextWeekNum = String(parseInt(weekNum) + 1); 
+                logsInWeek.forEach(log => { 
+                    const nextWeekDate = new Date(log.date); 
+                    nextWeekDate.setDate(nextWeekDate.getDate() + 7); 
+                    const nextDateStr = nextWeekDate.toISOString().split('T')[0]; 
+                    const newRef = doc(collection(db, 'portal_mmi')); 
+                    const { id, ...logData } = log; 
+                    batch.set(newRef, { ...logData, date: nextDateStr, day: getDay(nextDateStr), week: nextWeekNum, timestamp: new Date().toISOString() }); 
+                }); 
+                await batch.commit(); 
+                alert(`Berjaya disalin ke Minggu ${nextWeekNum}`); 
             };
-
-            const saveMMI = async (cls, time, subject, weekVal) => {
-                await addDoc(collection(db, 'portal_mmi'), {
-                    date,
-                    day: dayName,
-                    class: cls,
-                    time: time,
-                    subject: subject,
-                    week: weekVal,
-                    teacher: userData.name,
-                    createdBy: currentUid,
-                    timestamp: new Date().toISOString()
-                });
-                alert(`MMI Direkod: ${cls} - ${subject} (${time})`);
-            };
-
-            // Copy entire week logs to next week
-            const copyWeekToNext = async (weekNum, logsInWeek) => {
-                if (!confirm(`Salin semua rekod Minggu ${weekNum} ke minggu hadapan?`)) return;
-                
-                const batch = writeBatch(db);
-                const nextWeekNum = String(parseInt(weekNum) + 1);
-
-                logsInWeek.forEach(log => {
-                    const nextWeekDate = new Date(log.date);
-                    nextWeekDate.setDate(nextWeekDate.getDate() + 7);
-                    const nextDateStr = nextWeekDate.toISOString().split('T')[0];
-                    
-                    const newRef = doc(collection(db, 'portal_mmi'));
-                    // Destructure to remove ID and create new
-                    const { id, ...logData } = log;
-                    batch.set(newRef, {
-                        ...logData,
-                        date: nextDateStr,
-                        day: getDay(nextDateStr),
-                        week: nextWeekNum,
-                        timestamp: new Date().toISOString()
-                    });
-                });
-
-                await batch.commit();
-                alert(`Berjaya disalin ke Minggu ${nextWeekNum}`);
-            };
-
-            // Multi delete logic
-            const toggleSelectLog = (id) => {
-                setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-            };
-
-            const deleteSelectedLogs = async () => {
-                const batch = writeBatch(db);
-                selectedIds.forEach(id => {
-                    batch.delete(doc(db, 'portal_mmi', id));
-                });
-                await batch.commit();
-                setSelectedIds([]);
-                setShowDeleteConfirm(false);
-            };
-
+            
+            const toggleSelectLog = (id) => { setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]); };
+            const deleteSelectedLogs = async () => { const batch = writeBatch(db); selectedIds.forEach(id => { batch.delete(doc(db, 'portal_mmi', id)); }); await batch.commit(); setSelectedIds([]); setShowDeleteConfirm(false); };
             const classList = [...new Set(students.map(s => s.class))].sort();
+
+            // Auto Date to Day
+            const handleDateChange = (e) => {
+                const val = e.target.value;
+                setDate(val);
+            };
 
             return (
                 <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
-                    <div className="bg-white p-6 rounded-xl border shadow-sm">
-                        <div className="flex justify-between items-center mb-6">
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase block">Tarikh (Boleh Backdated)</label>
-                                <input type="date" className="font-bold text-lg outline-none bg-transparent" value={date} onChange={e=>setDate(e.target.value)} />
-                                <span className="text-sm text-slate-500 ml-2">({dayName})</span>
-                            </div>
-                            <button onClick={startCamera} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 flex items-center gap-2 transition-transform hover:scale-105">
-                                <QrCode className="w-6 h-6"/> Scan QR Kelas
-                            </button>
-                        </div>
-                        
-                        <div className="flex justify-between items-center mb-4 border-b pb-2">
-                            <h3 className="font-bold text-slate-700">Sejarah MMI</h3>
-                            {selectedIds.length > 0 && (
-                                <button onClick={()=>setShowDeleteConfirm(true)} className="bg-red-50 text-red-600 px-3 py-1 rounded text-xs font-bold border border-red-200 hover:bg-red-100 flex items-center gap-1">
-                                    <Trash2 size={14}/> Padam ({selectedIds.length})
-                                </button>
-                            )}
-                        </div>
-
-                        <div className="space-y-4">
-                            {logs.length === 0 ? <p className="text-slate-400 italic text-center py-4">Tiada rekod MMI.</p> : 
-                             sortedWeeks.map(weekNum => {
-                                 const weekLogs = groupedLogs[weekNum];
-                                 const isOpen = expandedWeeks[weekNum];
-                                 return (
-                                     <div key={weekNum} className="bg-white border rounded-xl shadow-sm overflow-hidden">
-                                         <div className={`p-4 flex justify-between items-center bg-slate-50 cursor-pointer ${isOpen ? 'border-b border-indigo-100' : ''}`} onClick={() => setExpandedWeeks(p => ({...p, [weekNum]: !p[weekNum]}))}>
-                                             <div className="flex items-center gap-3">
-                                                 <span className="font-bold text-slate-700">Minggu {weekNum}</span>
-                                                 <span className="text-xs bg-slate-200 px-2 py-0.5 rounded-full text-slate-600">{weekLogs.length} Rekod</span>
-                                             </div>
-                                             <div className="flex items-center gap-2">
-                                                 <button onClick={(e) => { e.stopPropagation(); copyWeekToNext(weekNum, weekLogs); }} className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-200 hover:bg-blue-100 flex items-center gap-1"><Copy size={12}/> Salin Minggu Depan</button>
-                                                 <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}/>
-                                             </div>
-                                         </div>
-                                         
-                                         {isOpen && (
-                                             <div className="divide-y divide-slate-100">
-                                                 {weekLogs.map(log => (
-                                                     <div key={log.id} className="p-3 flex items-center hover:bg-white transition-colors">
-                                                         <div className="mr-3">
-                                                             <input type="checkbox" checked={selectedIds.includes(log.id)} onChange={() => toggleSelectLog(log.id)} className="w-4 h-4 text-indigo-600 rounded"/>
-                                                         </div>
-                                                         <div className="flex-1">
-                                                             <div className="flex justify-between">
-                                                                 <span className="font-bold text-indigo-700 text-sm">{log.class}</span>
-                                                                 <span className="text-xs text-slate-500 font-mono">{formatDate(log.date)} ({log.day})</span>
-                                                             </div>
-                                                             <div className="flex justify-between mt-1">
-                                                                 <span className="text-xs text-slate-600">{log.subject}</span>
-                                                                 <span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-500">{log.time}</span>
-                                                             </div>
-                                                         </div>
-                                                     </div>
-                                                 ))}
-                                             </div>
-                                         )}
-                                     </div>
-                                 )
-                             })
-                            }
-                        </div>
-                    </div>
-
-                    {/* QR SCANNER & SIMULATION MODAL */}
-                    {showScan && (
-                        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 animate-fade-in">
-                            <div className="w-full max-w-md bg-white rounded-2xl overflow-hidden relative">
-                                <button onClick={stopCamera} className="absolute top-4 right-4 text-white z-10 bg-black/50 rounded-full p-2"><X/></button>
-                                
-                                <div className="relative bg-black h-64 flex items-center justify-center">
-                                    <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover"></video>
-                                    <div className="border-2 border-white/50 w-48 h-48 rounded-lg relative z-10"></div>
-                                    <p className="absolute bottom-4 text-white text-xs bg-black/50 px-2 py-1 rounded">Halakan kamera pada QR Code Kelas</p>
-                                </div>
-
-                                <div className="p-6">
-                                    <h3 className="font-bold text-lg mb-2 text-center">Atau Pilih Kelas (Simulasi)</h3>
-                                    <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto">
-                                        {classList.map(c => (
-                                            <button key={c} onClick={()=>handleScan(c)} className="bg-slate-100 text-slate-700 py-2 rounded font-bold text-xs hover:bg-indigo-100 hover:text-indigo-700 transition-colors">
-                                                {c}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* SLOT SELECTION MODAL */}
-                    {showSlotSelection && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
-                            <div className="bg-white p-6 rounded-xl w-96 shadow-2xl">
-                                <h3 className="font-bold text-lg mb-1 text-slate-800">Sahkan Keberadaan</h3>
-                                <p className="text-sm text-slate-500 mb-4">Kelas: <b>{detectedClass}</b> pada <b>{dayName}</b></p>
-                                
-                                <div className="mb-4">
-                                    <label className="text-xs font-bold uppercase text-slate-500 block mb-1">Minggu Pengajaran</label>
-                                    <input autoFocus className="w-full border p-2 rounded text-sm font-bold" placeholder="Contoh: 1, 2, 3..." value={manualWeek} onChange={e=>setManualWeek(e.target.value)} />
-                                </div>
-
-                                <div className="space-y-2 mb-4">
-                                    <p className="text-xs font-bold text-slate-400 uppercase">Pilih Slot Masa:</p>
-                                    {availableSlots.length > 0 ? availableSlots.map((slot, idx) => (
-                                        <button key={idx} onClick={() => confirmSlot(slot)} className="w-full text-left p-3 border rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all group">
-                                            <div className="font-bold text-indigo-700 text-sm">{slot.subject}</div>
-                                            <div className="text-xs text-slate-500">{slot.time}</div>
-                                        </button>
-                                    )) : (
-                                        <div className="text-center p-4 border border-dashed rounded text-slate-400 text-sm">
-                                            Tiada jadual untuk kelas ini pada hari ini.<br/>
-                                            <button onClick={() => { saveMMI(detectedClass, "Lain-lain", "Relief/Ganti", manualWeek); setShowSlotSelection(false); }} className="text-indigo-600 underline mt-2 font-bold">Rekod sebagai Relief/Ganti</button>
-                                        </div>
-                                    )}
-                                </div>
-                                <button onClick={() => setShowSlotSelection(false)} className="w-full text-slate-500 py-2 text-sm font-bold">Batal</button>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {/* DELETE CONFIRMATION MODAL */}
-                    {showDeleteConfirm && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
-                            <div className="bg-white p-6 rounded-xl w-80 shadow-2xl">
-                                <h3 className="font-bold text-lg mb-2 text-red-600">Padam Rekod MMI?</h3>
-                                <p className="text-slate-600 mb-4 text-sm">Anda pasti mahu memadam {selectedIds.length} rekod yang dipilih?</p>
-                                <div className="flex justify-end gap-2">
-                                    <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 rounded text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200">Batal</button>
-                                    <button onClick={deleteSelectedLogs} className="px-4 py-2 rounded text-sm font-bold bg-red-600 text-white hover:bg-red-700">Ya, Padam</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    {isAdminOrPentadbir && (<div className="bg-white p-6 rounded-xl border border-indigo-100 shadow-sm mb-6"><h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><Search size={18}/> Semakan MMI Guru</h3><select className="w-full border p-2 rounded-lg" value={selectedTeacherId} onChange={(e) => setSelectedTeacherId(e.target.value)}><option value="">-- Pilih Guru (Atau kosongkan untuk lihat sendiri) --</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>)}
+                    {(!isAdminOrPentadbir || selectedTeacherId) && (<div className="bg-white p-6 rounded-xl border shadow-sm">
+                        {(!isAdminOrPentadbir || selectedTeacherId === currentUid) && (<div className="flex justify-between items-center mb-6"><div><label className="text-xs font-bold text-slate-500 uppercase block">Tarikh (Boleh Backdated)</label><input type="date" className="font-bold text-lg outline-none bg-transparent" value={date} onChange={handleDateChange} /><span className="text-sm text-slate-500 ml-2">({dayName})</span></div><button onClick={startCamera} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 flex items-center gap-2 transition-transform hover:scale-105"><QrCode className="w-6 h-6"/> Scan QR Kelas</button></div>)}
+                        <div className="flex justify-between items-center mb-4 border-b pb-2"><h3 className="font-bold text-slate-700">Sejarah MMI {selectedTeacherId && isAdminOrPentadbir ? `(${teachers.find(t=>t.id===selectedTeacherId)?.name})` : ''}</h3>{selectedIds.length > 0 && (<button onClick={()=>setShowDeleteConfirm(true)} className="bg-red-50 text-red-600 px-3 py-1 rounded text-xs font-bold border border-red-200 hover:bg-red-100 flex items-center gap-1"><Trash2 size={14}/> Padam ({selectedIds.length})</button>)}</div>
+                        <div className="space-y-4">{logs.length === 0 ? <p className="text-slate-400 italic text-center py-4">Tiada rekod MMI.</p> : sortedWeeks.map(weekNum => { const weekLogs = groupedLogs[weekNum]; const isOpen = expandedWeeks[weekNum]; return (<div key={weekNum} className="bg-white border rounded-xl shadow-sm overflow-hidden"><div className={`p-4 flex justify-between items-center bg-slate-50 cursor-pointer ${isOpen ? 'border-b border-indigo-100' : ''}`} onClick={() => setExpandedWeeks(p => ({...p, [weekNum]: !p[weekNum]}))}><div className="flex items-center gap-3"><span className="font-bold text-slate-700">Minggu {weekNum}</span><span className="text-xs bg-slate-200 px-2 py-0.5 rounded-full text-slate-600">{weekLogs.length} Rekod</span></div><div className="flex items-center gap-2">{(!isAdminOrPentadbir || selectedTeacherId === currentUid) && (<button onClick={(e) => { e.stopPropagation(); copyWeekToNext(weekNum, weekLogs); }} className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-200 hover:bg-blue-100 flex items-center gap-1"><Copy size={12}/> Salin Minggu Depan</button>)}<ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}/></div></div>{isOpen && (<div className="divide-y divide-slate-100">{weekLogs.map(log => (<div key={log.id} className="p-3 flex items-center hover:bg-white transition-colors"><div className="mr-3"><input type="checkbox" checked={selectedIds.includes(log.id)} onChange={() => toggleSelectLog(log.id)} className="w-4 h-4 text-indigo-600 rounded"/></div><div className="flex-1"><div className="flex justify-between"><span className="font-bold text-indigo-700 text-sm">{log.class}</span><span className="text-xs text-slate-500 font-mono">{formatDate(log.date)} ({log.day})</span></div><div className="flex justify-between mt-1"><span className="text-xs text-slate-600">{log.subject}</span><span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-500">{log.time}</span></div></div></div>))}</div>)}</div>)})}</div></div>)}
+                    {showScan && (<div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 animate-fade-in"><div className="w-full max-w-md bg-white rounded-2xl overflow-hidden relative"><button onClick={stopCamera} className="absolute top-4 right-4 text-white z-10 bg-black/50 rounded-full p-2"><X/></button><div className="relative bg-black h-64 flex items-center justify-center"><video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover"></video><div className="border-2 border-white/50 w-48 h-48 rounded-lg relative z-10"></div><p className="absolute bottom-4 text-white text-xs bg-black/50 px-2 py-1 rounded">Halakan kamera pada QR Code Kelas</p></div><div className="p-6"><h3 className="font-bold text-lg mb-2 text-center">Atau Pilih Kelas (Simulasi)</h3><div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto">{classList.map(c => (<button key={c} onClick={()=>handleScan(c)} className="bg-slate-100 text-slate-700 py-2 rounded font-bold text-xs hover:bg-indigo-100 hover:text-indigo-700 transition-colors">{c}</button>))}</div></div></div></div>)}
+                    {showSlotSelection && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in"><div className="bg-white p-6 rounded-xl w-96 shadow-2xl"><h3 className="font-bold text-lg mb-1 text-slate-800">Sahkan Keberadaan</h3><p className="text-sm text-slate-500 mb-4">Kelas: <b>{detectedClass}</b> pada <b>{dayName}</b></p><div className="mb-4"><label className="text-xs font-bold uppercase text-slate-500 block mb-1">Minggu Pengajaran</label><input autoFocus className="w-full border p-2 rounded text-sm font-bold" placeholder="Contoh: 1, 2, 3..." value={manualWeek} onChange={e=>setManualWeek(e.target.value)} /></div><div className="space-y-2 mb-4"><p className="text-xs font-bold text-slate-400 uppercase">Pilih Slot Masa:</p>{availableSlots.length > 0 ? availableSlots.map((slot, idx) => (<button key={idx} onClick={() => confirmSlot(slot)} className="w-full text-left p-3 border rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all group"><div className="font-bold text-indigo-700 text-sm">{slot.subject}</div><div className="text-xs text-slate-500">{slot.time}</div></button>)) : (<div className="text-center p-4 border border-dashed rounded text-slate-400 text-sm">Tiada jadual untuk kelas ini pada hari ini.<br/><button onClick={() => { saveMMI(detectedClass, "Lain-lain", "Relief/Ganti", manualWeek); setShowSlotSelection(false); }} className="text-indigo-600 underline mt-2 font-bold">Rekod sebagai Relief/Ganti</button></div>)}</div><button onClick={() => setShowSlotSelection(false)} className="w-full text-slate-500 py-2 text-sm font-bold">Batal</button></div></div>)}
+                    {showDeleteConfirm && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in"><div className="bg-white p-6 rounded-xl w-80 shadow-2xl"><h3 className="font-bold text-lg mb-2 text-red-600">Padam Rekod MMI?</h3><p className="text-slate-600 mb-4 text-sm">Anda pasti mahu memadam {selectedIds.length} rekod yang dipilih?</p><div className="flex justify-end gap-2"><button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 rounded text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200">Batal</button><button onClick={deleteSelectedLogs} className="px-4 py-2 rounded text-sm font-bold bg-red-600 text-white hover:bg-red-700">Ya, Padam</button></div></div></div>)}
                 </div>
             );
         }
 
-        function TimetableManager({ userData, currentUid, students }) {
+        function TimetableManager({ userData, currentUid, students, teachers }) {
            const [schedule, setSchedule] = useState({});
            const [loading, setLoading] = useState(true);
            const [selectedSlots, setSelectedSlots] = useState([]);
            const [showModal, setShowModal] = useState(false);
-           const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Added for delete popup
+           const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); 
            const [formData, setFormData] = useState({ subject: '', class: '' });
+           
+           const [selectedTeacherId, setSelectedTeacherId] = useState("");
+           const isAdminOrPentadbir = ['admin', 'pentadbir'].includes(userData.role);
+           const targetUid = isAdminOrPentadbir && selectedTeacherId ? selectedTeacherId : currentUid;
 
            const days = ['Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat'];
-           const times = [
-              "7:40 - 8:10", "8:10 - 8:40", "8:40 - 9:10", "9:10 - 9:40", "9:40 - 10:10",
-              "10:10 - 10:30 (REHAT)", 
-              "10:30 - 11:00", "11:00 - 11:30", "11:30 - 12:00", "12:00 - 12:30", "12:30 - 1:00", "1:00 - 1:30"
-           ];
-
-           const classList = useMemo(() => {
-               if (!students || students.length === 0) return [];
-               return [...new Set(students.map(s => s.class))].sort();
-           }, [students]);
+           const times = ["7:40 - 8:10", "8:10 - 8:40", "8:40 - 9:10", "9:10 - 9:40", "9:40 - 10:10", "10:10 - 10:30 (REHAT)", "10:30 - 11:00", "11:00 - 11:30", "11:30 - 12:00", "12:00 - 12:30", "12:30 - 1:00", "1:00 - 1:30"];
+           const classList = useMemo(() => { if (!students || students.length === 0) return []; return [...new Set(students.map(s => s.class))].sort(); }, [students]);
 
            useEffect(() => {
-              const unsub = onSnapshot(doc(db, 'portal_timetables', currentUid), (docSnap) => {
-                 if (docSnap.exists()) {
-                    setSchedule(docSnap.data().schedule || {});
-                 }
+              if (isAdminOrPentadbir && !selectedTeacherId) { setSchedule({}); setLoading(false); return; }
+              setLoading(true);
+              const unsub = onSnapshot(doc(db, 'portal_timetables', targetUid), (docSnap) => {
+                 if (docSnap.exists()) { setSchedule(docSnap.data().schedule || {}); } else { setSchedule({}); }
                  setLoading(false);
               });
               return () => unsub();
-           }, [currentUid]);
+           }, [targetUid, isAdminOrPentadbir, selectedTeacherId]);
 
            const toggleSlot = (day, time) => {
+               if (isAdminOrPentadbir && selectedTeacherId !== currentUid) return; 
                if (time.includes("REHAT")) return;
                const slotId = `${day}|${time}`;
-               setSelectedSlots(prev => {
-                   if (prev.includes(slotId)) return prev.filter(id => id !== slotId);
-                   return [...prev, slotId];
-               });
+               setSelectedSlots(prev => { if (prev.includes(slotId)) return prev.filter(id => id !== slotId); return [...prev, slotId]; });
            };
 
            const saveBatch = async () => {
-               if (selectedSlots.length === 0) return alert("Sila pilih sekurang-kurangnya satu slot.");
+               if (selectedSlots.length === 0) return alert("Sila pilih slot.");
                const newSchedule = { ...schedule };
-               selectedSlots.forEach(slotId => {
-                   const [d, t] = slotId.split('|');
-                   if (!newSchedule[d]) newSchedule[d] = {};
-                   newSchedule[d][t] = formData;
-               });
-               try {
-                  await setDoc(doc(db, 'portal_timetables', currentUid), { schedule: newSchedule, teacherName: userData.name, updatedAt: new Date().toISOString() });
-                  setSelectedSlots([]); setShowModal(false); alert("Jadual berjaya dikemaskini!");
-               } catch(e) { console.error(e); alert("Ralat: " + e.message); }
+               selectedSlots.forEach(slotId => { const [d, t] = slotId.split('|'); if (!newSchedule[d]) newSchedule[d] = {}; newSchedule[d][t] = formData; });
+               try { await setDoc(doc(db, 'portal_timetables', targetUid), { schedule: newSchedule, teacherName: userData.name, updatedAt: new Date().toISOString() }); setSelectedSlots([]); setShowModal(false); alert("Berjaya!"); } catch(e) { alert("Ralat: " + e.message); }
            };
            
-           // Updated Delete Logic with Popup
-           const confirmDelete = () => {
-               if (selectedSlots.length === 0) return alert("Pilih slot untuk dipadam.");
-               setShowDeleteConfirm(true);
-           };
-
+           const confirmDelete = () => { if (selectedSlots.length === 0) return alert("Pilih slot untuk dipadam."); setShowDeleteConfirm(true); };
            const clearSlots = async () => {
                const newSchedule = { ...schedule };
-               selectedSlots.forEach(slotId => {
-                   const [d, t] = slotId.split('|');
-                   if (newSchedule[d]) delete newSchedule[d][t];
-               });
-               await setDoc(doc(db, 'portal_timetables', currentUid), { schedule: newSchedule, teacherName: userData.name, updatedAt: new Date().toISOString() });
-               setSelectedSlots([]);
-               setShowDeleteConfirm(false);
+               selectedSlots.forEach(slotId => { const [d, t] = slotId.split('|'); if (newSchedule[d]) delete newSchedule[d][t]; });
+               await setDoc(doc(db, 'portal_timetables', targetUid), { schedule: newSchedule, teacherName: userData.name, updatedAt: new Date().toISOString() });
+               setSelectedSlots([]); setShowDeleteConfirm(false);
            };
 
-           if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-slate-400 w-8 h-8"/></div>;
+           if (loading && !isAdminOrPentadbir) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-slate-400 w-8 h-8"/></div>;
 
            return (
               <div className="max-w-full mx-auto space-y-6">
-                 <div className="flex justify-between items-center no-print">
-                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><CalendarClock className="w-6 h-6 text-indigo-600"/> Jadual Waktu Peribadi</h2>
-                    <div className="flex gap-2">
-                        <button onClick={() => window.print()} className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg font-bold hover:bg-slate-200 flex items-center gap-2"><Printer className="w-4 h-4"/> Cetak</button>
-                    </div>
-                 </div>
-                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print-container select-none">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm border-collapse">
-                            <thead>
-                                <tr className="bg-slate-800 text-white">
-                                    <th className="p-3 border border-slate-700 min-w-[100px]">Hari / Masa</th>
-                                    {times.map(t => (<th key={t} className={`p-3 border border-slate-700 text-center whitespace-nowrap text-xs ${t.includes('REHAT') ? 'bg-amber-600' : ''}`}>{t}</th>))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {days.map(day => (
-                                    <tr key={day} className="hover:bg-slate-50">
-                                        <td className="p-3 border border-slate-200 font-bold bg-slate-100 text-slate-700 text-center">{day}</td>
-                                        {times.map(time => {
-                                            const isRehat = time.includes('REHAT');
-                                            const slotId = `${day}|${time}`;
-                                            const isSelected = selectedSlots.includes(slotId);
-                                            const data = schedule[day]?.[time] || { subject: '', class: '' };
-                                            if (isRehat) return <td key={time} className="p-1 border border-slate-200 bg-amber-50 text-center font-bold text-amber-700 text-xs diagonal-stripe">REHAT</td>
-                                            return (
-                                                <td key={time} onClick={() => toggleSlot(day, time)} className={`p-1 border border-slate-200 min-w-[100px] h-16 cursor-pointer transition-all text-center relative ${isSelected ? 'bg-indigo-100 ring-2 ring-inset ring-indigo-500' : ''}`}>
-                                                    {data.subject ? (<div className="flex flex-col justify-center h-full"><span className="font-bold text-slate-800 text-xs">{data.subject}</span><span className="text-[10px] text-slate-500">{data.class}</span></div>) : (<span className="text-slate-300 text-[10px]">-</span>)}
-                                                    {isSelected && <div className="absolute top-1 right-1 w-2 h-2 bg-indigo-600 rounded-full"></div>}
-                                                </td>
-                                            )
-                                        })}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                 </div>
-                 {selectedSlots.length > 0 && (
-                     <div className="fixed bottom-6 right-6 z-50 animate-fade-in no-print flex gap-2">
-                         <button onClick={confirmDelete} className="bg-red-500 text-white px-4 py-3 rounded-full font-bold shadow-xl hover:bg-red-600 flex items-center gap-2"><Trash2 className="w-5 h-5"/> Padam</button>
-                         <button onClick={() => { setFormData({subject:'', class:''}); setShowModal(true); }} className="bg-indigo-600 text-white px-6 py-3 rounded-full font-bold shadow-xl hover:bg-indigo-700 flex items-center gap-3 transition-transform hover:scale-105"><Edit3 className="w-5 h-5"/> Isi {selectedSlots.length} Slot</button>
-                     </div>
-                 )}
-                 {showModal && (
-                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in no-print">
-                         <div className="bg-white p-6 rounded-xl w-80 shadow-2xl">
-                             <h3 className="font-bold text-lg mb-4 text-slate-800">Kemaskini Slot</h3>
-                             <div className="space-y-3">
-                                 <div><label className="lbl">Subjek</label><input className="inp w-full" autoFocus placeholder="Contoh: Matematik" value={formData.subject} onChange={e=>setFormData({...formData, subject: e.target.value})} /></div>
-                                 <div><label className="lbl">Kelas</label><select className="inp w-full" value={formData.class} onChange={e=>setFormData({...formData, class: e.target.value})}><option value="">-- Pilih Kelas --</option>{classList.length > 0 ? classList.map(c => <option key={c} value={c}>{c}</option>) : <option disabled>Tiada data kelas</option>}<option value="Lain-lain">Lain-lain / Manual</option></select>{formData.class === 'Lain-lain' && <input className="inp w-full mt-2" placeholder="Nama Kelas Manual" onChange={e=>setFormData({...formData, class: e.target.value})} />}</div>
-                             </div>
-                             <div className="flex justify-end gap-2 mt-6"><button onClick={() => setShowModal(false)} className="px-4 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-100">Batal</button><button onClick={saveBatch} className="px-4 py-2 rounded text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700">Simpan</button></div>
-                         </div>
-                     </div>
-                 )}
-                 
-                 {/* TIMETABLE DELETE CONFIRM MODAL */}
-                 {showDeleteConfirm && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in no-print">
-                        <div className="bg-white p-6 rounded-xl w-80 shadow-2xl">
-                            <h3 className="font-bold text-lg mb-2 text-red-600">Padam Slot?</h3>
-                            <p className="text-slate-500 mb-4 text-sm">Anda pasti mahu memadam {selectedSlots.length} slot terpilih?</p>
-                            <div className="flex justify-end gap-2">
-                                <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 rounded text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200">Batal</button>
-                                <button onClick={clearSlots} className="px-4 py-2 rounded text-sm font-bold bg-red-600 text-white hover:bg-red-700">Ya, Padam</button>
-                            </div>
-                        </div>
-                    </div>
-                 )}
+                 {isAdminOrPentadbir && (<div className="bg-white p-6 rounded-xl border border-indigo-100 shadow-sm no-print"><h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><Search size={18}/> Semakan Jadual Guru</h3><select className="w-full border p-2 rounded-lg" value={selectedTeacherId} onChange={(e) => setSelectedTeacherId(e.target.value)}><option value="">-- Pilih Guru --</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>)}
+                 {(!isAdminOrPentadbir || selectedTeacherId) && (<><div className="flex justify-between items-center no-print"><h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><CalendarClock className="w-6 h-6 text-indigo-600"/> Jadual Waktu {selectedTeacherId ? `(${teachers.find(t=>t.id===selectedTeacherId)?.name})` : 'Peribadi'}</h2><div className="flex gap-2"><button onClick={() => window.print()} className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg font-bold hover:bg-slate-200 flex items-center gap-2"><Printer className="w-4 h-4"/> Cetak</button></div></div><div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print-container select-none"><div className="overflow-x-auto"><table className="w-full text-sm border-collapse"><thead><tr className="bg-slate-800 text-white"><th className="p-3 border border-slate-700 min-w-[100px]">Hari / Masa</th>{times.map(t => (<th key={t} className={`p-3 border border-slate-700 text-center whitespace-nowrap text-xs ${t.includes('REHAT') ? 'bg-amber-600' : ''}`}>{t}</th>))}</tr></thead><tbody>{days.map(day => (<tr key={day} className="hover:bg-slate-50"><td className="p-3 border border-slate-200 font-bold bg-slate-100 text-slate-700 text-center">{day}</td>{times.map(time => { const isRehat = time.includes('REHAT'); const slotId = `${day}|${time}`; const isSelected = selectedSlots.includes(slotId); const data = schedule[day]?.[time] || { subject: '', class: '' }; if (isRehat) return <td key={time} className="p-1 border border-slate-200 bg-amber-50 text-center font-bold text-amber-700 text-xs diagonal-stripe">REHAT</td>; return (<td key={time} onClick={() => toggleSlot(day, time)} className={`p-1 border border-slate-200 min-w-[100px] h-16 cursor-pointer transition-all text-center relative ${isSelected ? 'bg-indigo-100 ring-2 ring-inset ring-indigo-500' : ''}`}>{data.subject ? (<div className="flex flex-col justify-center h-full"><span className="font-bold text-slate-800 text-xs">{data.subject}</span><span className="text-[10px] text-slate-500">{data.class}</span></div>) : (<span className="text-slate-300 text-[10px]">-</span>)}{isSelected && <div className="absolute top-1 right-1 w-2 h-2 bg-indigo-600 rounded-full"></div>}</td>) })}</tr>))}</tbody></table></div></div>{selectedSlots.length > 0 && (!isAdminOrPentadbir || selectedTeacherId === currentUid) && (<div className="fixed bottom-6 right-6 z-50 animate-fade-in no-print flex gap-2"><button onClick={confirmDelete} className="bg-red-500 text-white px-4 py-3 rounded-full font-bold shadow-xl hover:bg-red-600 flex items-center gap-2"><Trash2 className="w-5 h-5"/> Padam</button><button onClick={() => { setFormData({subject:'', class:''}); setShowModal(true); }} className="bg-indigo-600 text-white px-6 py-3 rounded-full font-bold shadow-xl hover:bg-indigo-700 flex items-center gap-3 transition-transform hover:scale-105"><Edit3 className="w-5 h-5"/> Isi {selectedSlots.length} Slot</button></div>)}</>)}
+                 {showModal && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in no-print"><div className="bg-white p-6 rounded-xl w-80 shadow-2xl"><h3 className="font-bold text-lg mb-4 text-slate-800">Kemaskini Slot</h3><div className="space-y-3"><div><label className="lbl">Subjek</label><input className="inp w-full" autoFocus placeholder="Contoh: Matematik" value={formData.subject} onChange={e=>setFormData({...formData, subject: e.target.value})} /></div><div><label className="lbl">Kelas</label><select className="inp w-full" value={formData.class} onChange={e=>setFormData({...formData, class: e.target.value})}><option value="">-- Pilih Kelas --</option>{classList.length > 0 ? classList.map(c => <option key={c} value={c}>{c}</option>) : <option disabled>Tiada data kelas</option>}<option value="Lain-lain">Lain-lain / Manual</option></select>{formData.class === 'Lain-lain' && <input className="inp w-full mt-2" placeholder="Nama Kelas Manual" onChange={e=>setFormData({...formData, class: e.target.value})} />}</div></div><div className="flex justify-end gap-2 mt-6"><button onClick={() => setShowModal(false)} className="px-4 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-100">Batal</button><button onClick={saveBatch} className="px-4 py-2 rounded text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700">Simpan</button></div></div></div>)}
+                 {showDeleteConfirm && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in no-print"><div className="bg-white p-6 rounded-xl w-80 shadow-2xl"><h3 className="font-bold text-lg mb-2 text-red-600">Padam Slot?</h3><p className="text-slate-500 mb-4 text-sm">Anda pasti mahu memadam {selectedSlots.length} slot terpilih?</p><div className="flex justify-end gap-2"><button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 rounded text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200">Batal</button><button onClick={clearSlots} className="px-4 py-2 rounded text-sm font-bold bg-red-600 text-white hover:bg-red-700">Ya, Padam</button></div></div></div>)}
               </div>
            );
         }
@@ -994,7 +823,7 @@
 
                         <div className="grid grid-cols-3 gap-4 mb-6 border border-slate-300 p-4 rounded-lg bg-slate-50/50">
                             <div><label className="text-xs font-bold uppercase text-slate-500 block mb-1">Tarikh</label><input type="date" className="w-full bg-transparent font-bold border-b border-slate-300 outline-none" value={formData.date} onChange={handleDateChange}/></div>
-                            <div><label className="text-xs font-bold uppercase text-slate-500 block mb-1">Hari</label><input className="w-full bg-transparent font-bold border-b border-slate-300 outline-none text-slate-500" value={formData.day} readOnly /></div>
+                            <div><label className="text-xs font-bold uppercase text-slate-500 block mb-1">Hari</label><input className="w-full bg-transparent font-bold border-b border-slate-300 outline-none text-slate-500" value={formData.day} onChange={e=>setFormData({...formData, day:e.target.value})} /></div>
                             <div><label className="text-xs font-bold uppercase text-slate-500 block mb-1">Minggu</label><input type="number" className="w-full bg-transparent font-bold border-b border-slate-300 outline-none" placeholder="Contoh: 41" value={formData.week} onChange={e=>setFormData({...formData, week:e.target.value})}/></div>
                         </div>
                         
@@ -1363,7 +1192,7 @@
                   const collectionsToReset = [
                       'portal_apps', 'portal_tasks', 'portal_reports', 
                       'portal_assignments', 'portal_events', 'portal_attendance', 
-                      'portal_mmi', 'portal_timetables', // Added new collections
+                      'portal_mmi', 'portal_timetables', 'portal_access_logs',
                       'portal_students', 'portal_teachers', 'portal_settings'
                   ];
                   
@@ -1450,6 +1279,8 @@
                     const ref = doc(db, 'portal_users', u.uid); const snap = await getDoc(ref);
                     if (snap.exists()) { setUser(u); setUserData(snap.data()); setLoading(false); }
                     else { const q = query(collection(db, 'portal_teachers'), where("email", "==", u.email)); const qs = await getDocs(q); if (!qs.empty) { const ti = qs.docs[0].data(); let r = 'guru'; if (ti.role && ti.role.includes('admin')) r = 'admin'; else if (ti.role && ti.role.includes('pentadbir')) r = 'pentadbir'; const nud = { name: ti.name, email: u.email, photo: u.photoURL, role: r }; await setDoc(ref, nud); setUser(u); setUserData(nud); setLoading(false); } else { await signOut(auth); setUser(null); setUserData(null); alert("E-mel tidak berdaftar."); setLoading(false); } }
+                    // Log access
+                    addDoc(collection(db, 'portal_access_logs'), { uid: u.uid, name: u.displayName || u.email, email: u.email, role: 'user', timestamp: new Date().toISOString() });
                 } catch(e) { console.error(e); await signOut(auth); setLoading(false); }
               } else { setUser(null); setUserData(null); setLoading(false); }
             });
@@ -1498,8 +1329,10 @@
                         case 'attendance': return <AttendanceManager students={students} userData={userData} />;
                         case 'students': return <DataTable type="student" data={students} currentUserRole={userData.role} />;
                         case 'teachers': return <DataTable type="teacher" data={teachers} currentUserRole={userData.role} />;
-                        case 'timetable': return <TimetableManager userData={userData} currentUid={user.uid} students={students} />;
-                        case 'mmi': return <MMIManager userData={userData} currentUid={user.uid} students={students} />;
+                        case 'timetable': return <TimetableManager userData={userData} currentUid={user.uid} students={students} teachers={teachers} />;
+                        case 'mmi': return <MMIManager userData={userData} currentUid={user.uid} students={students} teachers={teachers} />;
+                        case 'logs': return <SystemLogs />;
+                        case 'stats': return <UsageStats />;
                         default: return <Dashboard userData={userData} apps={apps} students={students} teachers={teachers} tasks={tasks} setView={setView} />;
                       }
                    })()}
