@@ -130,29 +130,9 @@
 
         // --- 1. UTILITY COMPONENTS ---
 
-        function AccessDenied() { 
-            return (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400 font-bold">
-                    <Lock className="w-12 h-12 mb-4 opacity-50"/>
-                    <p>Akses Terhad</p>
-                </div>
-            ); 
-        }
+        function AccessDenied() { return <div className="h-full flex flex-col items-center justify-center text-slate-400 font-bold"><Lock className="w-12 h-12 mb-4 opacity-50"/><p>Akses Terhad</p></div>; }
         
-        function ConfirmModal({ title, msg, onConfirm, onCancel }) { 
-            return (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
-                    <div className="bg-white p-6 rounded-xl w-80 shadow-2xl">
-                        <h3 className="font-bold text-lg mb-2">{title}</h3>
-                        <p className="text-slate-500 mb-4 text-sm">{msg}</p>
-                        <div className="flex justify-end gap-2">
-                            <button onClick={onCancel} className="px-4 py-2 rounded text-sm font-bold text-slate-600">Batal</button>
-                            <button onClick={onConfirm} className="px-4 py-2 rounded text-sm font-bold bg-red-600 text-white">Ya</button>
-                        </div>
-                    </div>
-                </div>
-            ); 
-        }
+        function ConfirmModal({ title, msg, onConfirm, onCancel }) { return <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in"><div className="bg-white p-6 rounded-xl w-80 shadow-2xl"><h3 className="font-bold text-lg mb-2">{title}</h3><p className="text-slate-500 mb-4 text-sm">{msg}</p><div className="flex justify-end gap-2"><button onClick={onCancel} className="px-4 py-2 rounded text-sm font-bold text-slate-600">Batal</button><button onClick={onConfirm} className="px-4 py-2 rounded text-sm font-bold bg-red-600 text-white">Ya</button></div></div></div>; }
 
         function LoginScreen({ onGoogleLogin, onDemoLogin }) {
           return (
@@ -163,15 +143,8 @@
                     </div>
                     <h2 className="text-2xl font-bold text-slate-800 mb-1">SkolaHub</h2>
                     <p className="text-slate-500 mb-8 font-medium">SK Masjid Tanah (Integ)</p>
-                    <button onClick={onGoogleLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all group shadow-sm mb-3">
-                       <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6" alt="Google" />
-                       <span className="font-bold text-slate-700">Log Masuk Google</span>
-                    </button>
-                    <button onClick={onDemoLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 transition-all group shadow-sm">
-                       <LogIn className="w-5 h-5 text-indigo-600" />
-                       <span className="font-bold text-indigo-700">Mod Demo (Tanpa Login)</span>
-                    </button>
-                    <div className="text-xs text-slate-400 mt-6">Sistem Pengurusan Sekolah Digital v2.0</div>
+                    <button onClick={onGoogleLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all group shadow-sm mb-3"><img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6" alt="Google" /><span className="font-bold text-slate-700">Log Masuk Google</span></button>
+                    <button onClick={onDemoLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 transition-all group shadow-sm"><LogIn className="w-5 h-5 text-indigo-600" /><span className="font-bold text-indigo-700">Mod Demo (Tanpa Login)</span></button>
                  </div>
             </div>
           );
@@ -194,38 +167,17 @@
           ];
           return (
              <aside className="w-20 md:w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 z-20 no-print transition-all duration-300">
-                <div className="h-20 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-100 gap-3">
-                    <img src="https://i.postimg.cc/k4N1mPR1/semat-04.png" className="w-10 h-10 object-contain" alt="Logo"/>
-                    <div className="hidden md:block">
-                        <span className="block font-bold text-lg text-slate-800 leading-tight">SkolaHub</span>
-                        <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">SK Masjid Tanah</span>
-                    </div>
-                </div>
-                <div className="p-4 border-b border-slate-100 flex items-center gap-3">
-                   <img src={userData.photo || "https://ui-avatars.com/api/?name="+userData.name} className="w-10 h-10 rounded-full border border-slate-200" alt="Avatar"/>
-                   <div className="hidden md:block overflow-hidden"><p className="text-sm font-bold text-slate-700 truncate">{userData.name}</p><p className="text-xs text-slate-500 uppercase font-bold tracking-wider">{userData.role}</p></div>
-                </div>
-                <nav className="p-2 md:p-4 space-y-1 flex-1 overflow-y-auto">
-                   {menus.map(m => {
-                      if (m.access && !m.access.includes(userData.role)) return null;
-                      return <button key={m.id} onClick={() => setView(m.id)} title={m.l} className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${view === m.id ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}><m.i className={`w-5 h-5 ${view === m.id ? 'text-indigo-600' : 'text-slate-400'}`} /><span className="hidden md:block">{m.l}</span></button>
-                   })}
-                </nav>
+                <div className="h-20 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-100 gap-3"><img src="https://i.postimg.cc/k4N1mPR1/semat-04.png" className="w-10 h-10 object-contain"/><div className="hidden md:block"><span className="block font-bold text-lg text-slate-800 leading-tight">SkolaHub</span><span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">SK Masjid Tanah</span></div></div>
+                <div className="p-4 border-b border-slate-100 flex items-center gap-3"><img src={userData.photo || "https://ui-avatars.com/api/?name="+userData.name} className="w-10 h-10 rounded-full border border-slate-200"/><div className="hidden md:block overflow-hidden"><p className="text-sm font-bold text-slate-700 truncate">{userData.name}</p><p className="text-xs text-slate-500 uppercase font-bold tracking-wider">{userData.role}</p></div></div>
+                <nav className="p-2 md:p-4 space-y-1 flex-1 overflow-y-auto">{menus.map(m => (!m.access || m.access.includes(userData.role)) && <button key={m.id} onClick={() => setView(m.id)} title={m.l} className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${view === m.id ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}><m.i className={`w-5 h-5 ${view === m.id ? 'text-indigo-600' : 'text-slate-400'}`} /><span className="hidden md:block">{m.l}</span></button>)}</nav>
                 <div className="p-4 border-t border-slate-100"><button onClick={logout} className="flex items-center justify-center md:justify-start gap-3 text-slate-400 hover:text-red-600 hover:bg-red-50 text-sm font-medium w-full px-3 py-3 rounded-lg transition-colors"><LogOut className="w-5 h-5" /><span className="hidden md:block">Keluar</span></button></div>
              </aside>
           )
         }
 
-        function Header({ userData, view }) {
-           return (
-              <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm z-10 no-print">
-                 <h2 className="font-bold text-lg capitalize text-slate-800 flex items-center gap-2">{view}</h2>
-                 <span className="text-xs font-bold uppercase text-white bg-indigo-600 px-3 py-1 rounded-full tracking-wider shadow-sm">{userData.role}</span>
-              </header>
-           )
-        }
+        function Header({ userData, view }) { return (<header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm z-10 no-print"><h2 className="font-bold text-lg capitalize text-slate-800 flex items-center gap-2">{view}</h2><span className="text-xs font-bold uppercase text-white bg-indigo-600 px-3 py-1 rounded-full tracking-wider shadow-sm">{userData.role}</span></header>); }
 
-        // --- 3. FEATURE COMPONENTS (EXPANDED) ---
+        // --- 3. FEATURE COMPONENTS ---
 
         function TakwimManager({ canEdit, role, currentUid }) {
             const [date, setDate] = useState(new Date(2026, 0, 1)); 
@@ -777,66 +729,368 @@
         function AppBuilder({ apps }) {
           const [form, setForm] = useState({ title: '', desc: '', iconKey: 'portal', category: 'umum', type: 'link', content: '' });
           const [confirmDel, setConfirmDel] = useState(null);
+          
           const handleSave = async () => { if(!form.title) return; await addDoc(collection(db, 'portal_apps'), form); setForm({...form, title:''}); alert("Disimpan!"); };
           const executeDelete = async () => { if(confirmDel) { await deleteDoc(doc(db, 'portal_apps', confirmDel)); setConfirmDel(null); } };
-          const handleContentChange = (e) => { const val = e.target.value; const newForm = { ...form, content: val }; if (val.includes("import React") || val.includes("export default")) newForm.type = 'react'; else if (val.trim().startsWith('<')) newForm.type = 'html'; else if (val.startsWith('http')) newForm.type = 'link'; setForm(newForm); };
-          return (<div className="grid lg:grid-cols-12 gap-8"><div className="lg:col-span-8 bg-white rounded-xl border border-slate-200 p-6"><h3 className="font-bold mb-4">Bina App</h3><div className="space-y-4"><input className="inp" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} placeholder="Tajuk"/><textarea className="inp h-20" value={form.desc} onChange={e=>setForm({...form, desc:e.target.value})} placeholder="Deskripsi"/><div className="flex gap-2"><button onClick={()=>setForm({...form, type:'link'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='link'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>Link</button><button onClick={()=>setForm({...form, type:'html'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='html'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>HTML</button><button onClick={()=>setForm({...form, type:'react'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='react'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>React (Beta)</button></div>{form.type==='link'?<input className="inp" value={form.content} onChange={e=>setForm({...form, content:e.target.value})} placeholder="URL..."/>:<textarea className="inp h-60 font-mono text-xs bg-slate-900 text-green-400 p-4" value={form.content} onChange={handleContentChange} placeholder="HTML / React Code"/>}<button onClick={handleSave} className="bg-indigo-600 text-white w-full py-2 rounded-lg font-bold">Terbitkan</button></div></div><div className="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-4"><h3 className="font-bold text-sm mb-4">Senarai</h3>{apps.map(a=>(<div key={a.id} className="flex justify-between items-center p-2 hover:bg-slate-50 border-b border-slate-100 last:border-0"><span className="text-sm font-bold truncate w-40">{a.title}</span><button onClick={()=>setConfirmDel(a.id)} className="text-red-500"><Trash2 className="w-4 h-4"/></button></div>))}</div>{confirmDel && <ConfirmModal title="Padam?" msg="Tiada undo." onConfirm={executeDelete} onCancel={()=>setConfirmDel(null)}/>}</div>);
+          
+          const handleContentChange = (e) => {
+              const val = e.target.value;
+              const newForm = { ...form, content: val };
+              // Auto-detect Code Type logic
+              if (val.includes("import React") || val.includes("from 'react'") || val.includes("export default")) {
+                  newForm.type = 'react';
+              } else if (val.trim().startsWith('<') && !val.includes("import React")) {
+                  newForm.type = 'html';
+              } else if (val.startsWith('http')) {
+                  newForm.type = 'link';
+              }
+              setForm(newForm);
+          };
+
+          return (
+            <div className="grid lg:grid-cols-12 gap-8">
+                <div className="lg:col-span-8 bg-white rounded-xl border border-slate-200 p-6">
+                    <h3 className="font-bold mb-4">Bina App</h3>
+                    <div className="space-y-4">
+                        <input className="inp" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} placeholder="Tajuk"/>
+                        <textarea className="inp h-20" value={form.desc} onChange={e=>setForm({...form, desc:e.target.value})} placeholder="Deskripsi"/>
+                        <div className="flex gap-2">
+                            <button onClick={()=>setForm({...form, type:'link'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='link'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>Link</button>
+                            <button onClick={()=>setForm({...form, type:'html'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='html'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>HTML</button>
+                            <button onClick={()=>setForm({...form, type:'react'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='react'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>React (Beta)</button>
+                        </div>
+                        {form.type==='link'?
+                            <input className="inp" value={form.content} onChange={e=>setForm({...form, content:e.target.value})} placeholder="URL..."/>:
+                            <div className="relative">
+                                <textarea className="inp h-60 font-mono text-xs bg-slate-900 text-green-400 p-4" value={form.content} onChange={handleContentChange} placeholder={form.type === 'react' ? "function App() { return <div className='p-4'>Hello Cikgu!</div> }" : "HTML Code..."}/>
+                                {form.type === 'react' && <p className="text-[10px] text-slate-500 mt-1 italic">* Anda boleh paste kod React penuh (termasuk import). Sistem akan cuba render secara automatik.</p>}
+                            </div>
+                        }
+                        <div className="flex gap-3 overflow-x-auto pb-4 pt-1">
+                            {Object.entries(ALL_ICONS).map(([k, d]) => (
+                                <button key={k} onClick={() => setForm({...form, iconKey: k})} className={`p-3 rounded-xl border transition-all flex-shrink-0 ${form.iconKey === k ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`} title={k}><d.i className={`w-6 h-6 ${d.color}`}/></button>
+                            ))}
+                        </div>
+                        <button onClick={handleSave} className="bg-indigo-600 text-white w-full py-2 rounded-lg font-bold">Terbitkan</button>
+                    </div>
+                </div>
+                <div className="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-4">
+                    <h3 className="font-bold text-sm mb-4">Senarai</h3>
+                    {apps.map(a=>(
+                        <div key={a.id} className="flex justify-between items-center p-2 hover:bg-slate-50 border-b border-slate-100 last:border-0">
+                            <span className="text-sm font-bold truncate w-40">{a.title}</span>
+                            <button onClick={()=>setConfirmDel(a.id)} className="text-red-500"><Trash2 className="w-4 h-4"/></button>
+                        </div>
+                    ))}
+                </div>
+                {confirmDel && <ConfirmModal title="Padam?" msg="Tiada undo." onConfirm={executeDelete} onCancel={()=>setConfirmDel(null)}/>}
+            </div>
+          );
         }
 
         function AppGallery({ apps }) {
           const [sel, setSel] = useState(null);
-          const genReactHtml = (code) => { let mod = code; const m = code.match(/export\s+default\s+(\w+)/); if (m) mod = code.replace(/export\s+default\s+\w+;?/g, '') + `\n\nconst App = ${m[1]};`; return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><script src="https://cdn.tailwindcss.com"><\/script><script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script></head><body><div id="root"></div><script type="text/babel" data-type="module">import React, { useState, useEffect } from 'react';import {createRoot} from 'react-dom/client';import * as LucideIcons from 'lucide-react'; window.LucideIcons = LucideIcons; try{${mod};if(typeof App!=='undefined'){const root=createRoot(document.getElementById('root'));root.render(<App/>);}else{document.body.innerHTML='Ralat: Komponen utama tidak dijumpai.'}}catch(e){document.body.innerHTML=e.message}<\/script></body></html>`; };
-          if(sel) return (<div className="h-[80vh] bg-white rounded-xl border border-slate-200 flex flex-col"><div className="p-4 border-b flex justify-between"><button onClick={()=>setSel(null)} className="flex items-center gap-1 font-bold text-slate-600"><ChevronRight className="rotate-180 w-4 h-4"/> Kembali</button><h3 className="font-bold">{sel.title}</h3></div><div className="flex-1 relative bg-white">{sel.type === 'link' ? <iframe src={sel.content} className="w-full h-full border-none"/> : <iframe srcDoc={sel.type === 'react' ? genReactHtml(sel.content) : sel.content} className="w-full h-full border-none"/>}</div></div>);
+          
+          const generateReactHtml = (code) => {
+              // Handle "export default ComponentName" pattern
+              let modifiedCode = code;
+              const exportMatch = code.match(/export\s+default\s+(\w+)/);
+              if (exportMatch && exportMatch[1]) {
+                  // We strip the export default statement to avoid syntax errors in non-module script
+                  // And we alias the component to 'App' so the render function can find it
+                  modifiedCode = code.replace(/export\s+default\s+\w+;?/g, ''); 
+                  modifiedCode += `\n\n// Auto-assigned by System\nconst App = ${exportMatch[1]};`;
+              }
+
+              return `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8" />
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                    <script src="https://cdn.tailwindcss.com"><\/script>
+                    <script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
+                    <script type="importmap">
+                    {
+                      "imports": {
+                        "react": "https://esm.sh/react@18.2.0",
+                        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+                        "lucide-react": "https://esm.sh/lucide-react@0.292.0"
+                      }
+                    }
+                    <\/script>
+                    <style>body { font-family: sans-serif; background-color: #ffffff; }</style>
+                </head>
+                <body>
+                    <div id="root"></div>
+                    <script type="text/babel" data-type="module">
+                        import React, { useState, useEffect, useRef } from 'react';
+                        import { createRoot } from 'react-dom/client';
+                        import * as LucideIcons from 'lucide-react';
+                        
+                        // We make LucideIcons available globally if needed, 
+                        // though the importmap handles imports within the pasted code mostly.
+                        window.LucideIcons = LucideIcons;
+
+                        try {
+                            ${modifiedCode}
+
+                            if (typeof App !== 'undefined') {
+                                const root = createRoot(document.getElementById('root'));
+                                root.render(<App />);
+                            } else {
+                                document.getElementById('root').innerHTML = '<div style="color:red; padding:20px; font-weight:bold;">Ralat: Komponen utama tidak dijumpai. Pastikan anda menggunakan "export default NamaComponent" atau namakan komponen sebagai "App".</div>';
+                            }
+                        } catch (err) {
+                            document.getElementById('root').innerHTML = '<div style="color:red; padding:20px;">Ralat Sintaks: ' + err.message + '</div>';
+                        }
+                    <\/script>
+                </body>
+                </html>
+              `;
+          };
+
+          if(sel) return (<div className="h-[80vh] bg-white rounded-xl border border-slate-200 flex flex-col"><div className="p-4 border-b flex justify-between"><button onClick={()=>setSel(null)} className="flex items-center gap-1 font-bold text-slate-600"><ChevronRight className="rotate-180 w-4 h-4"/> Kembali</button><h3 className="font-bold">{sel.title}</h3>{sel.type==='link' && <a href={sel.content} target="_blank" className="text-blue-600 text-xs font-bold flex items-center gap-1">Tab Baru <ExternalLink className="w-3 h-3"/></a>}</div><div className="flex-1 relative bg-white">{sel.type === 'link' ? <iframe src={sel.content} className="w-full h-full border-none"/> : <iframe srcDoc={sel.type === 'react' ? generateReactHtml(sel.content) : sel.content} className="w-full h-full border-none" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"/>}</div></div>);
           return (<div className="grid grid-cols-2 md:grid-cols-4 gap-4">{apps.map(a=>(<div key={a.id} onClick={()=>setSel(a)} className="bg-white p-4 rounded-xl border hover:shadow-md cursor-pointer flex flex-col h-40 justify-between"><div className="flex justify-between"><div className={`p-2 rounded-lg ${ALL_ICONS[a.iconKey]?.bg || 'bg-slate-100'}`}>{React.createElement(ALL_ICONS[a.iconKey]?.i || Globe, { className: `w-6 h-6 ${ALL_ICONS[a.iconKey]?.color || 'text-slate-600'}` })}</div></div><div><h4 className="font-bold truncate">{a.title}</h4><p className="text-xs text-slate-500 line-clamp-2">{a.desc}</p></div></div>))}</div>);
         }
 
-        function AttendanceManager({ students, userData }) {
-            const [selectedClass, setSelectedClass] = useState("");
-            const [attendanceData, setAttendanceData] = useState({});
-            const [today, setToday] = useState(new Date().toISOString().split('T')[0]);
-            const [loading, setLoading] = useState(false);
-            const [showSummary, setShowSummary] = useState(false);
-            const [summaryData, setSummaryData] = useState(null);
-            const [history, setHistory] = useState([]);
-            const [filterDate, setFilterDate] = useState("");
-            const classList = [...new Set(students.map(s => s.class))].sort();
-            const classStudents = students.filter(s => s.class === selectedClass).sort((a,b) => a.name.localeCompare(b.name));
-
-            useEffect(() => { if(selectedClass) { const i = {}; classStudents.forEach(s => { i[s.id] = 'Hadir'; }); setAttendanceData(i); } }, [selectedClass]);
-            useEffect(() => { const q = query(collection(db, 'portal_attendance'), orderBy('submittedAt', 'desc')); const unsub = onSnapshot(q, s => setHistory(s.docs.map(d => ({id: d.id, ...d.data()})))); return () => unsub(); }, []);
-
-            const submitAttendance = async () => { if(!selectedClass) return alert("Pilih kelas."); setLoading(true); try { let h=0, th=0, l=0; Object.values(attendanceData).forEach(s => { if(s==='Hadir') h++; else if(s==='Tidak Hadir') th++; else l++; }); const docId = `${today}_${selectedClass.replace(/\s+/g, '_')}`; const payload = { date: today, className: selectedClass, records: attendanceData, stats: { hadir:h, tidakHadir:th, lewat:l, total: classStudents.length }, submittedBy: userData.name, submittedAt: new Date().toISOString() }; await setDoc(doc(db, 'portal_attendance', docId), payload); setSummaryData(payload.stats); setShowSummary(true); } catch(e){console.error(e);alert("Ralat.");} setLoading(false); };
-            const handleEdit = (rec) => { setSelectedClass(rec.className); setToday(rec.date); setAttendanceData(rec.records); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-            const filteredHistory = history.filter(h => filterDate ? h.date === filterDate : true);
-
-            return (
-                <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><UserCheck className="w-6 h-6 text-indigo-600"/> Kehadiran Murid</h2><div className="bg-white px-4 py-2 rounded-lg border text-sm font-bold text-slate-600">Tarikh: {formatDate(today)}</div></div>
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><div className="mb-6"><label className="lbl text-base">Pilih Kelas</label><select className="w-full md:w-1/2 p-3 border rounded-lg font-bold bg-slate-50" value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}><option value="">-- Pilih --</option>{classList.map(c => <option key={c} value={c}>{c}</option>)}</select></div>{selectedClass && <><div className="overflow-x-auto border rounded-lg mb-6"><table className="w-full text-sm text-left"><thead className="bg-slate-100 text-xs uppercase"><tr><th className="p-3 w-10">Bil</th><th className="p-3">Nama</th><th className="p-3 text-center">Status</th></tr></thead><tbody className="divide-y">{classStudents.map((s, i) => (<tr key={s.id}><td className="p-3 text-center">{i + 1}</td><td className="p-3 font-bold">{s.name}</td><td className="p-3 flex justify-center gap-2">{['Hadir', 'Tidak Hadir', 'Lewat'].map(st => <button key={st} onClick={() => setAttendanceData(p => ({ ...p, [s.id]: st }))} className={`px-3 py-1 rounded text-xs font-bold border ${attendanceData[s.id] === st ? (st==='Hadir'?'bg-emerald-100 border-emerald-300':st==='Tidak Hadir'?'bg-red-100 border-red-300':'bg-amber-100 border-amber-300') : 'bg-slate-50'}`}>{st}</button>)}</td></tr>))}</tbody></table></div><button onClick={submitAttendance} className="bg-indigo-600 text-white w-full py-3 rounded-lg font-bold">Hantar Kehadiran</button></>}</div>
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mt-8"><div className="flex justify-between items-center mb-4"><h3 className="font-bold text-slate-800 flex items-center gap-2"><History className="w-5 h-5 text-indigo-600"/> Sejarah Kehadiran</h3><div className="flex items-center gap-2"><span className="text-xs font-bold text-slate-500">Filter Tarikh:</span><input type="date" className="border rounded px-2 py-1 text-xs" value={filterDate} onChange={e => setFilterDate(e.target.value)} /></div></div><div className="overflow-x-auto"><table className="w-full text-sm text-left"><thead className="bg-slate-50 text-slate-500 font-bold uppercase text-xs"><tr><th className="p-3">Tarikh</th><th className="p-3">Kelas</th><th className="p-3 text-center">Hadir</th><th className="p-3 text-center">TH</th><th className="p-3 text-center">Lewat</th><th className="p-3 text-right"></th></tr></thead><tbody className="divide-y divide-slate-100">{filteredHistory.map(rec => (<tr key={rec.id}><td className="p-3 font-mono">{formatDate(rec.date)}</td><td className="p-3 font-bold">{rec.className}</td><td className="p-3 text-center font-bold text-emerald-600">{rec.stats.hadir}</td><td className="p-3 text-center font-bold text-red-600">{rec.stats.tidakHadir}</td><td className="p-3 text-center font-bold text-amber-600">{rec.stats.lewat}</td><td className="p-3 text-right"><button onClick={() => handleEdit(rec)} className="bg-blue-50 text-blue-600 px-3 py-1 rounded text-xs font-bold">Edit</button></td></tr>))}</tbody></table></div></div>
-                    {showSummary && <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in"><div className="bg-white p-8 rounded-2xl w-96 text-center shadow-2xl"><h3 className="font-bold text-xl mb-4 text-emerald-600">Berjaya!</h3><div className="grid grid-cols-3 gap-2 mb-6"><div className="bg-emerald-50 p-2 rounded border border-emerald-100">H: {summaryData.hadir}</div><div className="bg-red-50 p-2 rounded border border-red-100">TH: {summaryData.tidakHadir}</div><div className="bg-amber-50 p-2 rounded border border-amber-100">L: {summaryData.lewat}</div></div><button onClick={() => {setShowSummary(false); window.scrollTo({top: 1000, behavior: 'smooth'});}} className="bg-slate-800 text-white w-full py-2 rounded-lg font-bold">Tutup</button></div></div>}
-                </div>
-            );
-        }
-
-        function AgihanTugasManager({ teachers, canEdit }) {
-            const [activeTab, setActiveTab] = useState('pentadbiran'); const [assignments, setAssignments] = useState({}); const [taskStructure, setTaskStructure] = useState(DEFAULT_TASKS); const [loading, setLoading] = useState(true); const [editMode, setEditMode] = useState(false); const [showAddModal, setShowAddModal] = useState(false); const [newTaskName, setNewTaskName] = useState(""); const [showDeleteModal, setShowDeleteModal] = useState(false); const [taskToDelete, setTaskToDelete] = useState(null);
-            useEffect(() => { const u1 = onSnapshot(collection(db, 'portal_assignments'), s => { const d = {}; s.docs.forEach(doc => { d[doc.id] = doc.data(); }); setAssignments(d); }); const f = async () => { const s = await getDoc(doc(db, 'portal_settings', 'agihan_tugas_structure')); if (s.exists()) setTaskStructure(s.data().structure); setLoading(false); }; f(); return () => u1(); }, []);
-            const saveStructure = async (ns) => { setTaskStructure(ns); await setDoc(doc(db, 'portal_settings', 'agihan_tugas_structure'), { structure: ns }); };
-            const handleAssign = async (cat, task, tid) => { if (!canEdit) return; const t = teachers.find(x => x.id === tid); const did = `${cat}_${task.replace(/[^a-zA-Z0-9]/g, '_')}`; await setDoc(doc(db, 'portal_assignments', did), { category: cat, taskName: task, teacherId: tid, teacherName: t ? t.name : '', updatedAt: new Date().toISOString() }); };
-            return (<div className="space-y-6 h-full flex flex-col relative"><div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Briefcase className="w-6 h-6 text-indigo-600"/> Agihan Tugas</h2>{canEdit && <button onClick={() => setEditMode(!editMode)} className="text-xs bg-slate-100 px-3 py-1.5 rounded-lg font-bold">{editMode ? 'Selesai' : 'Edit Senarai'}</button>}</div><div className="flex gap-2 overflow-x-auto pb-2 border-b">{[{ id: 'pentadbiran', l: 'Pentadbiran' }, { id: 'kurikulum', l: 'Kurikulum' }, { id: 'hem', l: 'HEM' }, { id: 'kokurikulum', l: 'Koko' }, { id: 'kelas', l: 'Guru Kelas' }].map(c => <button key={c.id} onClick={() => setActiveTab(c.id)} className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap ${activeTab === c.id ? 'bg-indigo-600 text-white' : 'bg-white border'}`}>{c.l}</button>)}</div><div className="bg-white border rounded-xl flex-1 overflow-y-auto p-6">{loading ? <Loader2 className="animate-spin" /> : <div className="grid grid-cols-2 gap-4">{(taskStructure[activeTab] || []).map((t, i) => { const did = `${activeTab}_${t.replace(/[^a-zA-Z0-9]/g, '_')}`; const ad = assignments[did] || {}; return (<div key={i} className="border-b pb-2"><div className="flex justify-between"><label className="text-sm font-bold text-slate-700">{t}</label>{editMode && <button onClick={() => { setTaskToDelete(t); setShowDeleteModal(true); }} className="text-red-500"><Trash2 size={14} /></button>}</div>{!editMode && <select className="w-full border p-2 rounded text-sm mt-1" value={ad.teacherId || ""} onChange={(e) => handleAssign(activeTab, t, e.target.value)} disabled={!canEdit}><option value="">-- Pilih --</option>{teachers.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select>}</div>) })}{editMode && <button onClick={() => setShowAddModal(true)} className="col-span-2 border-2 border-dashed p-4 rounded text-indigo-500 font-bold">+ Tambah Jawatan</button>}</div>}</div>{showAddModal && <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-white p-6 rounded-xl w-96"><h3 className="font-bold mb-4">Tambah</h3><input className="inp mb-4" value={newTaskName} onChange={e => setNewTaskName(e.target.value)} /><div className="flex justify-end gap-2"><button onClick={() => { const ns = { ...taskStructure }; if (!ns[activeTab]) ns[activeTab] = []; ns[activeTab].push(newTaskName); saveStructure(ns); setShowAddModal(false); setNewTaskName(""); }} className="bg-indigo-600 text-white px-4 py-2 rounded font-bold">Simpan</button></div></div></div>}{showDeleteModal && <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-white p-6 rounded-xl w-80"><h3 className="font-bold text-red-600 mb-4">Padam?</h3><p className="mb-4 text-sm">{taskToDelete}</p><div className="flex justify-end gap-2"><button onClick={() => setShowDeleteModal(false)} className="px-4 py-2 rounded bg-slate-100 font-bold">Batal</button><button onClick={() => { const ns = { ...taskStructure }; ns[activeTab] = ns[activeTab].filter(x => x !== taskToDelete); saveStructure(ns); setShowDeleteModal(false); }} className="px-4 py-2 rounded bg-red-600 text-white font-bold">Ya</button></div></div></div>}</div>);
-        }
-
         function DataTable({ type, data, currentUserRole }) {
-            const isReadOnly = currentUserRole === 'pentadbir'; const [newRec, setNewRec] = useState({}); const [editingId, setEditingId] = useState(null); const [selectedIds, setSelectedIds] = useState([]); const [filterClass, setFilterClass] = useState(""); const [sortOrder, setSortOrder] = useState('asc');
-            const classList = type === 'student' ? [...new Set(data.map(d => d.class))].sort() : [];
-            const processedData = useMemo(() => { let r = [...data]; if (type === 'student' && filterClass) r = r.filter(d => d.class === filterClass); r.sort((a, b) => { const nA = (a.name || '').toLowerCase(); const nB = (b.name || '').toLowerCase(); return sortOrder === 'asc' ? nA.localeCompare(nB) : nB.localeCompare(nA); }); return r; }, [data, filterClass, sortOrder, type]);
-            const save = async (e) => { e.preventDefault(); if (isReadOnly) return; const col = type === 'student' ? 'portal_students' : 'portal_teachers'; if (editingId) await updateDoc(doc(db, col, editingId), newRec); else await addDoc(collection(db, col), newRec); setNewRec({}); setEditingId(null); alert("Disimpan!"); };
-            const del = async (id) => { if (confirm("Padam?")) await deleteDoc(doc(db, type === 'student' ? 'portal_students' : 'portal_teachers', id)); };
-            const bulkDel = async () => { if (confirm(`Padam ${selectedIds.length}?`)) { const b = writeBatch(db); selectedIds.forEach(id => b.delete(doc(db, type === 'student' ? 'portal_students' : 'portal_teachers', id))); await b.commit(); setSelectedIds([]); } };
-            return (<div className="grid lg:grid-cols-12 gap-8 h-full">
-                {!isReadOnly && <div className="lg:col-span-4 bg-white p-6 rounded-xl border h-fit"><h3 className="font-bold mb-4">{editingId ? 'Edit' : 'Tambah'} {type}</h3><form onSubmit={save} className="space-y-3"><input className="inp" placeholder="Nama" value={newRec.name || ''} onChange={e => setNewRec({ ...newRec, name: e.target.value })} required />{type === 'student' ? <input className="inp" placeholder="Kelas" value={newRec.class || ''} onChange={e => setNewRec({ ...newRec, class: e.target.value })} required /> : <input className="inp" placeholder="Email" value={newRec.email || ''} onChange={e => setNewRec({ ...newRec, email: e.target.value })} required />}<button className="w-full bg-indigo-600 text-white py-2 rounded font-bold">Simpan</button></form></div>}
-                <div className={`${isReadOnly ? 'col-span-12' : 'lg:col-span-8'} bg-white rounded-xl border flex flex-col h-full`}><div className="p-4 border-b flex justify-between items-center"><div><h3 className="font-bold">Senarai {type}</h3><p className="text-xs text-slate-500">Jumlah: {processedData.length}</p></div>{type === 'student' && <div className="flex gap-2"><select className="border p-1 rounded text-xs" value={filterClass} onChange={e => setFilterClass(e.target.value)}><option value="">Semua Kelas</option>{classList.map(c => <option key={c} value={c}>{c}</option>)}</select><button onClick={() => setSortOrder(p => p === 'asc' ? 'desc' : 'asc')} className="border p-1 rounded text-xs font-bold w-20">{sortOrder === 'asc' ? 'A-Z' : 'Z-A'}</button></div>}{selectedIds.length > 0 && <button onClick={bulkDel} className="bg-red-50 text-red-600 px-3 py-1 rounded text-xs font-bold">Padam {selectedIds.length}</button>}</div><div className="flex-1 overflow-y-auto"><table className="w-full text-sm text-left"><thead className="bg-slate-50 text-xs uppercase sticky top-0"><tr><th className="p-3 w-10"></th><th className="p-3">Nama</th><th className="p-3">Info</th><th className="p-3 text-right"></th></tr></thead><tbody className="divide-y">{processedData.map(d => <tr key={d.id} className="hover:bg-slate-50"><td className="p-3"><input type="checkbox" checked={selectedIds.includes(d.id)} onChange={() => setSelectedIds(p => p.includes(d.id) ? p.filter(x => x !== d.id) : [...p, d.id])} /></td><td className="p-3 font-bold">{d.name}</td><td className="p-3">{type === 'student' ? <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded font-bold">{d.class}</span> : d.email}</td><td className="p-3 text-right">{!isReadOnly && <div className="flex justify-end gap-2"><button onClick={() => { setNewRec(d); setEditingId(d.id); }} className="text-blue-400"><Edit3 size={16} /></button><button onClick={() => del(d.id)} className="text-red-400"><Trash2 size={16} /></button></div>}</td></tr>)}</tbody></table></div></div></div>);
+          // Hanya Admin boleh edit. Pentadbir hanya view.
+          const isReadOnly = currentUserRole === 'pentadbir';
+
+          const [newRec, setNewRec] = useState({});
+          const [csvFile, setCsvFile] = useState(null);
+          const [uploading, setUploading] = useState(false);
+          const [editingId, setEditingId] = useState(null);
+          const [selectedIds, setSelectedIds] = useState([]);
+          
+          // FILTER & SORT STATE
+          const [filterClass, setFilterClass] = useState("");
+          const [sortOrder, setSortOrder] = useState('asc'); 
+
+          const col = type === 'student' ? 'portal_students' : 'portal_teachers';
+
+          // Get unique classes for filter dropdown
+          const classList = type === 'student' ? [...new Set(data.map(d => d.class))].sort() : [];
+
+          // Process Data (Filter & Sort)
+          const processedData = useMemo(() => {
+              let res = [...data];
+              
+              // Filter by Class (Only for Students)
+              if (type === 'student' && filterClass) {
+                  res = res.filter(d => d.class === filterClass);
+              }
+
+              // Sort by Name
+              res.sort((a, b) => {
+                  const nameA = (a.name || '').toLowerCase();
+                  const nameB = (b.name || '').toLowerCase();
+                  if (sortOrder === 'asc') return nameA.localeCompare(nameB);
+                  else return nameB.localeCompare(nameA);
+              });
+
+              return res;
+          }, [data, filterClass, sortOrder, type]);
+
+          const save = async (e) => { 
+              e.preventDefault(); 
+              if (isReadOnly) return alert("Anda tiada akses untuk menyunting.");
+              if(newRec.name) {
+                  const payload = { ...newRec };
+                  if (type === 'teacher') {
+                      payload.role = payload.role || 'guru';
+                      payload.position = payload.position || 'GAB';
+                  } else {
+                      payload.class = payload.class || 'Umum';
+                  }
+                  
+                  try {
+                      if (editingId) {
+                          await updateDoc(doc(db, col, editingId), { ...payload, updatedAt: new Date().toISOString() });
+                          alert("Data berjaya dikemaskini.");
+                          setEditingId(null);
+                      } else {
+                          await addDoc(collection(db, col), { ...payload, createdAt: new Date().toISOString() }); 
+                          alert("Data berjaya disimpan.");
+                      }
+                      setNewRec({}); 
+                  } catch(e) { console.error(e); alert("Ralat menyimpan data."); }
+              } 
+          };
+
+          const del = async (id) => { 
+              if (isReadOnly) return;
+              if(confirm("Adakah anda pasti mahu memadam data ini?")) await deleteDoc(doc(db, col, id)); 
+          };
+
+          const handleBulkDelete = async () => {
+              if (isReadOnly) return;
+              if (selectedIds.length === 0) return;
+              if (confirm(`Adakah anda pasti mahu memadam ${selectedIds.length} rekod terpilih? Tindakan ini tidak boleh diundur.`)) {
+                  try {
+                      const batch = writeBatch(db);
+                      selectedIds.forEach(id => { const ref = doc(db, col, id); batch.delete(ref); });
+                      await batch.commit(); setSelectedIds([]); alert("Rekod berjaya dipadam.");
+                  } catch(e) { console.error(e); alert("Gagal memadam rekod."); }
+              }
+          };
+
+          const toggleSelectAll = () => {
+              if (isReadOnly) return;
+              if (selectedIds.length === processedData.length) setSelectedIds([]);
+              else setSelectedIds(processedData.map(d => d.id));
+          };
+
+          const toggleSelect = (id) => {
+              if (isReadOnly) return;
+              if (selectedIds.includes(id)) setSelectedIds(prev => prev.filter(i => i !== id));
+              else setSelectedIds(prev => [...prev, id]);
+          };
+
+          const startEdit = (rec) => { if (isReadOnly) return; setNewRec(rec); setEditingId(rec.id); };
+          const cancelEdit = () => { setNewRec({}); setEditingId(null); };
+
+          const handleCsvUpload = async () => {
+              if (isReadOnly) return alert("Anda tiada akses untuk memuat naik data.");
+              if (!csvFile) return alert("Sila pilih fail CSV dahulu.");
+              setUploading(true);
+              const reader = new FileReader();
+              reader.onload = async (e) => {
+                  try {
+                      const text = e.target.result; const lines = text.split('\n'); const batch = writeBatch(db); let count = 0;
+                      lines.forEach((line, index) => {
+                          if (index === 0 || !line.trim()) return; 
+                          const cols = line.split(',').map(c => c.trim());
+                          if (cols.length < 2) return; 
+                          const ref = doc(collection(db, col)); let data = {};
+                          if (type === 'teacher') {
+                              const name = cols[0]; const email = cols[1]; const roleRaw = cols[2] ? cols[2].toLowerCase() : 'guru'; const position = cols[3] || 'GAB';
+                              if (!name || !email) return;
+                              // LOGIC ROLE BARU
+                              let sysRole = 'guru';
+                              if (roleRaw.includes('admin')) sysRole = 'admin';
+                              else if (roleRaw.includes('pentadbir')) sysRole = 'pentadbir';
+                              
+                              data = { name, email, role: sysRole, position, createdAt: new Date().toISOString() };
+                          } else {
+                              const name = cols[0]; const className = cols[1] || 'Umum'; if (!name) return;
+                              data = { name, class: className, createdAt: new Date().toISOString() };
+                          }
+                          batch.set(ref, data); count++;
+                      });
+                      if (count > 0) { await batch.commit(); alert(`${count} rekod berjaya dimuat naik!`); setCsvFile(null); document.getElementById('csvInput').value = ""; } else { alert("Tiada data sah ditemui dalam fail CSV."); }
+                  } catch (err) { console.error(err); alert("Ralat memproses fail."); }
+                  setUploading(false);
+              };
+              reader.readAsText(csvFile);
+          };
+
+          return (
+            <div className="grid lg:grid-cols-12 gap-8 h-[calc(100vh-100px)]">
+                {/* SIDEBAR FORM & CSV (Only for Admin) */}
+                { !isReadOnly && (
+                <div className="lg:col-span-4 space-y-6 overflow-y-auto pr-2">
+                    <div className={`bg-white p-6 rounded-xl border shadow-sm transition-colors ${editingId ? 'border-amber-300 bg-amber-50' : 'border-slate-200'}`}>
+                        <h3 className={`font-bold mb-4 flex items-center gap-2 ${editingId ? 'text-amber-700' : 'text-slate-800'}`}>
+                           {editingId ? <Edit3 className="w-5 h-5"/> : <Plus className="w-5 h-5 text-indigo-600"/>} 
+                           {editingId ? 'Kemaskini Data' : `Daftar ${type === 'teacher' ? 'Guru' : 'Murid'} Baru`}
+                        </h3>
+                        <form onSubmit={save} className="space-y-3">
+                            <div><label className="lbl">Nama Penuh</label><input className="inp" required value={newRec.name||''} onChange={e=>setNewRec({...newRec, name:e.target.value})} placeholder="Contoh: Ali bin Abu"/></div>
+                            {type === 'student' ? (
+                                <div><label className="lbl">Kelas</label><input className="inp" required value={newRec.class||''} onChange={e=>setNewRec({...newRec, class:e.target.value})} placeholder="Contoh: 6 Cerdik"/></div>
+                            ) : (
+                                <>
+                                    <div><label className="lbl">Alamat Emel</label><input className="inp" type="email" required value={newRec.email||''} onChange={e=>setNewRec({...newRec, email:e.target.value})} placeholder="nama@sekolah.edu.my"/></div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div><label className="lbl">Akses Sistem</label><select className="inp" value={newRec.role||'guru'} onChange={e=>setNewRec({...newRec, role:e.target.value})}><option value="guru">Guru Biasa</option><option value="pentadbir">Pentadbir (Semakan)</option><option value="admin">Admin Sistem</option></select></div>
+                                        <div><label className="lbl">Jawatan</label><select className="inp" value={newRec.position||'GAB'} onChange={e=>setNewRec({...newRec, position:e.target.value})}><option value="GAB">GAB</option><option value="GB">Guru Besar</option><option value="GPK">GPK</option><option value="Kaunselor">Kaunselor</option></select></div>
+                                    </div>
+                                </>
+                            )}
+                            <div className="flex gap-2 mt-4">{editingId && (<button type="button" onClick={cancelEdit} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-2.5 rounded-lg font-bold transition-all">Batal</button>)}<button type="submit" className={`flex-1 text-white py-2.5 rounded-lg font-bold shadow-md transition-all flex justify-center items-center gap-2 ${editingId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}><Save className="w-4 h-4"/> {editingId ? 'Kemaskini' : 'Simpan'}</button></div>
+                        </form>
+                    </div>
+                    {!editingId && (
+                        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                             <div className="absolute top-0 right-0 p-2 opacity-10"><FileSpreadsheet className="w-24 h-24 text-green-600"/></div>
+                             <h3 className="font-bold mb-2 flex items-center gap-2 text-slate-800"><FileSpreadsheet className="w-5 h-5 text-green-600"/> Import CSV (Pukal)</h3>
+                             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 mb-4 text-xs text-slate-600 space-y-1"><p className="font-bold text-slate-800">Format Fail:</p>{type === 'teacher' ? (<><div className="font-mono bg-slate-200 p-1 rounded text-[10px]">Nama,Email,Role,Jawatan</div><ul className="list-disc list-inside pl-1 text-[10px]"><li><b>Role:</b> Admin, Pentadbir, Guru</li><li><b>Jawatan:</b> GB, GPK, GAB</li></ul></>) : (<div className="font-mono bg-slate-200 p-1 rounded text-[10px]">Nama,Kelas</div>)}</div>
+                             <div className="space-y-3"><input id="csvInput" type="file" accept=".csv" onChange={(e) => setCsvFile(e.target.files[0])} className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer bg-slate-50 rounded-lg border border-slate-200"/><button onClick={handleCsvUpload} disabled={uploading || !csvFile} className={`w-full py-2.5 rounded-lg font-bold flex justify-center items-center gap-2 transition-all text-sm ${uploading || !csvFile ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white shadow-md'}`}>{uploading ? <Loader2 className="w-4 h-4 animate-spin"/> : <FileSpreadsheet className="w-4 h-4"/>} {uploading ? 'Sedang Memproses...' : 'Muat Naik CSV'}</button></div>
+                        </div>
+                    )}
+                </div>
+                )}
+
+                {/* TABLE DISPLAY */}
+                <div className={`${isReadOnly ? 'col-span-12' : 'lg:col-span-8'} bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full`}>
+                    <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col gap-4 shrink-0">
+                        <div className="flex justify-between items-center">
+                            <div><h3 className="font-bold text-slate-800 text-lg">Senarai {type === 'teacher' ? 'Guru' : 'Murid'}</h3><p className="text-xs text-slate-500">Jumlah: <b>{processedData.length}</b> rekod berdaftar</p></div>
+                            {!isReadOnly && selectedIds.length > 0 && (<button onClick={handleBulkDelete} className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-red-100 transition animate-fade-in border border-red-200"><Trash2 className="w-3 h-3"/> Padam {selectedIds.length} Terpilih</button>)}
+                        </div>
+                        
+                        {/* FILTER & SORT CONTROLS */}
+                        {type === 'student' && (
+                            <div className="flex gap-2">
+                                <select className="bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-bold" value={filterClass} onChange={(e) => setFilterClass(e.target.value)}>
+                                    <option value="">Semua Kelas</option>
+                                    {classList.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                                <button onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')} className="flex items-center gap-1 bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-2 hover:bg-slate-50 font-bold">
+                                    <div className="flex flex-col"><ChevronLeft className="w-3 h-3 rotate-90 -mb-1"/><ChevronLeft className="w-3 h-3 -rotate-90"/></div>
+                                    {sortOrder === 'asc' ? 'Nama (A-Z)' : 'Nama (Z-A)'}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    <div className="overflow-y-auto flex-1">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-white text-slate-500 uppercase text-[10px] font-bold sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th className="p-4 bg-slate-50 border-b w-10 text-center">{!isReadOnly && <button onClick={toggleSelectAll} className="text-slate-400 hover:text-indigo-600">{selectedIds.length > 0 && selectedIds.length === processedData.length ? <CheckSquare className="w-4 h-4 text-indigo-600"/> : <Square className="w-4 h-4"/>}</button>}</th>
+                                    <th className="p-4 bg-slate-50 border-b w-10">Bil</th>
+                                    <th className="p-4 bg-slate-50 border-b">Nama</th>
+                                    {type === 'teacher' && <th className="p-4 bg-slate-50 border-b">Jawatan</th>}
+                                    <th className="p-4 bg-slate-50 border-b">Info / Hubungan</th>
+                                    {!isReadOnly && <th className="p-4 bg-slate-50 border-b text-right">Tindakan</th>}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {processedData.length === 0 ? (
+                                    <tr><td colSpan="6" className="p-12 text-center text-slate-400 italic bg-slate-50/50"><div className="flex flex-col items-center gap-2"><div className="p-3 bg-slate-100 rounded-full"><Search className="w-6 h-6 text-slate-300"/></div><span>Tiada data direkodkan.</span></div></td></tr>
+                                ) : (
+                                    processedData.map((d, idx)=>(
+                                    <tr key={d.id} className={`hover:bg-indigo-50/30 group transition-colors ${selectedIds.includes(d.id) ? 'bg-indigo-50' : ''}`}>
+                                        <td className="p-4 text-center">{!isReadOnly && <button onClick={()=>toggleSelect(d.id)} className="text-slate-300 hover:text-indigo-600">{selectedIds.includes(d.id) ? <CheckSquare className="w-4 h-4 text-indigo-600"/> : <Square className="w-4 h-4"/>}</button>}</td>
+                                        <td className="p-4 text-slate-400 text-xs font-mono">{idx + 1}</td>
+                                        <td className="p-4">
+                                            <div className="font-bold text-slate-700">{d.name}</div>
+                                            {type === 'teacher' && (
+                                                <div className="flex gap-1 mt-1">
+                                                    {d.role === 'admin' && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold uppercase inline-block tracking-wider">Admin</span>}
+                                                    {d.role === 'pentadbir' && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold uppercase inline-block tracking-wider">Pentadbir</span>}
+                                                </div>
+                                            )}
+                                        </td>
+                                        {type === 'teacher' && (
+                                            <td className="p-4"><span className={`text-[10px] font-bold px-2 py-1 rounded border uppercase ${d.position === 'GB' ? 'bg-purple-50 text-purple-700 border-purple-200' : d.position === 'GPK' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>{d.position || 'GAB'}</span></td>
+                                        )}
+                                        <td className="p-4 text-slate-500 text-xs">
+                                            {type==='student' ? (
+                                                <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 w-fit px-2 py-1 rounded border border-emerald-100 font-bold"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> {d.class}</div>
+                                            ) : (<div className="flex items-center gap-2 font-mono text-slate-500"><div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> {d.email}</div>)}
+                                        </td>
+                                        {!isReadOnly && <td className="p-4 text-right flex justify-end gap-1"><button onClick={()=>startEdit(d)} className="text-slate-300 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-all" title="Edit"><Edit3 className="w-4 h-4"/></button><button onClick={()=>del(d.id)} className="text-slate-300 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-all" title="Padam"><Trash2 className="w-4 h-4"/></button></td>}
+                                    </tr>
+                                )))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+          );
         }
 
         // --- 3. DASHBOARD & MAIN ---
@@ -870,7 +1124,6 @@
                   for (const colName of collectionsToReset) {
                       const q = query(collection(db, colName));
                       const snapshot = await getDocs(q);
-                      // Firestore batch limit is 500
                       const chunk = 400; 
                       for (let i = 0; i < snapshot.docs.length; i += chunk) {
                           const batch = writeBatch(db);
