@@ -45,6 +45,10 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
+        /* Hide scrollbar for mobile nav */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
         /* Animations */
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         .animate-fade-in { animation: fade-in 0.3s ease-out; }
@@ -75,6 +79,25 @@
           MonitorPlay, Code2, GraduationCap, ShieldCheck, 
           Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2, Calendar, ChevronLeft, Flag, MapPin, CalendarDays, ClipboardList, Clock, AlertTriangle, FileText, Printer, Check, Settings, LogIn, UserCheck, PieChart, Filter, HelpCircle, Award, RotateCcw, History, RefreshCw, List, CalendarClock, QrCode, Copy, Camera, ChevronDown, Activity, BarChart3, Download
         } from 'lucide-react';
+
+        // --- SERVICE WORKER REGISTRATION (PWA Requirement) ---
+        if ('serviceWorker' in navigator) {
+            const swContent = `
+                self.addEventListener('install', (e) => {
+                    self.skipWaiting();
+                });
+                self.addEventListener('activate', (e) => {
+                });
+                self.addEventListener('fetch', (e) => {
+                });
+            `;
+            const blob = new Blob([swContent], { type: 'application/javascript' });
+            const swUrl = URL.createObjectURL(blob);
+            
+            navigator.serviceWorker.register(swUrl)
+                .then((reg) => console.log('SW Ready'))
+                .catch((err) => console.log('SW Fail', err));
+        }
 
         // --- KONFIGURASI FIREBASE ---
         const firebaseConfig = {
@@ -183,7 +206,7 @@
           );
         }
 
-        // --- 2. LAYOUT COMPONENTS ---
+        // --- 2. LAYOUT COMPONENTS (MEMPERBAIKI LAYOUT RESPONSIVE) ---
 
         function Sidebar({ userData, view, setView, logout }) {
           const menus = [
@@ -205,75 +228,80 @@
               { id: 'logs', l: 'Log Sistem', i: Activity, access: ['admin'] },
               { id: 'stats', l: 'Statistik', i: BarChart3, access: ['admin'] }
           ];
+
+          // --- LOGIK INSTALL PWA ---
+          const [deferredPrompt, setDeferredPrompt] = useState(null);
+          useEffect(() => {
+             const handler = (e) => {
+                 e.preventDefault();
+                 setDeferredPrompt(e);
+             };
+             window.addEventListener('beforeinstallprompt', handler);
+             return () => window.removeEventListener('beforeinstallprompt', handler);
+          }, []);
+
+          const handleInstall = async () => {
+             if (!deferredPrompt) {
+                 alert("Fungsi pemasangan (Install) hanya aktif di pelayar sebenar (Chrome/Edge/Safari).\n\nDalam mod preview ini, acara 'beforeinstallprompt' tidak dicetuskan oleh pelayar.");
+                 return;
+             }
+             deferredPrompt.prompt();
+             const { outcome } = await deferredPrompt.userChoice;
+             setDeferredPrompt(null);
+          };
           
           return (
-             <aside className="w-20 md:w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 z-20 no-print transition-all duration-300 h-full overflow-hidden">
-                <div className="h-20 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-100 gap-3"><img src="https://i.postimg.cc/k4N1mPR1/semat-04.png" className="w-10 h-10 object-contain"/><div className="hidden md:block"><span className="block font-bold text-lg text-slate-800 leading-tight">SkolaHub</span><span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">SK Masjid Tanah</span></div></div>
-                <div className="p-4 border-b border-slate-100 flex items-center gap-3 relative group-user">
-                   <img src={userData.photo || "https://ui-avatars.com/api/?name="+userData.name} className="w-10 h-10 rounded-full border border-slate-200"/><div className="hidden md:block overflow-hidden"><p className="text-sm font-bold text-slate-700 truncate">{userData.name}</p><p className="text-xs text-slate-500 uppercase font-bold tracking-wider">{userData.role}</p></div>
+             <aside className="w-full md:w-64 bg-white border-b md:border-r border-slate-200 flex flex-row md:flex-col shrink-0 z-50 no-print transition-all duration-300 h-16 md:h-full">
+                {/* Desktop Logo */}
+                <div className="hidden md:flex h-20 items-center justify-center md:justify-start md:px-6 border-b border-slate-100 gap-3"><img src="https://i.postimg.cc/k4N1mPR1/semat-04.png" className="w-10 h-10 object-contain"/><div className="hidden md:block"><span className="block font-bold text-lg text-slate-800 leading-tight">SkolaHub</span><span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">SK Masjid Tanah</span></div></div>
+                
+                {/* Mobile Logo */}
+                <div className="md:hidden flex items-center justify-center px-4 border-r border-slate-100">
+                    <img src="https://i.postimg.cc/k4N1mPR1/semat-04.png" className="w-8 h-8 object-contain"/>
                 </div>
-                <nav className="p-2 md:p-4 space-y-1 flex-1 overflow-y-auto">
-                    {menus.map(m => (!m.access || m.access.includes(userData.role)) && <button key={m.id} onClick={() => setView(m.id)} title={m.l} className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${view === m.id ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}><m.i className={`w-5 h-5 ${view === m.id ? 'text-indigo-600' : 'text-slate-400'}`} /><span className="hidden md:block">{m.l}</span></button>)}
+
+                {/* Profile Block (Desktop Only) */}
+                <div className="hidden md:flex p-4 border-b border-slate-100 items-center gap-3 relative group-user">
+                   <img src={userData.photo || "https://ui-avatars.com/api/?name="+userData.name} className="w-10 h-10 rounded-full border border-slate-200"/><div className="hidden md:block overflow-hidden"><p className="text-sm font-bold text-slate-700 truncate">{userData.name}</p><p className="text-xs text-slate-500 uppercase font-bold tracking-wider">{userData.role}</p></div></div>
+                
+                {/* Navigation Menu */}
+                <nav className="flex-1 flex flex-row md:flex-col items-center md:items-stretch overflow-x-auto md:overflow-y-auto p-2 md:p-4 gap-2 md:space-y-1 no-scrollbar">
+                    {menus.map(m => (!m.access || m.access.includes(userData.role)) && <button key={m.id} onClick={() => setView(m.id)} title={m.l} className={`flex-shrink-0 flex items-center justify-center md:justify-start gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${view === m.id ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}><m.i className={`w-5 h-5 ${view === m.id ? 'text-indigo-600' : 'text-slate-400'}`} /><span className="hidden md:block">{m.l}</span></button>)}
                     
                     {userData.role === 'admin' && (
                         <>
-                            <div className="my-2 border-t border-slate-100 mx-2"></div>
-                            {adminMenus.map(m => <button key={m.id} onClick={() => setView(m.id)} title={m.l} className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${view === m.id ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}><m.i className={`w-5 h-5 ${view === m.id ? 'text-indigo-600' : 'text-slate-400'}`} /><span className="hidden md:block">{m.l}</span></button>)}
+                            <div className="hidden md:block my-2 border-t border-slate-100 mx-2"></div>
+                            {adminMenus.map(m => <button key={m.id} onClick={() => setView(m.id)} title={m.l} className={`flex-shrink-0 flex items-center justify-center md:justify-start gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${view === m.id ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}><m.i className={`w-5 h-5 ${view === m.id ? 'text-indigo-600' : 'text-slate-400'}`} /><span className="hidden md:block">{m.l}</span></button>)}
                         </>
                     )}
                 </nav>
-                <div className="p-4 border-t border-slate-100"><button onClick={logout} className="flex items-center justify-center md:justify-start gap-3 text-slate-400 hover:text-red-600 hover:bg-red-50 text-sm font-medium w-full px-3 py-3 rounded-lg transition-colors"><LogOut className="w-5 h-5" /><span className="hidden md:block">Keluar</span></button></div>
+                
+                {/* Bottom Actions (Desktop) */}
+                <div className="hidden md:block p-4 border-t border-slate-100 space-y-2">
+                    <button onClick={handleInstall} className="flex items-center justify-center md:justify-start gap-3 text-emerald-600 hover:bg-emerald-50 text-sm font-bold w-full px-3 py-3 rounded-lg transition-colors border border-emerald-100">
+                        <Download className="w-5 h-5" />
+                        <span className="hidden md:block">Pasang Aplikasi</span>
+                    </button>
+                    <button onClick={logout} className="flex items-center justify-center md:justify-start gap-3 text-slate-400 hover:text-red-600 hover:bg-red-50 text-sm font-medium w-full px-3 py-3 rounded-lg transition-colors"><LogOut className="w-5 h-5" /><span className="hidden md:block">Keluar</span></button>
+                </div>
+
+                {/* Mobile Actions (Logout/Install Icons) */}
+                <div className="md:hidden flex items-center pr-2 border-l border-slate-100 pl-2 gap-1">
+                    <button onClick={handleInstall} className="p-2 text-emerald-600 rounded-full hover:bg-emerald-50"><Download className="w-5 h-5"/></button>
+                    <button onClick={logout} className="p-2 text-red-500 rounded-full hover:bg-red-50"><LogOut className="w-5 h-5"/></button>
+                </div>
              </aside>
           )
         }
 
         function Header({ userData, view }) {
-           // New state for install prompt
-           const [deferredPrompt, setDeferredPrompt] = useState(null);
-
-           useEffect(() => {
-             const handleBeforeInstallPrompt = (e) => {
-               // Prevent the mini-infobar from appearing on mobile
-               e.preventDefault();
-               // Stash the event so it can be triggered later.
-               setDeferredPrompt(e);
-             };
-
-             window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-             return () => {
-               window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-             };
-           }, []);
-
-           const handleInstallClick = async () => {
-             if (!deferredPrompt) return;
-             // Show the install prompt
-             deferredPrompt.prompt();
-             // Wait for the user to respond to the prompt
-             const { outcome } = await deferredPrompt.userChoice;
-             // We've used the prompt, and can't use it again, throw it away
-             setDeferredPrompt(null);
-           };
-
            const titles = { mmi: "MMI", timetable: "Jadual Waktu Peribadi", logs: "Log Sistem", stats: "Statistik Penggunaan" };
            
            return (
-              <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm z-10 no-print">
-                 <h2 className="font-bold text-lg capitalize text-slate-800 flex items-center gap-2">{titles[view] || view}</h2>
+              <header className="h-14 md:h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between shrink-0 shadow-sm z-10 no-print">
+                 <h2 className="font-bold text-base md:text-lg capitalize text-slate-800 flex items-center gap-2">{titles[view] || view}</h2>
                  <div className="flex items-center gap-3">
-                     {/* Install Button */}
-                     {deferredPrompt && (
-                        <button 
-                            onClick={handleInstallClick}
-                            className="flex items-center gap-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
-                            title="Install Aplikasi"
-                        >
-                            <Download size={16} />
-                            <span className="hidden sm:inline">Install App</span>
-                        </button>
-                     )}
-                     <span className="text-xs font-bold uppercase text-white bg-indigo-600 px-3 py-1 rounded-full tracking-wider shadow-sm">{userData.role}</span>
+                     <span className="text-[10px] md:text-xs font-bold uppercase text-white bg-indigo-600 px-2 md:px-3 py-1 rounded-full tracking-wider shadow-sm">{userData.role}</span>
                  </div>
               </header>
            )
@@ -1132,20 +1160,25 @@
                 if (isReadOnly) return; 
                 const col = type === 'student' ? 'portal_students' : 'portal_teachers'; 
                 
+                // Ensure role defaults to 'guru' if undefined (safety check)
+                const finalRec = { ...newRec };
+                if (type === 'teacher' && !finalRec.role) finalRec.role = 'guru';
+                if (type === 'teacher' && !finalRec.position) finalRec.position = 'GAB';
+
                 if (editingId) 
-                    await updateDoc(doc(db, col, editingId), newRec); 
+                    await updateDoc(doc(db, col, editingId), finalRec); 
                 else 
-                    await addDoc(collection(db, col), newRec); 
+                    await addDoc(collection(db, col), finalRec); 
 
                 // --- FIX START: Sync Role to portal_users ---
-                if (type === 'teacher' && newRec.email) {
+                if (type === 'teacher' && finalRec.email) {
                     try {
-                        const q = query(collection(db, 'portal_users'), where("email", "==", newRec.email));
+                        const q = query(collection(db, 'portal_users'), where("email", "==", finalRec.email));
                         const snap = await getDocs(q);
                         if (!snap.empty) {
                             const batch = writeBatch(db);
                             snap.forEach(d => {
-                                batch.update(doc(db, 'portal_users', d.id), { role: newRec.role });
+                                batch.update(doc(db, 'portal_users', d.id), { role: finalRec.role });
                             });
                             await batch.commit();
                         }
@@ -1352,12 +1385,12 @@
           if (!userData) return <div className="h-screen flex items-center justify-center">Memuatkan data...</div>;
 
           return (
-            <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
+            <div className="flex flex-col md:flex-row h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
               <style>{styles}</style>
               <Sidebar userData={userData} view={view} setView={setView} logout={handleLogout} />
               <div className="flex-1 flex flex-col h-full overflow-hidden relative">
                 <Header userData={userData} view={view} />
-                <main className="flex-1 overflow-y-auto p-6 md:p-8 scroll-smooth">
+                <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth pb-20 md:pb-8">
                    {(() => {
                       if (view === 'builder' && userData.role !== 'admin') return <AccessDenied />;
                       if (['students','teachers','agihan'].includes(view) && !['admin', 'pentadbir'].includes(userData.role)) return <AccessDenied />;
