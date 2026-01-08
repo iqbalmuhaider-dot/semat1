@@ -393,12 +393,15 @@
             const [selectedIds, setSelectedIds] = useState([]);
             const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
             const [expandedWeeks, setExpandedWeeks] = useState({});
+            const [isDownloading, setIsDownloading] = useState(false);
             
             const getDay = (d) => { const days = ['Ahad','Isnin','Selasa','Rabu','Khamis','Jumaat','Sabtu']; return days[new Date(d).getDay()]; };
             const dayName = getDay(date);
             
-            // LOGIC KEMASKINI: Jika belum pilih, guna currentUid (Diri Sendiri)
-            const targetUid = selectedTeacherId || currentUid;
+            // LOGIC TARGET UID DIKEMASKINI: 
+            // Ambil UID sebenar daripada senarai teachers jika ada selection.
+            const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
+            const targetUid = selectedTeacher ? (selectedTeacher.uid || "no_data") : currentUid;
 
             useEffect(() => {
                 const q = query(collection(db, 'portal_mmi'), where('createdBy', '==', targetUid), orderBy('date', 'desc'));
@@ -505,15 +508,92 @@
                 setDate(val);
             };
 
+            // --- FUNGSI MUAT TURUN EXCEL (CSV) UNTUK PENTADBIR (KECUALI ADMIN) ---
+            const downloadAllMMI = async () => {
+                if (!confirm("Muat turun laporan Excel MMI untuk SEMUA guru & Pentadbir (kecuali Admin)?")) return;
+                setIsDownloading(true);
+                try {
+                    // 1. Dapatkan SEMUA data MMI
+                    const q = query(collection(db, 'portal_mmi'), orderBy('date', 'desc'));
+                    const snapshot = await getDocs(q);
+                    const allLogs = snapshot.docs.map(d => d.data());
+
+                    // 2. Buat Peta Guru untuk cek Role
+                    const teacherMap = {};
+                    teachers.forEach(t => {
+                        if (t.uid) teacherMap[t.uid] = t;
+                    });
+
+                    // 3. Tapis keluar ADMIN
+                    const filteredLogs = allLogs.filter(log => {
+                        const creator = teacherMap[log.createdBy];
+                        // Jika creator wujud dan role dia 'admin', buang
+                        if (creator && creator.role === 'admin') return false;
+                        // Fallback tambahan jika nama admin hardcoded
+                        if (log.teacher === 'Iqbal Muhaider') return false;
+                        return true;
+                    });
+
+                    // 4. Tukar ke CSV Format
+                    const headers = ["Tarikh", "Hari", "Minggu", "Nama Guru", "Kelas", "Masa", "Subjek", "Timestamp"];
+                    const csvRows = [headers.join(",")];
+
+                    filteredLogs.forEach(log => {
+                        const row = [
+                            `"${log.date || ''}"`,
+                            `"${log.day || ''}"`,
+                            `"${log.week || ''}"`,
+                            `"${log.teacher || ''}"`,
+                            `"${log.class || ''}"`,
+                            `"${log.time || ''}"`,
+                            `"${log.subject || ''}"`,
+                            `"${log.timestamp || ''}"`
+                        ];
+                        csvRows.push(row.join(","));
+                    });
+
+                    // 5. Muat Turun Fail
+                    const blob = new Blob([csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", `Laporan_MMI_Keseluruhan_${new Date().toISOString().split('T')[0]}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    alert("Berjaya dimuat turun!");
+
+                } catch (error) {
+                    console.error("Error downloading MMI:", error);
+                    alert("Gagal memuat turun data.");
+                } finally {
+                    setIsDownloading(false);
+                }
+            };
+
             return (
                 <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
-                    {isAdminOrPentadbir && (<div className="bg-white p-6 rounded-xl border border-indigo-100 shadow-sm mb-6"><h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><Search size={18}/> Semakan MMI Guru</h3><select className="w-full border p-2 rounded-lg" value={selectedTeacherId} onChange={(e) => setSelectedTeacherId(e.target.value)}><option value="">-- Paparan Saya (Diri Sendiri) --</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>)}
+                    {isAdminOrPentadbir && (
+                        <div className="bg-white p-6 rounded-xl border border-indigo-100 shadow-sm mb-6">
+                            <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><Search size={18}/> Semakan MMI Guru</h3>
+                            <div className="flex gap-2">
+                                <select className="w-full border p-2 rounded-lg" value={selectedTeacherId} onChange={(e) => setSelectedTeacherId(e.target.value)}>
+                                    <option value="">-- Paparan Saya (Diri Sendiri) --</option>
+                                    {teachers.map(t => <option key={t.id} value={t.id}>{t.name} {t.uid ? "" : "(Belum Login)"}</option>)}
+                                </select>
+                                <button onClick={downloadAllMMI} disabled={isDownloading} className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-emerald-700 flex items-center gap-2 whitespace-nowrap disabled:bg-slate-400">
+                                    {isDownloading ? <Loader2 className="w-4 h-4 animate-spin"/> : <FileSpreadsheet className="w-4 h-4"/>} Excel
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-1 italic">*Muat turun Excel merangkumi semua guru & pentadbir (kecuali Admin).</p>
+                        </div>
+                    )}
                     
                     <div className="bg-white p-6 rounded-xl border shadow-sm">
                         {/* Paparan Scan hanya muncul jika sedang lihat diri sendiri (targetUid == currentUid) */}
                         {(targetUid === currentUid) && (<div className="flex justify-between items-center mb-6"><div><label className="text-xs font-bold text-slate-500 uppercase block">Tarikh (Boleh Backdated)</label><input type="date" className="font-bold text-lg outline-none bg-transparent" value={date} onChange={handleDateChange} /><span className="text-sm text-slate-500 ml-2">({dayName})</span></div><button onClick={startCamera} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 flex items-center gap-2 transition-transform hover:scale-105"><QrCode className="w-6 h-6"/> Scan QR Kelas</button></div>)}
                         
-                        <div className="flex justify-between items-center mb-4 border-b pb-2"><h3 className="font-bold text-slate-700">Sejarah MMI {targetUid !== currentUid ? `(${teachers.find(t=>t.id===targetUid)?.name})` : '(Saya)'}</h3>{selectedIds.length > 0 && (<button onClick={()=>setShowDeleteConfirm(true)} className="bg-red-50 text-red-600 px-3 py-1 rounded text-xs font-bold border border-red-200 hover:bg-red-100 flex items-center gap-1"><Trash2 size={14}/> Padam ({selectedIds.length})</button>)}</div>
+                        <div className="flex justify-between items-center mb-4 border-b pb-2"><h3 className="font-bold text-slate-700">Sejarah MMI {targetUid !== currentUid ? `(${teachers.find(t=>t.id===selectedTeacherId)?.name})` : '(Saya)'}</h3>{selectedIds.length > 0 && (<button onClick={()=>setShowDeleteConfirm(true)} className="bg-red-50 text-red-600 px-3 py-1 rounded text-xs font-bold border border-red-200 hover:bg-red-100 flex items-center gap-1"><Trash2 size={14}/> Padam ({selectedIds.length})</button>)}</div>
                         <div className="space-y-4">{logs.length === 0 ? <p className="text-slate-400 italic text-center py-4">Tiada rekod MMI.</p> : sortedWeeks.map(weekNum => { const weekLogs = groupedLogs[weekNum]; const isOpen = expandedWeeks[weekNum]; return (<div key={weekNum} className="bg-white border rounded-xl shadow-sm overflow-hidden"><div className={`p-4 flex justify-between items-center bg-slate-50 cursor-pointer ${isOpen ? 'border-b border-indigo-100' : ''}`} onClick={() => setExpandedWeeks(p => ({...p, [weekNum]: !p[weekNum]}))}><div className="flex items-center gap-3"><span className="font-bold text-slate-700">Minggu {weekNum}</span><span className="text-xs bg-slate-200 px-2 py-0.5 rounded-full text-slate-600">{weekLogs.length} Rekod</span></div><div className="flex items-center gap-2">{(targetUid === currentUid) && (<button onClick={(e) => { e.stopPropagation(); copyWeekToNext(weekNum, weekLogs); }} className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-200 hover:bg-blue-100 flex items-center gap-1"><Copy size={12}/> Salin Minggu Depan</button>)}<ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}/></div></div>{isOpen && (<div className="divide-y divide-slate-100">{weekLogs.map(log => (<div key={log.id} className="p-3 flex items-center hover:bg-white transition-colors"><div className="mr-3"><input type="checkbox" checked={selectedIds.includes(log.id)} onChange={() => toggleSelectLog(log.id)} className="w-4 h-4 text-indigo-600 rounded"/></div><div className="flex-1"><div className="flex justify-between"><span className="font-bold text-indigo-700 text-sm">{log.class}</span><span className="text-xs text-slate-500 font-mono">{formatDate(log.date)} ({log.day})</span></div><div className="flex justify-between mt-1"><span className="text-xs text-slate-600">{log.subject}</span><span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-500">{log.time}</span></div></div></div>))}</div>)}</div>)})}</div>
                     </div>
 
@@ -534,8 +614,11 @@
            
            const [selectedTeacherId, setSelectedTeacherId] = useState("");
            const isAdminOrPentadbir = ['admin', 'pentadbir'].includes(userData.role);
-           // LOGIC TARGET UID DIKEMASKINI: Jika belum pilih, guna currentUid (Diri Sendiri)
-           const targetUid = selectedTeacherId || currentUid;
+           
+           // LOGIC TARGET UID DIKEMASKINI:
+           // Ambil UID sebenar daripada senarai teachers jika ada selection.
+           const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
+           const targetUid = selectedTeacher ? (selectedTeacher.uid || "no_data") : currentUid;
 
            const days = ['Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat'];
            const times = ["7:40 - 8:10", "8:10 - 8:40", "8:40 - 9:10", "9:10 - 9:40", "9:40 - 10:10", "10:10 - 10:30 (REHAT)", "10:30 - 11:00", "11:00 - 11:30", "11:30 - 12:00", "12:00 - 12:30", "12:30 - 1:00", "1:00 - 1:30"];
@@ -551,10 +634,7 @@
            }, [targetUid]);
 
            const toggleSlot = (day, time) => {
-               // Benarkan edit jika Jadual Sendiri ATAU Admin/Pentadbir (untuk mengisi jadual sendiri juga)
-               // Jika sedang melihat orang lain (targetUid !== currentUid) -> Hanya VIEW ONLY (kecuali admin nak tolong isi, tapi soalan minta "semak", jadi read-only lebih selamat untuk view others)
-               // TAPI: Untuk memudahkan, kita benarkan edit DIRI SENDIRI sahaja di sini. 
-               // Admin boleh edit diri sendiri bila targetUid == currentUid.
+               // Hanya benarkan edit jika sedang melihat jadual sendiri (targetUid == currentUid)
                if (targetUid !== currentUid) return; 
 
                if (time.includes("REHAT")) return;
@@ -581,9 +661,15 @@
 
            return (
               <div className="max-w-full mx-auto space-y-6">
-                 {isAdminOrPentadbir && (<div className="bg-white p-6 rounded-xl border border-indigo-100 shadow-sm no-print"><h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><Search size={18}/> Semakan Jadual Guru</h3><select className="w-full border p-2 rounded-lg" value={selectedTeacherId} onChange={(e) => setSelectedTeacherId(e.target.value)}><option value="">-- Paparan Saya (Diri Sendiri) --</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>)}
+                 {isAdminOrPentadbir && (<div className="bg-white p-6 rounded-xl border border-indigo-100 shadow-sm no-print"><h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><Search size={18}/> Semakan Jadual Guru</h3><select className="w-full border p-2 rounded-lg" value={selectedTeacherId} onChange={(e) => setSelectedTeacherId(e.target.value)}><option value="">-- Paparan Saya (Diri Sendiri) --</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.name} {t.uid ? "" : "(Belum Login)"}</option>)}</select></div>)}
                  
-                 <div className="flex justify-between items-center no-print"><h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><CalendarClock className="w-6 h-6 text-indigo-600"/> Jadual Waktu {targetUid !== currentUid ? `(${teachers.find(t=>t.id===targetUid)?.name})` : 'Peribadi'}</h2><div className="flex gap-2"><button onClick={() => window.print()} className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg font-bold hover:bg-slate-200 flex items-center gap-2"><Printer className="w-4 h-4"/> Cetak</button></div></div><div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print-container select-none"><div className="overflow-x-auto"><table className="w-full text-sm border-collapse"><thead><tr className="bg-slate-800 text-white"><th className="p-3 border border-slate-700 min-w-[100px]">Hari / Masa</th>{times.map(t => (<th key={t} className={`p-3 border border-slate-700 text-center whitespace-nowrap text-xs ${t.includes('REHAT') ? 'bg-amber-600' : ''}`}>{t}</th>))}</tr></thead><tbody>{days.map(day => (<tr key={day} className="hover:bg-slate-50"><td className="p-3 border border-slate-200 font-bold bg-slate-100 text-slate-700 text-center">{day}</td>{times.map(time => { const isRehat = time.includes('REHAT'); const slotId = `${day}|${time}`; const isSelected = selectedSlots.includes(slotId); const data = schedule[day]?.[time] || { subject: '', class: '' }; if (isRehat) return <td key={time} className="p-1 border border-slate-200 bg-amber-50 text-center font-bold text-amber-700 text-xs diagonal-stripe">REHAT</td>; return (<td key={time} onClick={() => toggleSlot(day, time)} className={`p-1 border border-slate-200 min-w-[100px] h-16 cursor-pointer transition-all text-center relative ${isSelected ? 'bg-indigo-100 ring-2 ring-inset ring-indigo-500' : ''}`}>{data.subject ? (<div className="flex flex-col justify-center h-full"><span className="font-bold text-slate-800 text-xs">{data.subject}</span><span className="text-[10px] text-slate-500">{data.class}</span></div>) : (<span className="text-slate-300 text-[10px]">-</span>)}{isSelected && <div className="absolute top-1 right-1 w-2 h-2 bg-indigo-600 rounded-full"></div>}</td>) })}</tr>))}</tbody></table></div></div>
+                 <div className="flex justify-between items-center no-print"><h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><CalendarClock className="w-6 h-6 text-indigo-600"/> Jadual Waktu {targetUid !== currentUid ? `(${teachers.find(t=>t.id===selectedTeacherId)?.name})` : 'Peribadi'}</h2><div className="flex gap-2"><button onClick={() => window.print()} className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg font-bold hover:bg-slate-200 flex items-center gap-2"><Printer className="w-4 h-4"/> Cetak</button></div></div>
+                 
+                 {targetUid === "no_data" ? (
+                    <div className="p-8 text-center border-2 border-dashed border-red-200 bg-red-50 rounded-xl text-red-500 font-bold">Guru ini belum mendaftar masuk ke dalam sistem (Tiada UID).</div>
+                 ) : (
+                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print-container select-none"><div className="overflow-x-auto"><table className="w-full text-sm border-collapse"><thead><tr className="bg-slate-800 text-white"><th className="p-3 border border-slate-700 min-w-[100px]">Hari / Masa</th>{times.map(t => (<th key={t} className={`p-3 border border-slate-700 text-center whitespace-nowrap text-xs ${t.includes('REHAT') ? 'bg-amber-600' : ''}`}>{t}</th>))}</tr></thead><tbody>{days.map(day => (<tr key={day} className="hover:bg-slate-50"><td className="p-3 border border-slate-200 font-bold bg-slate-100 text-slate-700 text-center">{day}</td>{times.map(time => { const isRehat = time.includes('REHAT'); const slotId = `${day}|${time}`; const isSelected = selectedSlots.includes(slotId); const data = schedule[day]?.[time] || { subject: '', class: '' }; if (isRehat) return <td key={time} className="p-1 border border-slate-200 bg-amber-50 text-center font-bold text-amber-700 text-xs diagonal-stripe">REHAT</td>; return (<td key={time} onClick={() => toggleSlot(day, time)} className={`p-1 border border-slate-200 min-w-[100px] h-16 cursor-pointer transition-all text-center relative ${isSelected ? 'bg-indigo-100 ring-2 ring-inset ring-indigo-500' : ''}`}>{data.subject ? (<div className="flex flex-col justify-center h-full"><span className="font-bold text-slate-800 text-xs">{data.subject}</span><span className="text-[10px] text-slate-500">{data.class}</span></div>) : (<span className="text-slate-300 text-[10px]">-</span>)}{isSelected && <div className="absolute top-1 right-1 w-2 h-2 bg-indigo-600 rounded-full"></div>}</td>) })}</tr>))}</tbody></table></div></div>
+                 )}
                  
                  {selectedSlots.length > 0 && (<div className="fixed bottom-6 right-6 z-50 animate-fade-in no-print flex gap-2"><button onClick={confirmDelete} className="bg-red-500 text-white px-4 py-3 rounded-full font-bold shadow-xl hover:bg-red-600 flex items-center gap-2"><Trash2 className="w-5 h-5"/> Padam</button><button onClick={() => { setFormData({subject:'', class:''}); setShowModal(true); }} className="bg-indigo-600 text-white px-6 py-3 rounded-full font-bold shadow-xl hover:bg-indigo-700 flex items-center gap-3 transition-transform hover:scale-105"><Edit3 className="w-5 h-5"/> Isi {selectedSlots.length} Slot</button></div>)}
                  
@@ -1569,7 +1655,12 @@
                              const q = query(collection(db, 'portal_teachers'), where('email', '==', u.email));
                              const snapshot = await getDocs(q);
                              if (!snapshot.empty) {
-                                 role = snapshot.docs[0].data().role || 'guru';
+                                 const docData = snapshot.docs[0].data();
+                                 role = docData.role || 'guru';
+                                 // AUTO SYNC UID: Kemaskini UID jika belum ada untuk memudahkan carian Admin
+                                 if (docData.uid !== u.uid) {
+                                     await updateDoc(doc(db, 'portal_teachers', snapshot.docs[0].id), { uid: u.uid });
+                                 }
                              } else if (u.email === 'iqbalmuhaider@gmail.com') { // Hardcoded fallback for admin
                                  role = 'admin';
                              }
