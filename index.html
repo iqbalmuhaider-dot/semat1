@@ -80,7 +80,7 @@
           BookOpen, Calculator, FlaskConical, Languages, 
           Trophy, Users, Palette, Utensils, Bus, Library, 
           MonitorPlay, Code2, GraduationCap, ShieldCheck, 
-          Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2, Calendar, ChevronLeft, Flag, MapPin, CalendarDays, ClipboardList, Clock, AlertTriangle, FileText, Printer, Check, Settings, LogIn, UserCheck, PieChart, Filter, HelpCircle, Award, RotateCcw, History, RefreshCw, List, CalendarClock, QrCode, Copy, Camera, ChevronDown, Activity, BarChart3, Download
+          Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2, Calendar, ChevronLeft, Flag, MapPin, CalendarDays, ClipboardList, Clock, AlertTriangle, FileText, Printer, Check, Settings, LogIn, UserCheck, PieChart, Filter, HelpCircle, Award, RotateCcw, History, RefreshCw, List, CalendarClock, QrCode, Copy, Camera, ChevronDown, Activity, BarChart3, Download, Share
         } from 'lucide-react';
 
         // --- SERVICE WORKER REGISTRATION (PWA Requirement) ---
@@ -194,16 +194,69 @@
 
         function LoginScreen({ onGoogleLogin }) {
           return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 animate-fade-in">
-                 <div className="max-w-md w-full bg-white p-10 rounded-2xl shadow-xl border border-slate-100 text-center">
-                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-100">
-                        <img src="https://i.postimg.cc/k4N1mPR1/semat-04.png" alt="Logo Sekolah" className="w-14 h-14 object-contain"/>
+            <div className="min-h-screen flex items-center justify-center bg-[#EEF2FF] p-4 animate-fade-in relative overflow-hidden">
+                 {/* Vector Blob Backgrounds */}
+                 <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob"></div>
+                 <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-yellow-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000"></div>
+                 <div className="absolute bottom-[-20%] left-[20%] w-[500px] h-[500px] bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-4000"></div>
+
+                 <div className="max-w-5xl w-full bg-white/80 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white flex flex-col md:flex-row relative z-10 overflow-hidden">
+                    
+                    {/* Left Side: Vector Illustration Area */}
+                    <div className="w-full md:w-1/2 bg-indigo-600 p-12 flex flex-col justify-between text-white relative overflow-hidden">
+                        {/* Abstract Patterns */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl transform translate-x-10 -translate-y-10"></div>
+                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full blur-2xl transform -translate-x-10 translate-y-10"></div>
+                        
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                                    <BookOpen className="w-6 h-6 text-white"/>
+                                </div>
+                                <span className="font-bold tracking-wider text-sm opacity-90">SKOLAHUB 2.0</span>
+                            </div>
+                            <h2 className="text-4xl font-black mb-4 leading-tight">Pengurusan Sekolah <br/>Lebih Efisien.</h2>
+                            <p className="text-indigo-100 text-sm leading-relaxed max-w-xs">Sistem berpusat untuk kehadiran, MMI, laporan guru bertugas dan analisis data masa nyata.</p>
+                        </div>
+
+                        {/* Illustration Image */}
+                        <div className="relative mt-8 flex justify-center">
+                            <img 
+                                src="https://cdni.iconscout.com/illustration/premium/thumb/online-school-learning-2996025-2491564.png" 
+                                className="w-64 drop-shadow-2xl hover:scale-105 transition-transform duration-500"
+                                alt="Vector Student"
+                                onError={(e) => e.target.style.display = 'none'} // Hide if fails
+                            />
+                        </div>
+                        
+                        <div className="mt-8 flex gap-2">
+                            <div className="h-1 w-8 bg-white rounded-full"></div>
+                            <div className="h-1 w-2 bg-white/30 rounded-full"></div>
+                            <div className="h-1 w-2 bg-white/30 rounded-full"></div>
+                        </div>
                     </div>
-                    <h2 className="text-2xl font-bold text-slate-800 mb-1">SkolaHub</h2>
-                    <p className="text-slate-500 mb-8 font-medium">SK Masjid Tanah (Integ)</p>
-                    <button onClick={onGoogleLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all group shadow-sm mb-3"><img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6" alt="Google" /><span className="font-bold text-slate-700">Log Masuk Google</span></button>
-                    {/* Mod Demo Removed */}
-                    <div className="text-xs text-slate-400 mt-6">Sistem Pengurusan Sekolah Digital v2.0</div>
+
+                    {/* Right Side: Login Form */}
+                    <div className="w-full md:w-1/2 p-10 md:p-16 flex flex-col justify-center items-center bg-white relative">
+                        <div className="w-20 h-20 bg-indigo-50 rounded-2xl flex items-center justify-center mb-6 shadow-sm border border-indigo-100 transform -rotate-3 hover:rotate-0 transition-transform duration-300">
+                            <img src="https://i.postimg.cc/k4N1mPR1/semat-04.png" alt="Logo Sekolah" className="w-12 h-12 object-contain"/>
+                        </div>
+                        
+                        <h3 className="text-2xl font-bold text-slate-800 mb-2">Selamat Datang!</h3>
+                        <p className="text-slate-400 mb-10 text-center text-sm font-medium">Sila log masuk menggunakan akaun Google Guru / Pentadbir.</p>
+                        
+                        <button onClick={onGoogleLogin} className="w-full max-w-xs flex items-center justify-center gap-4 p-4 rounded-xl border-2 border-slate-100 bg-white hover:border-indigo-600 hover:bg-indigo-50 transition-all group duration-300 shadow-sm hover:shadow-md transform hover:-translate-y-1">
+                            <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6" alt="Google" />
+                            <span className="font-bold text-slate-700 group-hover:text-indigo-700">Log Masuk Google</span>
+                        </button>
+                        
+                        <div className="mt-12 text-center">
+                            <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest mb-2">Dibangunkan Oleh</p>
+                            <div className="flex items-center justify-center gap-2 opacity-60 grayscale hover:grayscale-0 transition-all cursor-default">
+                                <span className="text-xs font-bold text-slate-500">Unit ICT SK Masjid Tanah</span>
+                            </div>
+                        </div>
+                    </div>
                  </div>
             </div>
           );
@@ -1399,7 +1452,7 @@
                     </div>
                   </>
                 }
-                <button className="w-full bg-indigo-600 text-white py-2 rounded font-bold">Simpan</button></form><div className="mt-6 border-t pt-4"><h3 className="font-bold mb-2">Upload CSV</h3><input type="file" onChange={e => setCsvFile(e.target.files[0])} className="text-xs mb-2"/><button onClick={handleCsvUpload} disabled={uploading} className="w-full bg-green-600 text-white py-2 rounded font-bold text-xs">{uploading ? 'Uploading...' : 'Upload CSV'}</button></div></div>}
+                <button className="w-full bg-indigo-600 text-white py-2 rounded font-bold">Simpan</button></form><div className="mt-6 border-t pt-4"><h3 className="font-bold mb-2">Upload CSV</h3><div className="text-xs text-slate-500 mb-3 bg-blue-50 p-2 rounded border border-blue-100"><p className="font-bold text-blue-700 mb-1 flex items-center gap-1"><Info size={12}/> Panduan Kolum CSV:</p>{type === 'student' ? (<><code className="block font-mono text-[10px] bg-white p-1 rounded border border-blue-100 text-slate-600 mb-1">Nama, Kelas, RMT</code><p className="text-[9px] italic text-slate-400">*RMT: "Layak" atau "Tidak"</p></>) : (<><code className="block font-mono text-[10px] bg-white p-1 rounded border border-blue-100 text-slate-600 mb-1">Nama, Email, Role, Jawatan</code><p className="text-[9px] italic text-slate-400">*Role: "admin", "pentadbir", atau "guru"</p></>)}<p className="mt-1 text-[9px] italic text-slate-400">*Baris pertama (header) akan diabaikan.</p></div><input type="file" onChange={e => setCsvFile(e.target.files[0])} className="text-xs mb-2"/><button onClick={handleCsvUpload} disabled={uploading} className="w-full bg-green-600 text-white py-2 rounded font-bold text-xs">{uploading ? 'Uploading...' : 'Upload CSV'}</button></div></div>}
                 <div className={`${isReadOnly ? 'col-span-12' : 'lg:col-span-8'} bg-white rounded-xl border flex flex-col h-full`}><div className="p-4 border-b flex justify-between items-center"><div><h3 className="font-bold">Senarai {type}</h3><p className="text-xs text-slate-500">Jumlah: {processedData.length}</p></div>{type === 'student' && <div className="flex gap-2"><select className="border p-1 rounded text-xs" value={filterClass} onChange={e => setFilterClass(e.target.value)}><option value="">Semua Kelas</option>{classList.map(c => <option key={c} value={c}>{c}</option>)}</select><button onClick={() => setSortOrder(p => p === 'asc' ? 'desc' : 'asc')} className="border p-1 rounded text-xs font-bold w-20">{sortOrder === 'asc' ? 'A-Z' : 'Z-A'}</button></div>}{selectedIds.length > 0 && <button onClick={bulkDel} className="bg-red-50 text-red-600 px-3 py-1 rounded text-xs font-bold">Padam {selectedIds.length}</button>}</div><div className="flex-1 overflow-y-auto"><table className="w-full text-sm text-left"><thead className="bg-slate-50 text-xs uppercase sticky top-0"><tr><th className="p-3 w-10"></th><th className="p-3">Nama</th><th className="p-3">Info</th>{type === 'student' && <th className="p-3">RMT</th>}<th className="p-3 text-right"></th></tr></thead><tbody className="divide-y">{processedData.map(d => <tr key={d.id} className="hover:bg-slate-50"><td className="p-3"><input type="checkbox" checked={selectedIds.includes(d.id)} onChange={() => setSelectedIds(p => p.includes(d.id) ? p.filter(x => x !== d.id) : [...p, d.id])} /></td><td className="p-3 font-bold">{d.name}</td><td className="p-3">{type === 'student' ? <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded font-bold">{d.class}</span> : <div>{d.email}<br/><span className="text-[10px] bg-slate-100 px-1 rounded">{d.role}</span></div>}</td>{type === 'student' && <td className="p-3"><span className={`text-xs font-bold px-2 py-1 rounded ${d.rmt === 'Layak' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-400'}`}>{d.rmt || 'Tidak'}</span></td>}<td className="p-3 text-right">{!isReadOnly && <div className="flex justify-end gap-2"><button onClick={() => { setNewRec(d); setEditingId(d.id); }} className="text-blue-400"><Edit3 size={16} /></button><button onClick={() => del(d.id)} className="text-red-400"><Trash2 size={16} /></button></div>}</td></tr>)}</tbody></table></div></div></div>);
         }
 
@@ -1427,7 +1480,7 @@
           // Calculate overall percentage
           const totalSchoolStudents = todayAttendance.reduce((acc, curr) => acc + (curr.stats?.total || 0), 0);
           const totalSchoolPresent = todayAttendance.reduce((acc, curr) => acc + (curr.stats?.hadir || 0), 0);
-          const overallPercentage = totalSchoolStudents > 0 ? ((totalSchoolPresent / totalSchoolStudents) * 100).toFixed(1) : 0;
+          const overallPercentage = totalSchoolStudents > 0 ? ((totalSchoolPresent / totalSchoolStudents) * 100).toFixed(2) : "0.00";
 
           // Calculate RMT Stats
           const rmtStudents = students.filter(s => s.rmt === 'Layak');
@@ -1513,9 +1566,10 @@
                        allClasses.map(className => { 
                            const record = todayAttendance.find(a => a.className === className);
                            const isSubmitted = !!record;
-                           let percentage = 0;
+                           let percentage = "0.00";
+                           
                            if (isSubmitted && record.stats.total > 0) {
-                               percentage = Math.round((record.stats.hadir / record.stats.total) * 100);
+                               percentage = ((record.stats.hadir / record.stats.total) * 100).toFixed(2);
                            }
 
                            return (
@@ -1525,7 +1579,14 @@
                                    className={`p-3 rounded-lg border flex flex-col items-center justify-center text-center transition-all cursor-pointer hover:shadow-md ${isSubmitted ? 'bg-emerald-100 border-emerald-200 text-emerald-800 shadow-sm' : 'bg-slate-100 border-slate-200 text-slate-400'}`}
                                >
                                    <span className="font-bold text-sm">{className}</span>
-                                   <span className="text-[10px] font-bold uppercase mt-1">{isSubmitted ? `${percentage}%` : 'Belum'}</span>
+                                   {isSubmitted ? (
+                                       <div className="flex flex-col items-center mt-1">
+                                           <span className="text-xs font-bold">{percentage}%</span>
+                                           <span className="text-[10px] font-medium opacity-80">{record.stats.hadir}/{record.stats.total}</span>
+                                       </div>
+                                   ) : (
+                                       <span className="text-[10px] font-bold uppercase mt-1">Belum</span>
+                                   )}
                                </div>
                            ); 
                        })}
@@ -1647,6 +1708,11 @@
             const [reports, setReports] = useState([]);
             const [loading, setLoading] = useState(true);
 
+            // --- PWA AUTO-PROMPT STATES ---
+            const [pwaEvent, setPwaEvent] = useState(null);
+            const [showPwaNoti, setShowPwaNoti] = useState(false);
+            const [isIOS, setIsIOS] = useState(false);
+
             useEffect(() => {
                 const unsubscribe = onAuthStateChanged(auth, async (u) => {
                     if (u) {
@@ -1697,6 +1763,38 @@
                 return () => unsubs.forEach(u => u());
             }, [user]);
 
+            // --- PWA AUTO DETECTION LOGIC ---
+            useEffect(() => {
+                // 1. Android / Desktop Chrome Handler
+                const handler = (e) => {
+                    e.preventDefault();
+                    setPwaEvent(e);
+                    setShowPwaNoti(true);
+                };
+                window.addEventListener('beforeinstallprompt', handler);
+
+                // 2. iOS Safari Handler
+                const isIosDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+                
+                if (isIosDevice && !isStandalone) {
+                    setIsIOS(true);
+                    setShowPwaNoti(true);
+                }
+
+                return () => window.removeEventListener('beforeinstallprompt', handler);
+            }, []);
+
+            const installPwa = async () => {
+                if (!pwaEvent) return;
+                pwaEvent.prompt();
+                const { outcome } = await pwaEvent.userChoice;
+                if (outcome === 'accepted') {
+                    setShowPwaNoti(false);
+                }
+                setPwaEvent(null);
+            };
+
             const handleLogin = async () => {
                 try { await signInWithPopup(auth, googleProvider); } catch (e) { alert(e.message); }
             };
@@ -1732,6 +1830,41 @@
                             {view === 'stats' && (user.role === 'admin' ? <UsageStats /> : <AccessDenied />)}
                         </main>
                     </div>
+
+                    {/* --- PWA AUTO NOTIFICATION POPUP --- */}
+                    {showPwaNoti && (
+                        <div className="fixed inset-0 bg-black/60 z-[100] flex items-end md:items-center justify-center p-4 animate-fade-in">
+                            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl relative">
+                                <button onClick={() => setShowPwaNoti(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><X /></button>
+                                
+                                <div className="flex flex-col items-center text-center">
+                                    <div className="w-20 h-20 bg-white rounded-2xl shadow-lg border border-slate-100 flex items-center justify-center mb-4">
+                                        <img src="https://i.postimg.cc/k4N1mPR1/semat-04.png" className="w-14 h-14 object-contain" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-slate-800 mb-2">Pasang Aplikasi SkolaHub</h3>
+                                    <p className="text-slate-500 text-sm mb-6">Akses sistem SK Masjid Tanah dengan lebih pantas terus dari Home Screen anda.</p>
+                                    
+                                    {isIOS ? (
+                                        <div className="w-full bg-slate-50 p-4 rounded-xl text-left text-sm border border-slate-200">
+                                            <p className="font-bold text-slate-700 mb-2 flex items-center gap-2"><div className="w-2 h-2 bg-indigo-500 rounded-full"></div> Pengguna iPhone / iPad:</p>
+                                            <ol className="list-decimal pl-4 space-y-2 text-slate-600 text-xs">
+                                                <li>Tekan butang <span className="font-bold"><Share className="inline w-3 h-3"/> Share</span> di bahagian bawah browser.</li>
+                                                <li>Skrol ke bawah & pilih <span className="font-bold">Add to Home Screen</span>.</li>
+                                                <li>Tekan <span className="font-bold">Add</span> di penjuru atas.</li>
+                                            </ol>
+                                        </div>
+                                    ) : (
+                                        <button onClick={installPwa} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 transform active:scale-95 transition-all">
+                                            <Download size={20} />
+                                            Pasang Sekarang
+                                        </button>
+                                    )}
+                                    
+                                    <button onClick={() => setShowPwaNoti(false)} className="mt-4 text-xs text-slate-400 font-bold hover:text-slate-600 uppercase tracking-wider">Nanti Dulu</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }
