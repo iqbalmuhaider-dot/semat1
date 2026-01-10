@@ -64,12 +64,11 @@
         }
     </style>
 </head>
-    <script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js");
-  }
+	<script>
+  	if ("serviceWorker" in navigator) {
+    	navigator.serviceWorker.register("/sw.js");
+  	}
 </script>
-
 <body>
     <div id="root"></div>
 
@@ -322,7 +321,7 @@
           };
           
           return (
-             <aside className="w-full md:w-64 bg-white border-b md:border-r border-slate-200 flex flex-row md:flex-col shrink-0 z-50 no-print transition-all duration-300 h-16 md:h-full sticky top-0 md:relative">
+             <aside className="w-full md:w-64 bg-white border-t md:border-t-0 md:border-r border-slate-200 flex flex-row md:flex-col shrink-0 z-50 no-print transition-all duration-300 h-16 md:h-full md:relative">
                 {/* Desktop Logo (Kiri Atas bila di Desktop) */}
                 <div className="hidden md:flex h-20 items-center justify-center md:justify-start md:px-6 border-b border-slate-100 gap-3"><img src="https://i.postimg.cc/k4N1mPR1/semat-04.png" className="w-10 h-10 object-contain"/><div className="hidden md:block"><span className="block font-bold text-lg text-slate-800 leading-tight">SkolaHub</span><span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">SK Masjid Tanah</span></div></div>
                 
@@ -760,11 +759,13 @@
 
         function TaskManager({ userData, tasks, currentUid }) {
             const isStaff = ['admin', 'pentadbir', 'guru'].includes(userData.role);
-            const [form, setForm] = useState({ title: '', deadline: '', assignTo: 'Semua Guru' });
+            // State dikemaskini untuk field description dan link
+            const [form, setForm] = useState({ title: '', description: '', link: '', deadline: '', assignTo: 'Semua Guru' });
             const [customTarget, setCustomTarget] = useState(false);
+            const [selectedTask, setSelectedTask] = useState(null); // Untuk paparan detail popup
 
             const addTask = async () => { 
-                if(!form.title || !form.deadline) return alert("Sila isi maklumat."); 
+                if(!form.title || !form.deadline) return alert("Sila isi Tajuk dan Tarikh Akhir."); 
                 const assignedByRole = ['admin', 'pentadbir'].includes(userData.role) ? 'Guru Besar' : 'Guru';
                 await addDoc(collection(db, 'portal_tasks'), { 
                     ...form, 
@@ -773,56 +774,184 @@
                     createdAt: new Date().toISOString(), 
                     createdBy: currentUid 
                 }); 
-                setForm({ title: '', deadline: '', assignTo: 'Semua Guru' }); 
+                setForm({ title: '', description: '', link: '', deadline: '', assignTo: 'Semua Guru' }); 
                 setCustomTarget(false);
                 alert("Tugasan dihantar."); 
             };
-            const deleteTask = async (id) => { if(confirm("Padam tugasan?")) await deleteDoc(doc(db, 'portal_tasks', id)); }
+            
+            const deleteTask = async (id, e) => { 
+                e.stopPropagation(); // Elak trigger popup bila tekan delete
+                if(confirm("Padam tugasan?")) await deleteDoc(doc(db, 'portal_tasks', id)); 
+            }
             
             return (
                 <div className="grid lg:grid-cols-3 gap-6 h-[calc(100vh-140px)]">
+                    {/* LIST SECTION */}
                     <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                        <div className="p-4 border-b border-slate-100 bg-slate-50 font-bold text-slate-700">Senarai Tugasan</div>
+                        <div className="p-4 border-b border-slate-100 bg-slate-50 font-bold text-slate-700 flex justify-between items-center">
+                            <span>Senarai Tugasan</span>
+                            <span className="text-xs font-normal text-slate-500 italic">*Klik kad untuk butiran</span>
+                        </div>
                         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                            {tasks.map(task => { 
+                            {tasks.length === 0 ? <p className="text-center text-slate-400 italic mt-10">Tiada tugasan aktif.</p> : tasks.map(task => { 
                                 const isGB = task.assignedByRole === 'Guru Besar'; 
                                 const canDelete = userData.role === 'admin' || task.createdBy === currentUid; 
                                 return (
-                                    <div key={task.id} className={`p-4 rounded-xl border flex justify-between items-start ${isGB ? 'bg-indigo-50 border-indigo-100' : 'bg-white border-slate-100'}`}>
-                                        <div>
+                                    <div 
+                                        key={task.id} 
+                                        onClick={() => setSelectedTask(task)}
+                                        className={`p-4 rounded-xl border flex justify-between items-start cursor-pointer hover:shadow-md transition-all group ${isGB ? 'bg-indigo-50 border-indigo-100 hover:border-indigo-300' : 'bg-white border-slate-100 hover:border-slate-300'}`}
+                                    >
+                                        <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-1">
                                                 {isGB && <span className="bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase">PENTADBIR</span>}
-                                                <span className="text-xs text-slate-500 font-medium">Kepada: {task.assignTo}</span>
+                                                <span className="text-xs text-slate-500 font-medium bg-white/50 px-2 rounded border border-slate-200">Kepada: {task.assignTo}</span>
                                             </div>
-                                            <h4 className="font-bold text-slate-800 text-lg">{task.title}</h4>
-                                            <p className="text-xs text-slate-500 mt-1">Oleh: {task.assignedBy} • Tarikh Akhir: <b>{formatDate(task.deadline)}</b></p>
+                                            <h4 className="font-bold text-slate-800 text-lg group-hover:text-indigo-700 transition-colors">{task.title}</h4>
+                                            {task.description && <p className="text-xs text-slate-500 line-clamp-1 mt-1">{task.description}</p>}
+                                            <p className="text-[10px] text-slate-400 mt-2 flex items-center gap-2">
+                                                <span>Oleh: {task.assignedBy}</span> • 
+                                                <span className="font-bold text-slate-600">Due: {formatDate(task.deadline)}</span>
+                                                {task.link && <LinkIcon size={10} className="text-blue-500"/>}
+                                            </p>
                                         </div>
-                                        {canDelete && <button onClick={()=>deleteTask(task.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button>}
+                                        {canDelete && (
+                                            <button 
+                                                onClick={(e)=>deleteTask(task.id, e)} 
+                                                className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"
+                                                title="Padam Tugasan"
+                                            >
+                                                <Trash2 className="w-4 h-4"/>
+                                            </button>
+                                        )}
                                     </div>
                                 )
                             })}
                         </div>
                     </div>
+
+                    {/* FORM SECTION */}
                     {isStaff && (
-                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 h-fit">
+                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 h-fit overflow-y-auto">
                             <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><Plus className="w-5 h-5 text-indigo-600"/> Tambah Tugasan</h3>
                             <div className="space-y-4">
-                                <div><label className="lbl">Arahan / Tugasan</label><textarea className="inp h-24 resize-none" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} placeholder="Contoh: Hantar RPH sebelum Jumaat"/></div>
-                                <div><label className="lbl">Tarikh Akhir (Deadline)</label><input type="date" className="inp w-full" value={form.deadline} onChange={e=>setForm({...form, deadline:e.target.value})}/></div>
+                                {/* Tajuk - Input Biasa */}
                                 <div>
-                                    <label className="lbl">Sasaran</label>
-                                    <select className="inp w-full" value={customTarget ? 'manual' : form.assignTo} onChange={e=>{ 
-                                        if(e.target.value === 'manual') { setCustomTarget(true); setForm({...form, assignTo: ''}); } 
-                                        else { setCustomTarget(false); setForm({...form, assignTo: e.target.value}); } 
-                                    }}>
-                                        <option>Semua Guru</option>
-                                        <option>Pentadbir</option>
-                                        <option>Ketua Panitia</option>
-                                        <option value="manual">Tambah Manual...</option>
-                                    </select>
-                                    {customTarget && <input className="inp w-full mt-2" placeholder="Nyatakan sasaran..." value={form.assignTo} onChange={e=>setForm({...form, assignTo:e.target.value})} />}
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tajuk Tugasan</label>
+                                    <input 
+                                        className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                        value={form.title} 
+                                        onChange={e=>setForm({...form, title:e.target.value})} 
+                                        placeholder="Contoh: Hantar RPH Minggu 42"
+                                    />
                                 </div>
-                                <button onClick={addTask} className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-bold shadow-md hover:bg-indigo-700 transition">Hantar Arahan</button>
+
+                                {/* Deskripsi - Textarea */}
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Deskripsi / Arahan (Pilihan)</label>
+                                    <textarea 
+                                        className="w-full border border-slate-300 rounded-lg p-2 text-sm h-24 resize-none focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                        value={form.description} 
+                                        onChange={e=>setForm({...form, description:e.target.value})} 
+                                        placeholder="Maklumat lanjut mengenai tugasan..."
+                                    />
+                                </div>
+
+                                {/* Link - Input */}
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Pautan / Link (Pilihan)</label>
+                                    <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
+                                        <div className="bg-slate-50 p-2 border-r border-slate-300"><LinkIcon size={14} className="text-slate-400"/></div>
+                                        <input 
+                                            className="w-full p-2 text-sm outline-none" 
+                                            value={form.link} 
+                                            onChange={e=>setForm({...form, link:e.target.value})} 
+                                            placeholder="https://..."
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Tarikh & Sasaran */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tarikh Akhir</label>
+                                        <input type="date" className="w-full border border-slate-300 rounded-lg p-2 text-sm font-bold text-slate-700" value={form.deadline} onChange={e=>setForm({...form, deadline:e.target.value})}/>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Sasaran</label>
+                                        <select className="w-full border border-slate-300 rounded-lg p-2 text-sm" value={customTarget ? 'manual' : form.assignTo} onChange={e=>{ 
+                                            if(e.target.value === 'manual') { setCustomTarget(true); setForm({...form, assignTo: ''}); } 
+                                            else { setCustomTarget(false); setForm({...form, assignTo: e.target.value}); } 
+                                        }}>
+                                            <option>Semua Guru</option>
+                                            <option>Pentadbir</option>
+                                            <option>Ketua Panitia</option>
+                                            <option value="manual">Lain-lain...</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                {customTarget && <input className="w-full border border-slate-300 rounded-lg p-2 text-sm" placeholder="Nyatakan sasaran (Contoh: Guru Math)" value={form.assignTo} onChange={e=>setForm({...form, assignTo:e.target.value})} />}
+                                
+                                <button onClick={addTask} className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-bold shadow-md hover:bg-indigo-700 transition transform active:scale-95">Hantar Arahan</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* DETAIL POPUP MODAL */}
+                    {selectedTask && (
+                        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in backdrop-blur-sm">
+                            <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
+                                <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50 rounded-t-2xl">
+                                    <div>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-white border px-2 py-1 rounded">Arahan {selectedTask.assignedByRole}</span>
+                                        <h3 className="text-xl font-bold text-slate-800 mt-2 leading-tight">{selectedTask.title}</h3>
+                                    </div>
+                                    <button onClick={() => setSelectedTask(null)} className="text-slate-400 hover:text-red-500 bg-white p-1 rounded-full border hover:bg-red-50 transition-colors"><X size={20}/></button>
+                                </div>
+                                
+                                <div className="p-6 overflow-y-auto space-y-6">
+                                    {/* Info Grid */}
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                            <span className="block text-xs text-slate-400 uppercase font-bold mb-1">Dihantar Oleh</span>
+                                            <span className="font-bold text-slate-700">{selectedTask.assignedBy}</span>
+                                        </div>
+                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                            <span className="block text-xs text-slate-400 uppercase font-bold mb-1">Tarikh Akhir</span>
+                                            <span className={`font-bold ${new Date(selectedTask.deadline) < new Date() ? 'text-red-600' : 'text-emerald-600'}`}>{formatDate(selectedTask.deadline)}</span>
+                                        </div>
+                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 col-span-2">
+                                            <span className="block text-xs text-slate-400 uppercase font-bold mb-1">Kepada</span>
+                                            <span className="font-bold text-slate-700">{selectedTask.assignTo}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Description */}
+                                    {selectedTask.description ? (
+                                        <div>
+                                            <h4 className="text-sm font-bold text-slate-700 uppercase mb-2 border-b pb-1">Butiran Tugasan</h4>
+                                            <p className="text-slate-600 text-sm whitespace-pre-wrap leading-relaxed">{selectedTask.description}</p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-slate-400 italic text-sm text-center">Tiada deskripsi tambahan.</p>
+                                    )}
+
+                                    {/* Link Button */}
+                                    {selectedTask.link && (
+                                        <a 
+                                            href={selectedTask.link} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="flex items-center justify-center gap-2 w-full bg-blue-50 text-blue-600 border border-blue-200 py-3 rounded-xl font-bold hover:bg-blue-100 transition-colors"
+                                        >
+                                            <LinkIcon size={18}/> Buka Pautan / Lampiran
+                                        </a>
+                                    )}
+                                </div>
+
+                                <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
+                                    <button onClick={() => setSelectedTask(null)} className="w-full bg-white border border-slate-300 text-slate-600 py-2 rounded-lg font-bold hover:bg-slate-100 text-sm">Tutup</button>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -1207,14 +1336,49 @@
         function AppBuilder({ apps }) {
           const [form, setForm] = useState({ title: '', desc: '', iconKey: 'portal', category: 'umum', type: 'link', content: '' });
           const [confirmDel, setConfirmDel] = useState(null);
+          const [editingId, setEditingId] = useState(null);
           
-          const handleSave = async () => { if(!form.title) return; await addDoc(collection(db, 'portal_apps'), form); setForm({...form, title:''}); alert("Disimpan!"); };
-          const executeDelete = async () => { if(confirmDel) { await deleteDoc(doc(db, 'portal_apps', confirmDel)); setConfirmDel(null); } };
+          const handleSave = async () => { 
+              if(!form.title) return alert("Sila isi tajuk aplikasi."); 
+              
+              try {
+                  if (editingId) {
+                      await updateDoc(doc(db, 'portal_apps', editingId), form);
+                      alert("Aplikasi berjaya dikemaskini!");
+                  } else {
+                      await addDoc(collection(db, 'portal_apps'), form); 
+                      alert("Aplikasi berjaya diterbitkan!");
+                  }
+                  
+                  // Reset form
+                  setForm({ title: '', desc: '', iconKey: 'portal', category: 'umum', type: 'link', content: '' });
+                  setEditingId(null);
+              } catch (e) {
+                  alert("Ralat: " + e.message);
+              }
+          };
+
+          const handleEdit = (app) => {
+              setForm(app);
+              setEditingId(app.id);
+          };
+
+          const handleCancel = () => {
+              setForm({ title: '', desc: '', iconKey: 'portal', category: 'umum', type: 'link', content: '' });
+              setEditingId(null);
+          };
+
+          const executeDelete = async () => { 
+              if(confirmDel) { 
+                  await deleteDoc(doc(db, 'portal_apps', confirmDel)); 
+                  setConfirmDel(null); 
+                  if (editingId === confirmDel) handleCancel(); // Reset form if deleting currently edited item
+              } 
+          };
           
           const handleContentChange = (e) => {
               const val = e.target.value;
               const newForm = { ...form, content: val };
-              // Auto-detect Code Type logic
               if (val.includes("import React") || val.includes("from 'react'") || val.includes("export default")) {
                   newForm.type = 'react';
               } else if (val.trim().startsWith('<') && !val.includes("import React")) {
@@ -1226,42 +1390,134 @@
           };
 
           return (
-            <div className="grid lg:grid-cols-12 gap-8">
-                <div className="lg:col-span-8 bg-white rounded-xl border border-slate-200 p-6">
-                    <h3 className="font-bold mb-4">Bina App</h3>
-                    <div className="space-y-4">
-                        <input className="inp" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} placeholder="Tajuk"/>
-                        <textarea className="inp h-20" value={form.desc} onChange={e=>setForm({...form, desc:e.target.value})} placeholder="Deskripsi"/>
-                        <div className="flex gap-2">
-                            <button onClick={()=>setForm({...form, type:'link'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='link'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>Link</button>
-                            <button onClick={()=>setForm({...form, type:'html'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='html'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>HTML</button>
-                            <button onClick={()=>setForm({...form, type:'react'})} className={`px-4 py-2 rounded text-xs font-bold border ${form.type==='react'?'bg-indigo-50 border-indigo-500 text-indigo-700':'border-slate-200'}`}>React (Beta)</button>
+            <div className="grid lg:grid-cols-12 gap-8 h-[calc(100vh-140px)]">
+                <div className="lg:col-span-8 bg-white rounded-xl border border-slate-200 p-6 flex flex-col h-full overflow-hidden">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                            {editingId ? <><Edit3 className="w-5 h-5 text-blue-600"/> Kemaskini Aplikasi</> : <><Plus className="w-5 h-5 text-indigo-600"/> Bina Aplikasi Baru</>}
+                        </h3>
+                        {editingId && (
+                            <button onClick={handleCancel} className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-bold hover:bg-slate-200">
+                                Batal Edit
+                            </button>
+                        )}
+                    </div>
+                    
+                    <div className="space-y-4 flex-1 overflow-y-auto pr-2">
+                        {/* Title Input */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tajuk Aplikasi</label>
+                            <input 
+                                className="w-full p-3 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" 
+                                value={form.title} 
+                                onChange={e=>setForm({...form, title:e.target.value})} 
+                                placeholder="Contoh: Kuiz Matematik Tahun 6"
+                            />
                         </div>
-                        {form.type==='link'?
-                            <input className="inp" value={form.content} onChange={e=>setForm({...form, content:e.target.value})} placeholder="URL..."/>:
-                            <div className="relative">
-                                <textarea className="inp h-60 font-mono text-xs bg-slate-900 text-green-400 p-4" value={form.content} onChange={handleContentChange} placeholder={form.type === 'react' ? "function App() { return <div className='p-4'>Hello Cikgu!</div> }" : "HTML Code..."}/>
-                                {form.type === 'react' && <p className="text-[10px] text-slate-500 mt-1 italic">* Anda boleh paste kod React penuh (termasuk import). Sistem akan cuba render secara automatik.</p>}
+
+                        {/* Description Input */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Deskripsi Ringkas</label>
+                            <textarea 
+                                className="w-full p-3 border border-slate-300 rounded-lg text-sm h-24 resize-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" 
+                                value={form.desc} 
+                                onChange={e=>setForm({...form, desc:e.target.value})} 
+                                placeholder="Penerangan pendek tentang fungsi aplikasi ini..."
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <label className="block text-xs font-bold text-slate-500 uppercase">Jenis Kandungan</label>
+                            <div className="flex gap-2">
+                                <button onClick={()=>setForm({...form, type:'link'})} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${form.type==='link'?'bg-indigo-600 text-white border-indigo-600 shadow-md':'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>Pautan URL</button>
+                                <button onClick={()=>setForm({...form, type:'html'})} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${form.type==='html'?'bg-indigo-600 text-white border-indigo-600 shadow-md':'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>Kod HTML</button>
+                                <button onClick={()=>setForm({...form, type:'react'})} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${form.type==='react'?'bg-indigo-600 text-white border-indigo-600 shadow-md':'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>React (Beta)</button>
                             </div>
-                        }
-                        <div className="flex gap-3 overflow-x-auto pb-4 pt-1">
-                            {Object.entries(ALL_ICONS).map(([k, d]) => (
-                                <button key={k} onClick={() => setForm({...form, iconKey: k})} className={`p-3 rounded-xl border transition-all flex-shrink-0 ${form.iconKey === k ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`} title={k}><d.i className={`w-6 h-6 ${d.color}`}/></button>
-                            ))}
                         </div>
-                        <button onClick={handleSave} className="bg-indigo-600 text-white w-full py-2 rounded-lg font-bold">Terbitkan</button>
+
+                        {/* Content Area */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                {form.type === 'link' ? 'URL Pautan' : 'Kod Sumber'}
+                            </label>
+                            {form.type==='link' ? (
+                                <input 
+                                    className="w-full p-3 border border-slate-300 rounded-lg text-sm font-mono text-blue-600 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                    value={form.content} 
+                                    onChange={e=>setForm({...form, content:e.target.value})} 
+                                    placeholder="https://..."
+                                />
+                            ) : (
+                                <div className="relative border border-slate-300 rounded-lg overflow-hidden">
+                                    <textarea 
+                                        className="w-full h-64 p-4 font-mono text-xs bg-slate-900 text-green-400 outline-none resize-none" 
+                                        value={form.content} 
+                                        onChange={handleContentChange} 
+                                        placeholder={form.type === 'react' ? "function App() { return <div className='p-4'>Hello Cikgu!</div> }" : "<!-- Masukkan kod HTML di sini -->"}
+                                    />
+                                    {form.type === 'react' && <div className="absolute bottom-0 left-0 right-0 bg-slate-800 text-slate-400 text-[10px] p-2 text-center border-t border-slate-700">Paste kod React penuh. Sistem akan render secara automatik.</div>}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Icon Selector */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Pilih Ikon</label>
+                            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+                                {Object.entries(ALL_ICONS).map(([k, d]) => (
+                                    <button 
+                                        key={k} 
+                                        onClick={() => setForm({...form, iconKey: k})} 
+                                        className={`p-3 rounded-xl border transition-all flex-shrink-0 ${form.iconKey === k ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200 shadow-sm transform scale-110' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`} 
+                                        title={k}
+                                    >
+                                        <d.i className={`w-6 h-6 ${d.color}`}/>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="pt-4 mt-2 border-t border-slate-100">
+                        <button 
+                            onClick={handleSave} 
+                            className={`w-full py-3 rounded-xl font-bold text-white shadow-lg transition-all transform hover:-translate-y-1 active:scale-95 ${editingId ? 'bg-blue-600 hover:bg-blue-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                        >
+                            {editingId ? 'Kemaskini Aplikasi' : 'Terbitkan Aplikasi'}
+                        </button>
                     </div>
                 </div>
-                <div className="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-4">
-                    <h3 className="font-bold text-sm mb-4">Senarai</h3>
-                    {apps.map(a=>(
-                        <div key={a.id} className="flex justify-between items-center p-2 hover:bg-slate-50 border-b border-slate-100 last:border-0">
-                            <span className="text-sm font-bold truncate w-40">{a.title}</span>
-                            <button onClick={()=>setConfirmDel(a.id)} className="text-red-500"><Trash2 className="w-4 h-4"/></button>
-                        </div>
-                    ))}
+
+                {/* Sidebar List */}
+                <div className="lg:col-span-4 bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+                    <div className="p-4 border-b border-slate-100 bg-slate-50">
+                        <h3 className="font-bold text-slate-700 text-sm">Senarai Aplikasi ({apps.length})</h3>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                        {apps.length === 0 ? <p className="text-center text-slate-400 text-xs py-8">Belum ada aplikasi.</p> : apps.map(a=>(
+                            <div key={a.id} className={`group flex justify-between items-start p-3 rounded-xl border transition-all hover:shadow-md ${editingId === a.id ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-300' : 'bg-white border-slate-100 hover:border-indigo-200'}`}>
+                                <div className="flex items-start gap-3 overflow-hidden">
+                                    <div className={`p-2 rounded-lg shrink-0 ${ALL_ICONS[a.iconKey]?.bg || 'bg-slate-100'}`}>
+                                        {React.createElement(ALL_ICONS[a.iconKey]?.i || Globe, { className: `w-4 h-4 ${ALL_ICONS[a.iconKey]?.color || 'text-slate-600'}` })}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h4 className="font-bold text-sm text-slate-800 truncate">{a.title}</h4>
+                                        <span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{a.type}</span>
+                                    </div>
+                                </div>
+                                <div className="flex gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={()=>handleEdit(a)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
+                                        <Edit3 className="w-4 h-4"/>
+                                    </button>
+                                    <button onClick={()=>setConfirmDel(a.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Padam">
+                                        <Trash2 className="w-4 h-4"/>
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-                {confirmDel && <ConfirmModal title="Padam?" msg="Tiada undo." onConfirm={executeDelete} onCancel={()=>setConfirmDel(null)}/>}
+                {confirmDel && <ConfirmModal title="Padam Aplikasi?" msg="Tindakan ini tidak boleh diundur. Adakah anda pasti?" onConfirm={executeDelete} onCancel={()=>setConfirmDel(null)}/>}
             </div>
           );
         }
@@ -1332,8 +1588,8 @@
           return (<div className="grid grid-cols-2 md:grid-cols-4 gap-4">{apps.map(a=>(<div key={a.id} onClick={()=>setSel(a)} className="bg-white p-4 rounded-xl border hover:shadow-md cursor-pointer flex flex-col h-40 justify-between"><div className="flex justify-between"><div className={`p-2 rounded-lg ${ALL_ICONS[a.iconKey]?.bg || 'bg-slate-100'}`}>{React.createElement(ALL_ICONS[a.iconKey]?.i || Globe, { className: `w-6 h-6 ${ALL_ICONS[a.iconKey]?.color || 'text-slate-600'}` })}</div></div><div><h4 className="font-bold truncate">{a.title}</h4><p className="text-xs text-slate-500 line-clamp-2">{a.desc}</p></div></div>))}</div>);
         }
 
-        function AttendanceManager({ students, userData }) {
-            const [selectedClass, setSelectedClass] = useState("");
+        function AttendanceManager({ students, userData, preSelectedClass }) {
+            const [selectedClass, setSelectedClass] = useState(preSelectedClass || "");
             const [attendanceData, setAttendanceData] = useState({});
             const [today, setToday] = useState(new Date().toISOString().split('T')[0]);
             const [loading, setLoading] = useState(false);
@@ -1473,7 +1729,7 @@
 
         // --- 3. DASHBOARD & MAIN ---
 
-        function Dashboard({ userData, apps, students, teachers, tasks, setView }) {
+        function Dashboard({ userData, apps, students, teachers, tasks, setView, setTargetClass }) {
           const role = userData.role;
           const showStats = ['admin', 'pentadbir', 'guru'].includes(role);
           const stats = [ { l: 'Aplikasi', v: apps.length, i: LayoutDashboard, c: 'text-blue-600', b: 'bg-blue-50' }, { l: 'Murid', v: showStats ? students.length : '-', i: GraduationCap, c: 'text-emerald-600', b: 'bg-emerald-50' }, { l: 'Guru', v: showStats ? teachers.length : '-', i: Users, c: 'text-indigo-600', b: 'bg-indigo-50' } ];
@@ -1481,8 +1737,9 @@
           const [loadingAtt, setLoadingAtt] = useState(true);
           const today = new Date().toISOString().split('T')[0];
           
-          // State for class details popup
+          // State for popup details
           const [viewClass, setViewClass] = useState(null);
+          const [viewTask, setViewTask] = useState(null); // State baru untuk popup tugasan di dashboard
           
           // --- ADMIN RESET STATES ---
           const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -1490,6 +1747,9 @@
 
           useEffect(() => { const unsub = onSnapshot(query(collection(db, 'portal_attendance'), where('date', '==', today)), s => { setTodayAttendance(s.docs.map(d => d.data())); setLoadingAtt(false); }, e => setLoadingAtt(false)); return () => unsub(); }, []);
           
+          // Reset target class on mount
+          useEffect(() => { if(setTargetClass) setTargetClass(null); }, []);
+
           const allClasses = [...new Set(students.map(s => s.class))].sort();
           
           // Calculate overall percentage
@@ -1590,8 +1850,16 @@
                            return (
                                <div 
                                    key={className} 
-                                   onClick={() => isSubmitted && setViewClass(record)}
-                                   className={`p-3 rounded-lg border flex flex-col items-center justify-center text-center transition-all cursor-pointer hover:shadow-md ${isSubmitted ? 'bg-emerald-100 border-emerald-200 text-emerald-800 shadow-sm' : 'bg-slate-100 border-slate-200 text-slate-400'}`}
+                                   onClick={() => {
+                                       if (isSubmitted) {
+                                           setViewClass(record);
+                                       } else {
+                                           // Navigate to attendance filler
+                                           if (setTargetClass) setTargetClass(className);
+                                           setView('attendance');
+                                       }
+                                   }}
+                                   className={`p-3 rounded-lg border flex flex-col items-center justify-center text-center transition-all cursor-pointer hover:shadow-md ${isSubmitted ? 'bg-emerald-100 border-emerald-200 text-emerald-800 shadow-sm' : 'bg-slate-100 border-slate-200 text-slate-400 hover:border-indigo-300 hover:text-indigo-500'}`}
                                >
                                    <span className="font-bold text-sm">{className}</span>
                                    {isSubmitted ? (
@@ -1668,17 +1936,93 @@
                    </div>
                )}
 
-               <div className="bg-white rounded-xl border border-slate-200 p-6"><div className="flex justify-between items-center mb-4"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Clock className="w-5 h-5 text-indigo-600"/> Tugasan Semasa</h3><button onClick={() => setView('tasks')} className="text-xs text-indigo-600 hover:underline">Lihat Semua</button></div>{tasks.length === 0 ? <p className="text-slate-400 text-sm">Tiada tugasan aktif.</p> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{tasks.slice(0, 6).map(task => {
-                   const diff = new Date(task.deadline) - new Date();
-                   const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-                   const isUrgent = days <= 3 && days >= 0;
-                   return (
-                       <div key={task.id} className={`p-4 rounded-lg border flex flex-col justify-between ${isUrgent ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-100'}`}>
-                           <div><h4 className="font-bold text-slate-800 text-sm mb-1">{task.title}</h4><p className="text-xs text-slate-500 mb-2">Oleh: {task.assignedBy}</p></div>
-                           <div className="flex items-center gap-2 text-xs font-bold"><Clock className={`w-3 h-3 ${isUrgent ? 'text-red-500' : 'text-slate-400'}`}/><span className={isUrgent ? 'text-red-600' : 'text-slate-600'}>{days < 0 ? 'Tamat' : `${days} hari lagi`}</span></div>
-                       </div>
-                   )
-               })}</div>}</div>
+               {/* TASK LIST (CLICKABLE) */}
+               <div className="bg-white rounded-xl border border-slate-200 p-6">
+                   <div className="flex justify-between items-center mb-4">
+                       <h3 className="font-bold text-slate-800 flex items-center gap-2"><Clock className="w-5 h-5 text-indigo-600"/> Tugasan Semasa</h3>
+                       <button onClick={() => setView('tasks')} className="text-xs text-indigo-600 hover:underline">Lihat Semua</button>
+                   </div>
+                   {tasks.length === 0 ? <p className="text-slate-400 text-sm">Tiada tugasan aktif.</p> : 
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                       {tasks.slice(0, 6).map(task => {
+                           const diff = new Date(task.deadline) - new Date();
+                           const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                           const isUrgent = days <= 3 && days >= 0;
+                           return (
+                               <div 
+                                   key={task.id} 
+                                   onClick={() => setViewTask(task)} // Make Clickable
+                                   className={`p-4 rounded-lg border flex flex-col justify-between cursor-pointer hover:shadow-md transition-all group ${isUrgent ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-100 hover:border-indigo-300'}`}
+                               >
+                                   <div>
+                                       <h4 className="font-bold text-slate-800 text-sm mb-1 group-hover:text-indigo-700 transition-colors">{task.title}</h4>
+                                       <p className="text-xs text-slate-500 mb-2">Oleh: {task.assignedBy}</p>
+                                   </div>
+                                   <div className="flex items-center gap-2 text-xs font-bold">
+                                       <Clock className={`w-3 h-3 ${isUrgent ? 'text-red-500' : 'text-slate-400'}`}/>
+                                       <span className={isUrgent ? 'text-red-600' : 'text-slate-600'}>{days < 0 ? 'Tamat' : `${days} hari lagi`}</span>
+                                   </div>
+                               </div>
+                           )
+                       })}
+                   </div>}
+               </div>
+
+               {/* TASK DETAIL POPUP (DASHBOARD) */}
+               {viewTask && (
+                    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in backdrop-blur-sm">
+                        <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
+                            <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50 rounded-t-2xl">
+                                <div>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-white border px-2 py-1 rounded">Arahan {viewTask.assignedByRole}</span>
+                                    <h3 className="text-xl font-bold text-slate-800 mt-2 leading-tight">{viewTask.title}</h3>
+                                </div>
+                                <button onClick={() => setViewTask(null)} className="text-slate-400 hover:text-red-500 bg-white p-1 rounded-full border hover:bg-red-50 transition-colors"><X size={20}/></button>
+                            </div>
+                            
+                            <div className="p-6 overflow-y-auto space-y-6">
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                        <span className="block text-xs text-slate-400 uppercase font-bold mb-1">Dihantar Oleh</span>
+                                        <span className="font-bold text-slate-700">{viewTask.assignedBy}</span>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                        <span className="block text-xs text-slate-400 uppercase font-bold mb-1">Tarikh Akhir</span>
+                                        <span className={`font-bold ${new Date(viewTask.deadline) < new Date() ? 'text-red-600' : 'text-emerald-600'}`}>{formatDate(viewTask.deadline)}</span>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 col-span-2">
+                                        <span className="block text-xs text-slate-400 uppercase font-bold mb-1">Kepada</span>
+                                        <span className="font-bold text-slate-700">{viewTask.assignTo}</span>
+                                    </div>
+                                </div>
+
+                                {viewTask.description ? (
+                                    <div>
+                                        <h4 className="text-sm font-bold text-slate-700 uppercase mb-2 border-b pb-1">Butiran Tugasan</h4>
+                                        <p className="text-slate-600 text-sm whitespace-pre-wrap leading-relaxed">{viewTask.description}</p>
+                                    </div>
+                                ) : (
+                                    <p className="text-slate-400 italic text-sm text-center">Tiada deskripsi tambahan.</p>
+                                )}
+
+                                {viewTask.link && (
+                                    <a 
+                                        href={viewTask.link} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center gap-2 w-full bg-blue-50 text-blue-600 border border-blue-200 py-3 rounded-xl font-bold hover:bg-blue-100 transition-colors"
+                                    >
+                                        <LinkIcon size={18}/> Buka Pautan / Lampiran
+                                    </a>
+                                )}
+                            </div>
+
+                            <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
+                                <button onClick={() => setViewTask(null)} className="w-full bg-white border border-slate-300 text-slate-600 py-2 rounded-lg font-bold hover:bg-slate-100 text-sm">Tutup</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
                
                {/* --- ADMIN FACTORY RESET BUTTON --- */}
                {role === 'admin' && (
@@ -1722,6 +2066,7 @@
             const [tasks, setTasks] = useState([]);
             const [reports, setReports] = useState([]);
             const [loading, setLoading] = useState(true);
+            const [targetClass, setTargetClass] = useState(null); // State baru untuk pilihan kelas automatik
 
             // --- PWA AUTO-PROMPT STATES ---
             const [pwaEvent, setPwaEvent] = useState(null);
@@ -1824,17 +2169,24 @@
             if (!user) return <LoginScreen onGoogleLogin={handleLogin} />;
 
             return (
-                <div className="flex flex-col md:flex-row h-screen bg-slate-50 overflow-hidden">
+                <div className="flex flex-col-reverse md:flex-row h-screen bg-slate-50 overflow-hidden">
                     <Sidebar userData={user} view={view} setView={setView} logout={handleLogout} />
                     <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                         <Header userData={user} view={view} />
                         <main className="flex-1 overflow-y-auto p-4 md:p-6 no-scrollbar">
-                            {view === 'dashboard' && <Dashboard userData={user} apps={apps} students={students} teachers={teachers} tasks={tasks} setView={setView} />}
+                            {view === 'dashboard' && <Dashboard 
+                                userData={user} apps={apps} students={students} teachers={teachers} tasks={tasks} 
+                                setView={setView} 
+                                setTargetClass={setTargetClass} // Pass setter ke Dashboard
+                            />}
                             {view === 'mmi' && <MMIManager userData={user} currentUid={user.uid} students={students} teachers={teachers} />}
                             {view === 'timetable' && <TimetableManager userData={user} currentUid={user.uid} students={students} teachers={teachers} />}
                             {view === 'apps' && <AppGallery apps={apps} />}
                             {view === 'takwim' && <TakwimManager canEdit={['admin', 'pentadbir'].includes(user.role)} role={user.role} currentUid={user.uid} />}
-                            {view === 'attendance' && <AttendanceManager students={students} userData={user} />}
+                            {view === 'attendance' && <AttendanceManager 
+                                students={students} userData={user} 
+                                preSelectedClass={targetClass} // Pass getter ke AttendanceManager
+                            />}
                             {view === 'tasks' && <TaskManager userData={user} tasks={tasks} currentUid={user.uid} />}
                             {view === 'reports' && <WeeklyReportManager userData={user} reports={reports} teachers={teachers} currentUid={user.uid} />}
                             {view === 'agihan' && <AgihanTugasManager teachers={teachers} canEdit={user.role === 'admin'} />}
