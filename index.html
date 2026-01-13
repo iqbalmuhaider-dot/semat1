@@ -39,12 +39,55 @@
 
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        
+        /* --- STYLE CETAKAN (DIPERBAIKI) --- */
         @media print {
-            .no-print { display: none !important; }
+            /* Sembunyikan elemen tidak perlu */
+            .no-print, aside, header, nav, button { display: none !important; }
             .print-only { display: block !important; }
-            body { background-color: white; }
-            .print-container { padding: 0; margin: 0; border: none; box-shadow: none; }
+            
+            /* Reset Layout Utama App supaya tidak menyekat scroll */
+            html, body, #root {
+                height: auto !important;
+                overflow: visible !important;
+                background-color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            /* Matikan fungsi scroll bar pada parent container semasa print */
+            .h-screen, .overflow-hidden, .overflow-y-auto {
+                height: auto !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+
+            main {
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            /* Konfigurasi bekas laporan */
+            .print-container { 
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                max-width: none !important;
+                padding: 20px !important;
+                margin: 0 !important; 
+                border: none !important; 
+                box-shadow: none !important; 
+                z-index: 9999;
+                background: white !important;
+            }
+
+            /* Elak elemen terpotong di tengah muka surat */
+            .grid, .border, tr, td, div {
+                page-break-inside: avoid;
+            }
         }
+
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -289,7 +332,8 @@
              { id: 'tasks', l: 'Tugasan', i: ClipboardList },
              { id: 'reports', l: 'Laporan', i: FileText },
              { id: 'agihan', l: 'Agihan Tugas', i: Briefcase, access: ['admin', 'pentadbir'] },
-             { id: 'builder', l: 'Bina App', i: Code2, access: ['admin'] },
+             // UBAH: Buang had akses 'admin' supaya semua guru boleh bina app
+             { id: 'builder', l: 'Bina App', i: Code2 }, 
              { id: 'students', l: 'Data Murid', i: GraduationCap, access: ['admin', 'pentadbir'] },
              { id: 'teachers', l: 'Data Guru', i: Users, access: ['admin', 'pentadbir'] },
           ];
@@ -462,11 +506,12 @@
             const [expandedWeeks, setExpandedWeeks] = useState({});
             const [isDownloading, setIsDownloading] = useState(false);
             
+            // STATE BARU UNTUK MULTI-SELECT SLOT
+            const [selectedSlotIndices, setSelectedSlotIndices] = useState([]);
+
             const getDay = (d) => { const days = ['Ahad','Isnin','Selasa','Rabu','Khamis','Jumaat','Sabtu']; return days[new Date(d).getDay()]; };
             const dayName = getDay(date);
             
-            // LOGIC TARGET UID DIKEMASKINI: 
-            // Ambil UID sebenar daripada senarai teachers jika ada selection.
             const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
             const targetUid = selectedTeacher ? (selectedTeacher.uid || "no_data") : currentUid;
 
@@ -535,16 +580,89 @@
                 const slots = []; 
                 Object.entries(daySchedule).forEach(([time, data]) => { if (data.class && data.class.includes(cls)) { slots.push({ time, subject: data.subject, class: data.class }); } }); 
                 setAvailableSlots(slots); 
+                setSelectedSlotIndices([]); // Reset pilihan
                 setShowSlotSelection(true); 
             };
             
-            const confirmSlot = (slot) => { 
+            // FUNGSI TOGGLE PILIHAN SLOT
+            const toggleSlotSelection = (index) => {
+                setSelectedSlotIndices(prev => 
+                    prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
+                );
+            };
+
+            // FUNGSI SIMPAN BATCH (MULTI-SELECT) DENGAN SEMAKAN DUPLICATE
+            const confirmBatchSlots = async () => { 
                 if (!manualWeek) return alert("Sila masukkan nombor minggu."); 
-                saveMMI(slot.class, slot.time, slot.subject, manualWeek); 
-                setShowSlotSelection(false); 
+                if (selectedSlotIndices.length === 0) return alert("Sila pilih sekurang-kurangnya satu slot.");
+
+                const batch = writeBatch(db);
+                let count = 0;
+                let duplicates = [];
+
+                selectedSlotIndices.forEach(idx => {
+                    const slot = availableSlots[idx];
+                    
+                    // Semak jika rekod sudah wujud dalam log semasa
+                    const isDuplicate = logs.some(log => 
+                        log.date === date && 
+                        log.time === slot.time && 
+                        log.class === slot.class && 
+                        log.subject === slot.subject
+                    );
+
+                    if (isDuplicate) {
+                        duplicates.push(`${slot.subject} (${slot.time})`);
+                    } else {
+                        const newRef = doc(collection(db, 'portal_mmi'));
+                        batch.set(newRef, { 
+                            date, 
+                            day: dayName, 
+                            class: slot.class, 
+                            time: slot.time, 
+                            subject: slot.subject, 
+                            week: manualWeek, 
+                            teacher: userData.name, 
+                            createdBy: currentUid, 
+                            timestamp: new Date().toISOString() 
+                        });
+                        count++;
+                    }
+                });
+
+                if (duplicates.length > 0) {
+                    alert(`Amaran: ${duplicates.length} slot berikut TIDAK disimpan kerana bertindih (sudah wujud):\n\n- ${duplicates.join('\n- ')}`);
+                }
+
+                if (count > 0) {
+                    try {
+                        await batch.commit();
+                        alert(`${count} slot berjaya direkodkan!`); 
+                        setShowSlotSelection(false); 
+                    } catch(e) {
+                        console.error(e);
+                        alert("Ralat semasa menyimpan.");
+                    }
+                } else if (duplicates.length > 0 && count === 0) {
+                    // Jika semua duplicate
+                    setShowSlotSelection(false);
+                }
             };
             
-            const saveMMI = async (cls, time, subject, weekVal) => { 
+            // Fungsi Simpan Manual (Relief/Ganti - Single Record) DENGAN SEMAKAN DUPLICATE
+            const saveManualMMI = async (cls, time, subject, weekVal) => { 
+                // Semak duplicate
+                const isDuplicate = logs.some(log => 
+                    log.date === date && 
+                    log.time === time && 
+                    log.class === cls && 
+                    log.subject === subject
+                );
+
+                if (isDuplicate) {
+                    return alert("Gagal Simpan: Rekod untuk slot, kelas dan subjek ini sudah wujud pada tarikh tersebut.");
+                }
+
                 await addDoc(collection(db, 'portal_mmi'), { date, day: dayName, class: cls, time: time, subject: subject, week: weekVal, teacher: userData.name, createdBy: currentUid, timestamp: new Date().toISOString() }); 
                 alert(`MMI Direkod: ${cls} - ${subject} (${time})`); 
             };
@@ -569,39 +687,29 @@
             const deleteSelectedLogs = async () => { const batch = writeBatch(db); selectedIds.forEach(id => { batch.delete(doc(db, 'portal_mmi', id)); }); await batch.commit(); setSelectedIds([]); setShowDeleteConfirm(false); };
             const classList = [...new Set(students.map(s => s.class))].sort();
 
-            // Auto Date to Day
             const handleDateChange = (e) => {
                 const val = e.target.value;
                 setDate(val);
             };
 
-            // --- FUNGSI MUAT TURUN EXCEL (CSV) UNTUK PENTADBIR (KECUALI ADMIN) ---
             const downloadAllMMI = async () => {
                 if (!confirm("Muat turun laporan Excel MMI untuk SEMUA guru & Pentadbir (kecuali Admin)?")) return;
                 setIsDownloading(true);
                 try {
-                    // 1. Dapatkan SEMUA data MMI
                     const q = query(collection(db, 'portal_mmi'), orderBy('date', 'desc'));
                     const snapshot = await getDocs(q);
                     const allLogs = snapshot.docs.map(d => d.data());
 
-                    // 2. Buat Peta Guru untuk cek Role
                     const teacherMap = {};
-                    teachers.forEach(t => {
-                        if (t.uid) teacherMap[t.uid] = t;
-                    });
+                    teachers.forEach(t => { if (t.uid) teacherMap[t.uid] = t; });
 
-                    // 3. Tapis keluar ADMIN
                     const filteredLogs = allLogs.filter(log => {
                         const creator = teacherMap[log.createdBy];
-                        // Jika creator wujud dan role dia 'admin', buang
                         if (creator && creator.role === 'admin') return false;
-                        // Fallback tambahan jika nama admin hardcoded
                         if (log.teacher === 'Iqbal Muhaider') return false;
                         return true;
                     });
 
-                    // 4. Tukar ke CSV Format
                     const headers = ["Tarikh", "Hari", "Minggu", "Nama Guru", "Kelas", "Masa", "Subjek", "Timestamp"];
                     const csvRows = [headers.join(",")];
 
@@ -619,7 +727,6 @@
                         csvRows.push(row.join(","));
                     });
 
-                    // 5. Muat Turun Fail
                     const blob = new Blob([csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement("a");
@@ -657,15 +764,159 @@
                     )}
                     
                     <div className="bg-white p-6 rounded-xl border shadow-sm">
-                        {/* Paparan Scan hanya muncul jika sedang lihat diri sendiri (targetUid == currentUid) */}
                         {(targetUid === currentUid) && (<div className="flex justify-between items-center mb-6"><div><label className="text-xs font-bold text-slate-500 uppercase block">Tarikh (Boleh Backdated)</label><input type="date" className="font-bold text-lg outline-none bg-transparent" value={date} onChange={handleDateChange} /><span className="text-sm text-slate-500 ml-2">({dayName})</span></div><button onClick={startCamera} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 flex items-center gap-2 transition-transform hover:scale-105"><QrCode className="w-6 h-6"/> Scan QR Kelas</button></div>)}
                         
                         <div className="flex justify-between items-center mb-4 border-b pb-2"><h3 className="font-bold text-slate-700">Sejarah MMI {targetUid !== currentUid ? `(${teachers.find(t=>t.id===selectedTeacherId)?.name})` : '(Saya)'}</h3>{selectedIds.length > 0 && (<button onClick={()=>setShowDeleteConfirm(true)} className="bg-red-50 text-red-600 px-3 py-1 rounded text-xs font-bold border border-red-200 hover:bg-red-100 flex items-center gap-1"><Trash2 size={14}/> Padam ({selectedIds.length})</button>)}</div>
-                        <div className="space-y-4">{logs.length === 0 ? <p className="text-slate-400 italic text-center py-4">Tiada rekod MMI.</p> : sortedWeeks.map(weekNum => { const weekLogs = groupedLogs[weekNum]; const isOpen = expandedWeeks[weekNum]; return (<div key={weekNum} className="bg-white border rounded-xl shadow-sm overflow-hidden"><div className={`p-4 flex justify-between items-center bg-slate-50 cursor-pointer ${isOpen ? 'border-b border-indigo-100' : ''}`} onClick={() => setExpandedWeeks(p => ({...p, [weekNum]: !p[weekNum]}))}><div className="flex items-center gap-3"><span className="font-bold text-slate-700">Minggu {weekNum}</span><span className="text-xs bg-slate-200 px-2 py-0.5 rounded-full text-slate-600">{weekLogs.length} Rekod</span></div><div className="flex items-center gap-2">{(targetUid === currentUid) && (<button onClick={(e) => { e.stopPropagation(); copyWeekToNext(weekNum, weekLogs); }} className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-200 hover:bg-blue-100 flex items-center gap-1"><Copy size={12}/> Salin Minggu Depan</button>)}<ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}/></div></div>{isOpen && (<div className="divide-y divide-slate-100">{weekLogs.map(log => (<div key={log.id} className="p-3 flex items-center hover:bg-white transition-colors"><div className="mr-3"><input type="checkbox" checked={selectedIds.includes(log.id)} onChange={() => toggleSelectLog(log.id)} className="w-4 h-4 text-indigo-600 rounded"/></div><div className="flex-1"><div className="flex justify-between"><span className="font-bold text-indigo-700 text-sm">{log.class}</span><span className="text-xs text-slate-500 font-mono">{formatDate(log.date)} ({log.day})</span></div><div className="flex justify-between mt-1"><span className="text-xs text-slate-600">{log.subject}</span><span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-500">{log.time}</span></div></div></div>))}</div>)}</div>)})}</div>
+                        
+                        <div className="space-y-4">
+                            {logs.length === 0 ? <p className="text-slate-400 italic text-center py-4">Tiada rekod MMI.</p> : sortedWeeks.map(weekNum => { 
+                                const weekLogs = groupedLogs[weekNum]; 
+                                const isOpen = expandedWeeks[weekNum];
+                                
+                                // --- LOGIK BARU: Group logs by Day ---
+                                const logsByDay = weekLogs.reduce((acc, log) => {
+                                    const d = log.day || 'Lain-lain';
+                                    if(!acc[d]) acc[d] = [];
+                                    acc[d].push(log);
+                                    return acc;
+                                }, {});
+                                const dayOrder = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu', 'Lain-lain'];
+                                const sortedDays = Object.keys(logsByDay).sort((a,b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+
+                                return (
+                                    <div key={weekNum} className="bg-white border rounded-xl shadow-sm overflow-hidden">
+                                        <div className={`p-4 flex justify-between items-center bg-slate-50 cursor-pointer ${isOpen ? 'border-b border-indigo-100' : ''}`} onClick={() => setExpandedWeeks(p => ({...p, [weekNum]: !p[weekNum]}))}>
+                                            <div className="flex items-center gap-3">
+                                                <span className="font-bold text-slate-700">Minggu {weekNum}</span>
+                                                <span className="text-xs bg-slate-200 px-2 py-0.5 rounded-full text-slate-600">{weekLogs.length} Rekod</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {/* UBAH: Butang Salin kini menggunakan ikon sahaja */}
+                                                {(targetUid === currentUid) && (
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); copyWeekToNext(weekNum, weekLogs); }} 
+                                                        className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full border border-blue-200 transition-colors"
+                                                        title="Salin jadual minggu ini ke minggu hadapan"
+                                                    >
+                                                        <Copy size={14}/>
+                                                    </button>
+                                                )}
+                                                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}/>
+                                            </div>
+                                        </div>
+                                        {isOpen && (
+                                            <div className="bg-white">
+                                                {sortedDays.map(day => (
+                                                    <div key={day}>
+                                                        {/* Header Hari */}
+                                                        <div className="px-4 py-2 bg-indigo-50/50 border-y border-indigo-100 text-xs font-bold text-indigo-900 uppercase tracking-wider flex justify-between items-center">
+                                                            <span>{day}</span>
+                                                            <span className="font-normal opacity-70 normal-case bg-white/50 px-2 rounded">{formatDate(logsByDay[day][0].date)}</span>
+                                                        </div>
+                                                        
+                                                        {/* Senarai Log Hari Tersebut */}
+                                                        <div className="divide-y divide-slate-100">
+                                                            {logsByDay[day]
+                                                                .sort((a,b) => (a.time || '').localeCompare(b.time || ''))
+                                                                .map(log => (
+                                                                <div key={log.id} className="p-3 flex items-center hover:bg-slate-50 transition-colors pl-6 border-b border-slate-50 last:border-0">
+                                                                    <div className="mr-4">
+                                                                        <input type="checkbox" checked={selectedIds.includes(log.id)} onChange={() => toggleSelectLog(log.id)} className="w-4 h-4 text-indigo-600 rounded cursor-pointer"/>
+                                                                    </div>
+                                                                    <div className="flex-1 grid grid-cols-12 gap-2 items-center">
+                                                                        {/* Masa */}
+                                                                        <div className="col-span-3 md:col-span-2">
+                                                                            <span className="text-[10px] font-bold bg-slate-100 px-2 py-1 rounded text-slate-600 block text-center truncate">{log.time}</span>
+                                                                        </div>
+                                                                        {/* Kelas & Subjek */}
+                                                                        <div className="col-span-9 md:col-span-10">
+                                                                            <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
+                                                                                <span className="font-bold text-indigo-700 text-sm w-16">{log.class}</span>
+                                                                                <span className="text-xs text-slate-700 font-medium line-clamp-1 flex-1">{log.subject}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </div>
                     </div>
 
                     {showScan && (<div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 animate-fade-in"><div className="w-full max-w-md bg-white rounded-2xl overflow-hidden relative"><button onClick={stopCamera} className="absolute top-4 right-4 text-white z-10 bg-black/50 rounded-full p-2"><X/></button><div className="relative bg-black h-64 flex items-center justify-center"><video ref={videoRef} className="absolute inset-0 w-full h-full object-cover"></video><canvas ref={canvasRef} className="hidden"></canvas><div className="border-2 border-white/50 w-48 h-48 rounded-lg relative z-10"></div><p className="absolute bottom-4 text-white text-xs bg-black/50 px-2 py-1 rounded">Halakan kamera pada QR Code Kelas</p></div><div className="p-6"><h3 className="font-bold text-lg mb-2 text-center">Atau Pilih Kelas (Simulasi)</h3><div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto">{classList.map(c => (<button key={c} onClick={()=>handleScan(c)} className="bg-slate-100 text-slate-700 py-2 rounded font-bold text-xs hover:bg-indigo-100 hover:text-indigo-700 transition-colors">{c}</button>))}</div></div></div></div>)}
-                    {showSlotSelection && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in"><div className="bg-white p-6 rounded-xl w-96 shadow-2xl"><h3 className="font-bold text-lg mb-1 text-slate-800">Sahkan Keberadaan</h3><p className="text-sm text-slate-500 mb-4">Kelas: <b>{detectedClass}</b> pada <b>{dayName}</b></p><div className="mb-4"><label className="text-xs font-bold uppercase text-slate-500 block mb-1">Minggu Pengajaran</label><input autoFocus className="w-full border p-2 rounded text-sm font-bold" placeholder="Contoh: 1, 2, 3..." value={manualWeek} onChange={e=>setManualWeek(e.target.value)} /></div><div className="space-y-2 mb-4"><p className="text-xs font-bold text-slate-400 uppercase">Pilih Slot Masa:</p>{availableSlots.length > 0 ? availableSlots.map((slot, idx) => (<button key={idx} onClick={() => confirmSlot(slot)} className="w-full text-left p-3 border rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all group"><div className="font-bold text-indigo-700 text-sm">{slot.subject}</div><div className="text-xs text-slate-500">{slot.time}</div></button>)) : (<div className="text-center p-4 border border-dashed rounded text-slate-400 text-sm">Tiada jadual untuk kelas ini pada hari ini.<br/><button onClick={() => { saveMMI(detectedClass, "Lain-lain", "Relief/Ganti", manualWeek); setShowSlotSelection(false); }} className="text-indigo-600 underline mt-2 font-bold">Rekod sebagai Relief/Ganti</button></div>)}</div><button onClick={() => setShowSlotSelection(false)} className="w-full text-slate-500 py-2 text-sm font-bold">Batal</button></div></div>)}
+                    
+                    {/* MODAL PILIHAN SLOT (MULTI-SELECT) */}
+                    {showSlotSelection && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
+                            <div className="bg-white p-6 rounded-xl w-96 shadow-2xl flex flex-col max-h-[80vh]">
+                                <h3 className="font-bold text-lg mb-1 text-slate-800">Sahkan Keberadaan</h3>
+                                <p className="text-sm text-slate-500 mb-4">Kelas: <b>{detectedClass}</b> pada <b>{dayName}</b></p>
+                                
+                                <div className="mb-4">
+                                    <label className="text-xs font-bold uppercase text-slate-500 block mb-1">Minggu Pengajaran</label>
+                                    <input autoFocus className="w-full border p-2 rounded text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Contoh: 1, 2, 3..." value={manualWeek} onChange={e=>setManualWeek(e.target.value)} />
+                                </div>
+                                
+                                <div className="flex-1 overflow-y-auto mb-4 border rounded-lg p-2 bg-slate-50">
+                                    <p className="text-xs font-bold text-slate-400 uppercase mb-2 px-1">Pilih Slot Masa:</p>
+                                    {availableSlots.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {availableSlots.map((slot, idx) => {
+                                                const isSelected = selectedSlotIndices.includes(idx);
+                                                // Semak jika slot sudah wujud (Visual Indicator)
+                                                const isDuplicate = logs.some(log => 
+                                                    log.date === date && 
+                                                    log.time === slot.time && 
+                                                    log.class === slot.class && 
+                                                    log.subject === slot.subject
+                                                );
+
+                                                return (
+                                                    <div 
+                                                        key={idx} 
+                                                        onClick={() => !isDuplicate && toggleSlotSelection(idx)}
+                                                        className={`flex items-center p-3 rounded-lg border transition-all ${isDuplicate ? 'bg-slate-100 border-slate-200 opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${isSelected ? 'bg-indigo-50 border-indigo-500 shadow-sm' : 'bg-white border-slate-200 hover:border-slate-300'}`}
+                                                    >
+                                                        <div className={`w-5 h-5 rounded border mr-3 flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-300'}`}>
+                                                            {isSelected && <Check size={14} strokeWidth={3}/>}
+                                                            {isDuplicate && <X size={14} className="text-slate-400"/>}
+                                                        </div>
+                                                        <div>
+                                                            <div className={`font-bold text-sm ${isSelected ? 'text-indigo-700' : 'text-slate-700'}`}>{slot.subject}</div>
+                                                            <div className="text-xs text-slate-500">{slot.time} {isDuplicate && <span className="text-red-500 italic ml-1">(Sudah Rekod)</span>}</div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center p-4 border border-dashed rounded text-slate-400 text-sm bg-white">
+                                            Tiada jadual untuk kelas ini pada hari ini.
+                                            <button onClick={() => { saveManualMMI(detectedClass, "Lain-lain", "Relief/Ganti", manualWeek); setShowSlotSelection(false); }} className="block w-full text-indigo-600 bg-indigo-50 py-2 rounded mt-2 font-bold hover:bg-indigo-100">
+                                                Rekod Relief/Ganti (Single)
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <div className="flex gap-2 pt-2 border-t border-slate-100">
+                                    <button onClick={() => setShowSlotSelection(false)} className="flex-1 text-slate-500 py-3 text-sm font-bold bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">Batal</button>
+                                    {availableSlots.length > 0 && (
+                                        <button onClick={confirmBatchSlots} className="flex-[2] bg-indigo-600 text-white py-3 text-sm font-bold rounded-lg hover:bg-indigo-700 shadow-lg transition-colors flex items-center justify-center gap-2">
+                                            <CheckCircle size={16}/> Simpan {selectedSlotIndices.length > 0 ? `(${selectedSlotIndices.length})` : ''}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {showDeleteConfirm && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in"><div className="bg-white p-6 rounded-xl w-80 shadow-2xl"><h3 className="font-bold text-lg mb-2 text-red-600">Padam Rekod MMI?</h3><p className="text-slate-600 mb-4 text-sm">Anda pasti mahu memadam {selectedIds.length} rekod yang dipilih?</p><div className="flex justify-end gap-2"><button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 rounded text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200">Batal</button><button onClick={deleteSelectedLogs} className="px-4 py-2 rounded text-sm font-bold bg-red-600 text-white hover:bg-red-700">Ya, Padam</button></div></div></div>)}
                 </div>
             );
@@ -1087,7 +1338,8 @@
                     
                     if(snap.empty) return alert("Tiada rekod kehadiran untuk tarikh ini.");
                     
-                    const stats = { d1: {h:0, t:0}, d2: {h:0, t:0}, d3: {h:0, t:0}, d4: {h:0, t:0}, d5: {h:0, t:0}, d6: {h:0, t:0}, pk: {h:0, t:0}, pra: {h:0, t:0} };
+                    // UBAH: Tukar 'pk' kepada 'ppki' dalam objek statistik
+                    const stats = { d1: {h:0, t:0}, d2: {h:0, t:0}, d3: {h:0, t:0}, d4: {h:0, t:0}, d5: {h:0, t:0}, d6: {h:0, t:0}, ppki: {h:0, t:0}, pra: {h:0, t:0} };
                     
                     snap.forEach(doc => {
                         const d = doc.data(); 
@@ -1097,7 +1349,8 @@
 
                         if (!cls) return;
                         
-                        if (cls.includes('PPKI')) { stats.pk.h+=h; stats.pk.t+=t; }
+                        // UBAH: Logik pengesanan PPKI kini termasuk nama kelas 'IXORA'
+                        if (cls.includes('PPKI') || cls.includes('IXORA')) { stats.ppki.h+=h; stats.ppki.t+=t; }
                         else if (cls.includes('PRA')) { stats.pra.h+=h; stats.pra.t+=t; }
                         else {
                              // Check for year numbers (1-6) or words
@@ -1112,8 +1365,9 @@
                     
                     const newAtt = {}; 
                     Object.keys(stats).forEach(k => { newAtt[k] = `${stats[k].h}/${stats[k].t}`; });
-                    setFormData(prev => ({ ...prev, attendance: newAtt })); 
-                    alert("Kehadiran berjaya diselaraskan!");
+                    // Kekalkan data sedia ada (jika ada) dan gabungkan dengan data baru
+                    setFormData(prev => ({ ...prev, attendance: { ...prev.attendance, ...newAtt } })); 
+                    alert("Kehadiran berjaya diselaraskan! (PPKI termasuk kelas Ixora)");
                 } catch (e) { console.error(e); alert("Ralat: " + e.message); }
             };
 
@@ -1293,10 +1547,12 @@
                                 <button onClick={syncAttendance} className="text-xs bg-white border border-slate-300 px-2 py-0.5 rounded flex items-center gap-1 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors no-print"><RefreshCw size={10}/> Selaras Harian</button>
                             </h3>
                             <div className="grid grid-cols-8 border border-slate-300 text-center text-sm">
-                                {['D1','D2','D3','D4','D5','D6','PK','PRA'].map(c=>(
+                                {/* UBAH: Tukar label 'PK' kepada 'PPKI' dalam array map */}
+                                {['D1','D2','D3','D4','D5','D6','PPKI','PRA'].map(c=>(
                                     <div key={c} className="border-r border-slate-300 last:border-r-0">
                                         <div className="bg-slate-50 font-bold p-1 border-b border-slate-300">{c}</div>
-                                        <input className="w-full text-center p-1 outline-none" value={formData.attendance[c.toLowerCase()]} onChange={e=>setFormData({...formData,attendance:{...formData.attendance,[c.toLowerCase()]:e.target.value}})}/>
+                                        {/* UBAH: Logic value untuk handle 'ppki' baru atau fallback ke 'pk' lama jika data lama dibuka */}
+                                        <input className="w-full text-center p-1 outline-none" value={formData.attendance[c.toLowerCase()] || (c === 'PPKI' ? formData.attendance['pk'] : '')} onChange={e=>setFormData({...formData,attendance:{...formData.attendance,[c.toLowerCase()]:e.target.value}})}/>
                                     </div>
                                 ))}
                             </div>
@@ -1333,38 +1589,68 @@
             );
         }
 
-        function AppBuilder({ apps }) {
-          const [form, setForm] = useState({ title: '', desc: '', iconKey: 'portal', category: 'umum', type: 'link', content: '' });
+        function AppBuilder({ apps, userData }) { // TERIMA PROPS USERDATA
+          const [form, setForm] = useState({ title: '', desc: '', iconKey: 'portal', iconUrl: '', category: 'umum', type: 'link', content: '' });
           const [confirmDel, setConfirmDel] = useState(null);
           const [editingId, setEditingId] = useState(null);
           
+          const isAdmin = userData.role === 'admin';
+
           const handleSave = async () => { 
               if(!form.title) return alert("Sila isi tajuk aplikasi."); 
               
               try {
+                  const timestamp = new Date().toISOString();
+                  // Jika admin buat, terus approved. Jika guru, pending.
+                  const status = isAdmin ? 'approved' : 'pending';
+                  
+                  const payload = {
+                      ...form,
+                      updatedAt: timestamp
+                  };
+
                   if (editingId) {
-                      await updateDoc(doc(db, 'portal_apps', editingId), form);
+                      await updateDoc(doc(db, 'portal_apps', editingId), payload);
                       alert("Aplikasi berjaya dikemaskini!");
                   } else {
-                      await addDoc(collection(db, 'portal_apps'), form); 
-                      alert("Aplikasi berjaya diterbitkan!");
+                      // Tambah maklumat pembuat (ownership)
+                      await addDoc(collection(db, 'portal_apps'), { 
+                          ...payload, 
+                          status: status,
+                          createdBy: userData.uid,
+                          authorName: userData.name,
+                          createdAt: timestamp
+                      }); 
+                      alert(isAdmin ? "Aplikasi diterbitkan!" : "Aplikasi dihantar untuk kelulusan Admin.");
                   }
                   
-                  // Reset form
-                  setForm({ title: '', desc: '', iconKey: 'portal', category: 'umum', type: 'link', content: '' });
-                  setEditingId(null);
+                  handleCancel();
+              } catch (e) {
+                  alert("Ralat: " + e.message);
+              }
+          };
+
+          const handleApprove = async (appId, e) => {
+              e.stopPropagation();
+              if (!confirm("Luluskan aplikasi ini supaya dapat dilihat oleh semua?")) return;
+              try {
+                  await updateDoc(doc(db, 'portal_apps', appId), { status: 'approved' });
+                  alert("Aplikasi diluluskan!");
               } catch (e) {
                   alert("Ralat: " + e.message);
               }
           };
 
           const handleEdit = (app) => {
-              setForm(app);
+              // Halang guru edit app orang lain (walaupun UI dah filter, security tambahan)
+              if (!isAdmin && app.createdBy !== userData.uid) return alert("Anda tiada akses edit aplikasi ini.");
+              
+              setForm({ ...app, iconUrl: app.iconUrl || '' });
               setEditingId(app.id);
           };
 
           const handleCancel = () => {
-              setForm({ title: '', desc: '', iconKey: 'portal', category: 'umum', type: 'link', content: '' });
+              setForm({ title: '', desc: '', iconKey: 'portal', iconUrl: '', category: 'umum', type: 'link', content: '' });
               setEditingId(null);
           };
 
@@ -1372,7 +1658,7 @@
               if(confirmDel) { 
                   await deleteDoc(doc(db, 'portal_apps', confirmDel)); 
                   setConfirmDel(null); 
-                  if (editingId === confirmDel) handleCancel(); // Reset form if deleting currently edited item
+                  if (editingId === confirmDel) handleCancel(); 
               } 
           };
           
@@ -1388,6 +1674,9 @@
               }
               setForm(newForm);
           };
+
+          // FILTER LIST: Admin nampak semua, Guru nampak app sendiri sahaja
+          const visibleApps = apps.filter(a => isAdmin || a.createdBy === userData.uid);
 
           return (
             <div className="grid lg:grid-cols-12 gap-8 h-[calc(100vh-140px)]">
@@ -1460,61 +1749,111 @@
                             )}
                         </div>
 
-                        {/* Icon Selector */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Pilih Ikon</label>
-                            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
-                                {Object.entries(ALL_ICONS).map(([k, d]) => (
-                                    <button 
-                                        key={k} 
-                                        onClick={() => setForm({...form, iconKey: k})} 
-                                        className={`p-3 rounded-xl border transition-all flex-shrink-0 ${form.iconKey === k ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200 shadow-sm transform scale-110' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`} 
-                                        title={k}
-                                    >
-                                        <d.i className={`w-6 h-6 ${d.color}`}/>
-                                    </button>
-                                ))}
-                            </div>
+                        {/* Custom Icon URL Input */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex justify-between">
+                                 <span>Tetapan Ikon (Gambar)</span>
+                                 {form.iconUrl && <span className="text-emerald-600 text-[10px] normal-case">Gambar URL akan digunakan</span>}
+                             </label>
+                             <div className="flex gap-3 items-center mb-3">
+                                 {form.iconUrl ? (
+                                     <img src={form.iconUrl} className="w-12 h-12 rounded-lg object-cover bg-white border" onError={(e) => e.target.src = "https://placehold.co/48x48?text=Error"} />
+                                 ) : (
+                                     <div className="w-12 h-12 rounded-lg bg-slate-200 flex items-center justify-center text-slate-400 text-[10px] text-center leading-tight">Tiada<br/>Gambar</div>
+                                 )}
+                                 <div className="flex-1">
+                                     <input 
+                                         className="w-full p-2 border border-slate-300 rounded-lg text-sm outline-none focus:border-indigo-500" 
+                                         value={form.iconUrl || ''} 
+                                         onChange={e=>setForm({...form, iconUrl: e.target.value})} 
+                                         placeholder="Tampal pautan gambar (https://...)"
+                                     />
+                                     <p className="text-[10px] text-slate-400 mt-1 italic">Jika URL diisi, ikon di bawah akan diabaikan.</p>
+                                 </div>
+                             </div>
+
+                             {/* Fallback Icon Selector */}
+                             <div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Atau Pilih Ikon Lalai</label>
+                                <div className={`flex gap-3 overflow-x-auto pb-2 scrollbar-thin ${form.iconUrl ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+                                    {Object.entries(ALL_ICONS).map(([k, d]) => (
+                                        <button 
+                                            key={k} 
+                                            onClick={() => setForm({...form, iconKey: k, iconUrl: ''})} 
+                                            className={`p-3 rounded-xl border transition-all flex-shrink-0 ${form.iconKey === k ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200 shadow-sm transform scale-110' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`} 
+                                            title={k}
+                                        >
+                                            <d.i className={`w-6 h-6 ${d.color}`}/>
+                                        </button>
+                                    ))}
+                                </div>
+                             </div>
                         </div>
                     </div>
 
                     <div className="pt-4 mt-2 border-t border-slate-100">
                         <button 
                             onClick={handleSave} 
-                            className={`w-full py-3 rounded-xl font-bold text-white shadow-lg transition-all transform hover:-translate-y-1 active:scale-95 ${editingId ? 'bg-blue-600 hover:bg-blue-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                            className={`w-full py-3 rounded-xl font-bold text-white shadow-lg transition-all transform hover:-translate-y-1 active:scale-95 ${editingId ? 'bg-blue-600 hover:bg-blue-700' : (isAdmin ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-amber-500 hover:bg-amber-600')}`}
                         >
-                            {editingId ? 'Kemaskini Aplikasi' : 'Terbitkan Aplikasi'}
+                            {editingId ? 'Kemaskini Aplikasi' : (isAdmin ? 'Terbitkan Aplikasi' : 'Hantar Untuk Kelulusan')}
                         </button>
                     </div>
                 </div>
 
-                {/* Sidebar List */}
+                {/* Sidebar List (Filtered by Role & Status) */}
                 <div className="lg:col-span-4 bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
                     <div className="p-4 border-b border-slate-100 bg-slate-50">
-                        <h3 className="font-bold text-slate-700 text-sm">Senarai Aplikasi ({apps.length})</h3>
+                        <h3 className="font-bold text-slate-700 text-sm">Aplikasi Saya & Status ({visibleApps.length})</h3>
                     </div>
                     <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                        {apps.length === 0 ? <p className="text-center text-slate-400 text-xs py-8">Belum ada aplikasi.</p> : apps.map(a=>(
-                            <div key={a.id} className={`group flex justify-between items-start p-3 rounded-xl border transition-all hover:shadow-md ${editingId === a.id ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-300' : 'bg-white border-slate-100 hover:border-indigo-200'}`}>
-                                <div className="flex items-start gap-3 overflow-hidden">
-                                    <div className={`p-2 rounded-lg shrink-0 ${ALL_ICONS[a.iconKey]?.bg || 'bg-slate-100'}`}>
-                                        {React.createElement(ALL_ICONS[a.iconKey]?.i || Globe, { className: `w-4 h-4 ${ALL_ICONS[a.iconKey]?.color || 'text-slate-600'}` })}
-                                    </div>
-                                    <div className="min-w-0">
-                                        <h4 className="font-bold text-sm text-slate-800 truncate">{a.title}</h4>
-                                        <span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{a.type}</span>
+                        {visibleApps.length === 0 ? <p className="text-center text-slate-400 text-xs py-8">Tiada aplikasi dalam senarai.</p> : visibleApps.map(a=>{
+                            // Logic status
+                            const isPending = a.status === 'pending';
+                            
+                            return (
+                            <div key={a.id} className={`group flex flex-col p-3 rounded-xl border transition-all hover:shadow-md ${editingId === a.id ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-300' : 'bg-white border-slate-100 hover:border-indigo-200'}`}>
+                                <div className="flex justify-between items-start w-full mb-2">
+                                    <div className="flex items-start gap-3 overflow-hidden">
+                                        <div className={`w-10 h-10 rounded-lg shrink-0 flex items-center justify-center overflow-hidden shadow-sm ${a.iconUrl ? 'bg-white border border-slate-100' : (ALL_ICONS[a.iconKey]?.bg || 'bg-slate-100')}`}>
+                                            {a.iconUrl ? (
+                                                <img src={a.iconUrl} className="w-full h-full object-cover" alt="icon" onError={(e) => {e.target.style.display='none'; e.target.parentNode.innerHTML='<span style="font-size:8px">Err</span>'}} />
+                                            ) : (
+                                                React.createElement(ALL_ICONS[a.iconKey]?.i || Globe, { className: `w-5 h-5 ${ALL_ICONS[a.iconKey]?.color || 'text-slate-600'}` })
+                                            )}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h4 className="font-bold text-sm text-slate-800 truncate">{a.title}</h4>
+                                            <div className="flex gap-1 mt-0.5">
+                                                <span className="text-[9px] uppercase font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{a.type}</span>
+                                                {isPending ? 
+                                                    <span className="text-[9px] uppercase font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">Pending</span> : 
+                                                    <span className="text-[9px] uppercase font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200">Live</span>
+                                                }
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="flex gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={()=>handleEdit(a)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
-                                        <Edit3 className="w-4 h-4"/>
+                                
+                                {isAdmin && a.authorName && (
+                                    <p className="text-[10px] text-slate-400 italic mb-2">Oleh: {a.authorName}</p>
+                                )}
+
+                                <div className="flex gap-2 border-t pt-2 mt-1">
+                                    {isAdmin && isPending && (
+                                        <button onClick={(e) => handleApprove(a.id, e)} className="flex-1 bg-emerald-600 text-white py-1.5 rounded text-xs font-bold hover:bg-emerald-700 flex justify-center items-center gap-1">
+                                            <CheckCircle size={12}/> Approve
+                                        </button>
+                                    )}
+                                    <button onClick={()=>handleEdit(a)} className="p-1.5 text-slate-500 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 rounded border border-slate-200" title="Edit">
+                                        <Edit3 className="w-3 h-3"/>
                                     </button>
-                                    <button onClick={()=>setConfirmDel(a.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Padam">
-                                        <Trash2 className="w-4 h-4"/>
+                                    <button onClick={()=>setConfirmDel(a.id)} className="p-1.5 text-slate-500 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded border border-slate-200" title="Padam">
+                                        <Trash2 className="w-3 h-3"/>
                                     </button>
                                 </div>
                             </div>
-                        ))}
+                        )})}
                     </div>
                 </div>
                 {confirmDel && <ConfirmModal title="Padam Aplikasi?" msg="Tindakan ini tidak boleh diundur. Adakah anda pasti?" onConfirm={executeDelete} onCancel={()=>setConfirmDel(null)}/>}
@@ -1525,67 +1864,46 @@
         function AppGallery({ apps }) {
           const [sel, setSel] = useState(null);
           
+          // FILTER: Hanya tunjuk yang status 'approved' ATAU tiada status (legacy apps)
+          const approvedApps = apps.filter(a => !a.status || a.status === 'approved');
+          
           const generateReactHtml = (code) => {
-              // Handle "export default ComponentName" pattern
               let modifiedCode = code;
               const exportMatch = code.match(/export\s+default\s+(\w+)/);
               if (exportMatch && exportMatch[1]) {
-                  // We strip the export default statement to avoid syntax errors in non-module script
-                  // And we alias the component to 'App' so the render function can find it
                   modifiedCode = code.replace(/export\s+default\s+\w+;?/g, ''); 
                   modifiedCode += `\n\n// Auto-assigned by System\nconst App = ${exportMatch[1]};`;
               }
-
-              return `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="UTF-8" />
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                    <script src="https://cdn.tailwindcss.com"><\/script>
-                    <script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
-                    <script type="importmap">
-                    {
-                      "imports": {
-                        "react": "https://esm.sh/react@18.2.0",
-                        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-                        "lucide-react": "https://esm.sh/lucide-react@0.292.0"
-                      }
-                    }
-                    <\/script>
-                    <style>body { font-family: sans-serif; background-color: #ffffff; }</style>
-                </head>
-                <body>
-                    <div id="root"></div>
-                    <script type="text/babel" data-type="module">
-                        import React, { useState, useEffect, useRef } from 'react';
-                        import { createRoot } from 'react-dom/client';
-                        import * as LucideIcons from 'lucide-react';
-                        
-                        // We make LucideIcons available globally if needed, 
-                        // though the importmap handles imports within the pasted code mostly.
-                        window.LucideIcons = LucideIcons;
-
-                        try {
-                            ${modifiedCode}
-
-                            if (typeof App !== 'undefined') {
-                                const root = createRoot(document.getElementById('root'));
-                                root.render(<App />);
-                            } else {
-                                document.getElementById('root').innerHTML = '<div style="color:red; padding:20px; font-weight:bold;">Ralat: Komponen utama tidak dijumpai. Pastikan anda menggunakan "export default NamaComponent" atau namakan komponen sebagai "App".</div>';
-                            }
-                        } catch (err) {
-                            document.getElementById('root').innerHTML = '<div style="color:red; padding:20px;">Ralat Sintaks: ' + err.message + '</div>';
-                        }
-                    <\/script>
-                </body>
-                </html>
-              `;
+              return `<!DOCTYPE html><html><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><script src="https://cdn.tailwindcss.com"><\/script><script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script><script type="importmap">{"imports":{"react":"https://esm.sh/react@18.2.0","react-dom/client":"https://esm.sh/react-dom@18.2.0/client","lucide-react":"https://esm.sh/lucide-react@0.292.0"}}<\/script><style>body{font-family:sans-serif;background-color:#ffffff}</style></head><body><div id="root"></div><script type="text/babel" data-type="module">import React,{useState,useEffect,useRef}from'react';import{createRoot}from'react-dom/client';import*as LucideIcons from'lucide-react';window.LucideIcons=LucideIcons;try{${modifiedCode} if(typeof App!=='undefined'){const root=createRoot(document.getElementById('root'));root.render(<App />);}else{document.getElementById('root').innerHTML='<div style="color:red;padding:20px;font-weight:bold;">Ralat: Komponen utama tidak dijumpai. Pastikan anda menggunakan "export default NamaComponent" atau namakan komponen sebagai "App".</div>';}}catch(err){document.getElementById('root').innerHTML='<div style="color:red;padding:20px;">Ralat Sintaks: '+err.message+'</div>';}<\/script></body></html>`;
           };
 
           if(sel) return (<div className="h-[80vh] bg-white rounded-xl border border-slate-200 flex flex-col"><div className="p-4 border-b flex justify-between"><button onClick={()=>setSel(null)} className="flex items-center gap-1 font-bold text-slate-600"><ChevronRight className="rotate-180 w-4 h-4"/> Kembali</button><h3 className="font-bold">{sel.title}</h3></div><div className="flex-1 relative bg-white">{sel.type === 'link' ? <iframe src={sel.content} className="w-full h-full border-none"/> : <iframe srcDoc={sel.type === 'react' ? generateReactHtml(sel.content) : sel.content} className="w-full h-full border-none" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"/>}</div></div>);
-          return (<div className="grid grid-cols-2 md:grid-cols-4 gap-4">{apps.map(a=>(<div key={a.id} onClick={()=>setSel(a)} className="bg-white p-4 rounded-xl border hover:shadow-md cursor-pointer flex flex-col h-40 justify-between"><div className="flex justify-between"><div className={`p-2 rounded-lg ${ALL_ICONS[a.iconKey]?.bg || 'bg-slate-100'}`}>{React.createElement(ALL_ICONS[a.iconKey]?.i || Globe, { className: `w-6 h-6 ${ALL_ICONS[a.iconKey]?.color || 'text-slate-600'}` })}</div></div><div><h4 className="font-bold truncate">{a.title}</h4><p className="text-xs text-slate-500 line-clamp-2">{a.desc}</p></div></div>))}</div>);
+          
+          return (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {approvedApps.length === 0 ? (
+                    <div className="col-span-full p-10 text-center border-2 border-dashed border-slate-200 rounded-xl text-slate-400">
+                        <p>Tiada aplikasi tersedia.</p>
+                    </div>
+                ) : approvedApps.map(a=>(
+                    <div key={a.id} onClick={()=>setSel(a)} className="bg-white p-4 rounded-xl border hover:shadow-md cursor-pointer flex flex-col h-40 justify-between group transition-all">
+                        <div className="flex justify-between items-start">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden shadow-sm ${a.iconUrl ? 'bg-white border border-slate-100' : (ALL_ICONS[a.iconKey]?.bg || 'bg-slate-100')}`}>
+                                {a.iconUrl ? (
+                                    <img src={a.iconUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" alt={a.title} onError={(e) => {e.target.style.display='none'; e.target.parentNode.innerHTML='<span style="font-size:10px; font-weight:bold; color:#94a3b8">ERR</span>'}} />
+                                ) : (
+                                    React.createElement(ALL_ICONS[a.iconKey]?.i || Globe, { className: `w-6 h-6 ${ALL_ICONS[a.iconKey]?.color || 'text-slate-600'}` })
+                                )}
+                            </div>
+                        </div>
+                        <div>
+                            <h4 className="font-bold truncate text-slate-800 group-hover:text-indigo-600 transition-colors">{a.title}</h4>
+                            <p className="text-xs text-slate-500 line-clamp-2 mt-1">{a.desc}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+          );
         }
 
         function AttendanceManager({ students, userData, preSelectedClass }) {
@@ -1596,31 +1914,140 @@
             const [showSummary, setShowSummary] = useState(false);
             const [summaryData, setSummaryData] = useState(null);
             const [history, setHistory] = useState([]);
-            const [filterDate, setFilterDate] = useState("");
+            
+            // UBAH: filterDate dimulakan kosong supaya sejarah tidak keluar automatik
+            const [filterDate, setFilterDate] = useState(""); 
+            
             const [showResetConfirm, setShowResetConfirm] = useState(false); // Reset Form
             const [showHistoryResetConfirm, setShowHistoryResetConfirm] = useState(false); // Reset Database
+            const [statusMessage, setStatusMessage] = useState(""); // Indikator Status Rekod
+            const [showAnalysis, setShowAnalysis] = useState(false); // State untuk Toggle Analisis
+
+            // NEW: SEARCH FILTER FOR ATTENDANCE
+            const [filterName, setFilterName] = useState("");
 
             const classList = [...new Set(students.map(s => s.class))].sort();
-            const classStudents = students.filter(s => s.class === selectedClass).sort((a,b) => a.name.localeCompare(b.name));
+            
+            // UBAH: Asingkan logik senarai semua vs senarai paparan
+            const allClassStudents = useMemo(() => students.filter(s => s.class === selectedClass).sort((a,b) => a.name.localeCompare(b.name)), [students, selectedClass]);
+            const filteredClassStudents = useMemo(() => allClassStudents.filter(s => s.name.toLowerCase().includes(filterName.toLowerCase())), [allClassStudents, filterName]);
 
-            useEffect(() => { if(selectedClass) { const i = {}; classStudents.forEach(s => { i[s.id] = 'Hadir'; }); setAttendanceData(i); } }, [selectedClass]);
+            // Dapatkan History dahulu
             useEffect(() => { const q = query(collection(db, 'portal_attendance'), orderBy('submittedAt', 'desc')); const unsub = onSnapshot(q, s => setHistory(s.docs.map(d => ({id: d.id, ...d.data()})))); return () => unsub(); }, []);
 
-            const submitAttendance = async () => { if(!selectedClass) return alert("Pilih kelas."); setLoading(true); try { let h=0, th=0, l=0; Object.values(attendanceData).forEach(s => { if(s==='Hadir') h++; else if(s==='Tidak Hadir') th++; else l++; }); const docId = `${today}_${selectedClass.replace(/\s+/g, '_')}`; const payload = { date: today, className: selectedClass, records: attendanceData, stats: { hadir:h, tidakHadir:th, lewat:l, total: classStudents.length }, submittedBy: userData.name, submittedAt: new Date().toISOString() }; await setDoc(doc(db, 'portal_attendance', docId), payload); setSummaryData(payload.stats); setShowSummary(true); } catch(e){console.error(e);alert("Ralat.");} setLoading(false); };
+            // --- SMART LOAD EFFECT (LOGIK BARU) ---
+            useEffect(() => {
+                if (!selectedClass) {
+                    setAttendanceData({});
+                    setStatusMessage("");
+                    return;
+                }
+
+                const existingRecord = history.find(h => h.date === today && h.className === selectedClass);
+
+                if (existingRecord) {
+                    setAttendanceData(existingRecord.records);
+                    setStatusMessage("Rekod Terdahulu Dijumpai (Mod Edit)");
+                } else {
+                    const i = {};
+                    // Use allClassStudents here to initialize everyone
+                    allClassStudents.forEach(s => { i[s.id] = 'Hadir'; });
+                    setAttendanceData(i);
+                    setStatusMessage("Rekod Baru (Default: Hadir)");
+                }
+            }, [selectedClass, today, allClassStudents, history]); // use allClassStudents
+
+            // --- LOGIK ANALISIS HARIAN (GRID) ---
+            const dailyStats = useMemo(() => {
+                const stats = {
+                    'Tahun 1': { h: 0, t: 0 }, 'Tahun 2': { h: 0, t: 0 }, 'Tahun 3': { h: 0, t: 0 },
+                    'Tahun 4': { h: 0, t: 0 }, 'Tahun 5': { h: 0, t: 0 }, 'Tahun 6': { h: 0, t: 0 },
+                    'Pra': { h: 0, t: 0 }, 'PPKI': { h: 0, t: 0 }
+                };
+                
+                // Filter rekod berdasarkan tarikh 'today' yang dipilih
+                const todayRecords = history.filter(h => h.date === today);
+                
+                todayRecords.forEach(rec => {
+                    const cls = (rec.className || "").toUpperCase();
+                    const h = rec.stats?.hadir || 0;
+                    const t = rec.stats?.total || 0;
+                    
+                    if (cls.includes('PRA')) { stats['Pra'].h += h; stats['Pra'].t += t; }
+                    else if (cls.includes('PPKI')) { stats['PPKI'].h += h; stats['PPKI'].t += t; }
+                    else {
+                        if (cls.includes('1') || cls.includes('SATU')) { stats['Tahun 1'].h += h; stats['Tahun 1'].t += t; }
+                        else if (cls.includes('2') || cls.includes('DUA')) { stats['Tahun 2'].h += h; stats['Tahun 2'].t += t; }
+                        else if (cls.includes('3') || cls.includes('TIGA')) { stats['Tahun 3'].h += h; stats['Tahun 3'].t += t; }
+                        else if (cls.includes('4') || cls.includes('EMPAT')) { stats['Tahun 4'].h += h; stats['Tahun 4'].t += t; }
+                        else if (cls.includes('5') || cls.includes('LIMA')) { stats['Tahun 5'].h += h; stats['Tahun 5'].t += t; }
+                        else if (cls.includes('6') || cls.includes('ENAM')) { stats['Tahun 6'].h += h; stats['Tahun 6'].t += t; }
+                    }
+                });
+                return stats;
+            }, [history, today]);
+
+            const submitAttendance = async () => { 
+                if(!selectedClass) return alert("Pilih kelas."); 
+                setLoading(true); 
+                try { 
+                    let h=0, th=0, l=0; 
+                    const absentNames = [];
+                    // Use ALL students for stats calculation, regardless of filter
+                    allClassStudents.forEach(s => {
+                        const st = attendanceData[s.id]; 
+                        if(st==='Hadir') h++; 
+                        else if(st==='Tidak Hadir') { 
+                            th++; 
+                            absentNames.push(s.name);
+                        }
+                        else l++;
+                    });
+                    
+                    const docId = `${today}_${selectedClass.replace(/\s+/g, '_')}`; 
+                    const payload = { 
+                        date: today, 
+                        className: selectedClass, 
+                        records: attendanceData, 
+                        stats: { hadir:h, tidakHadir:th, lewat:l, total: allClassStudents.length }, 
+                        submittedBy: userData.name, 
+                        submittedAt: new Date().toISOString() 
+                    }; 
+                    await setDoc(doc(db, 'portal_attendance', docId), payload); 
+                    
+                    // Add extra info for popup
+                    setSummaryData({ 
+                        ...payload.stats, 
+                        absentNames: absentNames,
+                        className: selectedClass 
+                    }); 
+                    setShowSummary(true); 
+                } catch(e){
+                    console.error(e);
+                    alert("Ralat.");
+                } 
+                setLoading(false); 
+            };
             
-            // Fungsi Reset Form Semasa
-            const resetAttendance = () => {
-                const i = {};
-                classStudents.forEach(s => { i[s.id] = 'Hadir'; });
-                setAttendanceData(i);
-                setShowResetConfirm(false);
+            const handleCloseSummary = () => {
+                setShowSummary(false);
+                setSelectedClass(""); // Clear class form
+                setAttendanceData({});
+                setStatusMessage("");
+                window.scrollTo({top: 0, behavior: 'smooth'});
             };
 
-            // Fungsi Reset KESELURUHAN Sejarah (Database)
+            const resetAttendance = () => {
+                const i = {};
+                allClassStudents.forEach(s => { i[s.id] = 'Hadir'; });
+                setAttendanceData(i);
+                setShowResetConfirm(false);
+                setStatusMessage("Rekod Direset Manual");
+            };
+
             const resetAllHistory = async () => {
                 setLoading(true);
                 try {
-                    // Dapatkan semua dokumen dalam koleksi attendance
                     const q = query(collection(db, 'portal_attendance'));
                     const snapshot = await getDocs(q);
 
@@ -1630,7 +2057,6 @@
                         return alert("Tiada rekod sejarah untuk dipadam.");
                     }
 
-                    // Padam secara berkelompok (Batch delete)
                     const chunk = 400; 
                     for (let i = 0; i < snapshot.docs.length; i += chunk) {
                         const batch = writeBatch(db);
@@ -1648,63 +2074,235 @@
             };
 
             const handleEdit = (rec) => { setSelectedClass(rec.className); setToday(rec.date); setAttendanceData(rec.records); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-            const filteredHistory = history.filter(h => filterDate ? h.date === filterDate : true);
+            
+            // UBAH: Logik Filter Sejarah - Jika filterDate kosong, array kosong.
+            const filteredHistory = filterDate ? history.filter(h => h.date === filterDate) : [];
 
             return (
                 <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><UserCheck className="w-6 h-6 text-indigo-600"/> Kehadiran Murid</h2><div className="bg-white px-4 py-2 rounded-lg border text-sm font-bold text-slate-600">Tarikh: {formatDate(today)}</div></div>
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><div className="mb-6"><label className="lbl text-base">Pilih Kelas (Atau pilih tarikh dahulu untuk kemaskini)</label><div className="flex gap-2"><input type="date" className="border rounded px-3 py-2 w-1/3 text-sm font-bold" value={today} onChange={e=>setToday(e.target.value)} /><select className="w-2/3 p-3 border rounded-lg font-bold bg-slate-50" value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}><option value="">-- Pilih Kelas --</option>{classList.map(c => <option key={c} value={c}>{c}</option>)}</select></div></div>{selectedClass && <><div className="overflow-x-auto border rounded-lg mb-6"><table className="w-full text-sm text-left"><thead className="bg-slate-100 text-xs uppercase"><tr><th className="p-3 w-10">Bil</th><th className="p-3">Nama</th><th className="p-3 text-center">Status</th></tr></thead><tbody className="divide-y">{classStudents.map((s, i) => (<tr key={s.id}><td className="p-3 text-center">{i + 1}</td><td className="p-3 font-bold">{s.name}</td><td className="p-3 flex justify-center gap-2">{['Hadir', 'Tidak Hadir', 'Lewat'].map(st => <button key={st} onClick={() => setAttendanceData(p => ({ ...p, [s.id]: st }))} className={`px-3 py-1 rounded text-xs font-bold border ${attendanceData[s.id] === st ? (st==='Hadir'?'bg-emerald-100 border-emerald-300':st==='Tidak Hadir'?'bg-red-100 border-red-300':'bg-amber-100 border-amber-300') : 'bg-slate-50'}`}>{st}</button>)}</td></tr>))}</tbody></table></div>
-                    
-                    {/* Butang Reset Form & Hantar */}
-                    <div className="flex gap-3">
-                        <button onClick={() => setShowResetConfirm(true)} className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-lg font-bold border border-slate-300 hover:bg-slate-200 transition-colors flex justify-center items-center gap-2"><RotateCcw size={18}/> Reset Status</button>
-                        <button onClick={submitAttendance} className="flex-[3] bg-indigo-600 text-white py-3 rounded-lg font-bold shadow-lg hover:bg-indigo-700 transition-colors">{loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto"/> : 'Hantar Kehadiran'}</button>
+                    {/* --- HEADER & ANALISIS TOGGLE --- */}
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><UserCheck className="w-6 h-6 text-indigo-600"/> Kehadiran Murid</h2>
+                            <p className="text-sm text-slate-500 font-medium">Tarikh Pilihan: <span className="font-bold text-slate-700">{formatDate(today)}</span></p>
+                        </div>
+                        <button onClick={() => setShowAnalysis(!showAnalysis)} className="bg-white text-indigo-600 px-4 py-2 rounded-lg font-bold text-sm border border-indigo-200 shadow-sm flex items-center gap-2 hover:bg-indigo-50 transition-colors w-full md:w-auto justify-center">
+                            <PieChart className="w-4 h-4" /> {showAnalysis ? 'Tutup Analisis' : 'Analisis Harian'}
+                        </button>
                     </div>
-                    
-                    </>}</div>
-                    
-                    {/* SEJARAH KEHADIRAN SECTION */}
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mt-8">
-                        <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
-                            <h3 className="font-bold text-slate-800 flex items-center gap-2"><History className="w-5 h-5 text-indigo-600"/> Sejarah Kehadiran</h3>
-                            <div className="flex items-center gap-2 w-full md:w-auto">
-                                {/* Butang Padam Semua Sejarah (Hanya untuk Admin/Pentadbir jika perlu, tapi buat masa ini terbuka untuk demo) */}
-                                {(userData.role === 'admin' || userData.role === 'pentadbir') && (
-                                    <button onClick={() => setShowHistoryResetConfirm(true)} className="flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 px-3 py-1 rounded text-xs font-bold hover:bg-red-100 whitespace-nowrap">
-                                        <Trash2 size={12}/> Padam Semua Sejarah
-                                    </button>
-                                )}
-                                <span className="text-xs font-bold text-slate-500 whitespace-nowrap ml-2">Filter Tarikh:</span>
-                                <input type="date" className="border rounded px-2 py-1 text-xs" value={filterDate} onChange={e => setFilterDate(e.target.value)} />
-                                {filterDate && <button onClick={()=>setFilterDate("")} className="text-xs text-red-500 font-bold">Reset</button>}
+
+                    {/* --- ANALISIS GRID (SIDEBAR/PANEL) --- */}
+                    {showAnalysis && (
+                        <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 animate-fade-in">
+                            <h3 className="text-xs font-bold text-indigo-400 uppercase mb-3 flex items-center gap-1"><BarChart3 size={12}/> Statistik Harian ({formatDate(today)})</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+                                {Object.entries(dailyStats).map(([label, data]) => {
+                                    const pct = data.t > 0 ? Math.round((data.h / data.t) * 100) : 0;
+                                    return (
+                                        <div key={label} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col items-center justify-center hover:border-indigo-300 transition-colors">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase mb-1">{label}</span>
+                                            <div className="flex items-baseline gap-1">
+                                                <span className={`text-xl font-bold ${pct >= 90 ? 'text-emerald-600' : (pct >= 80 ? 'text-indigo-600' : 'text-red-500')}`}>
+                                                    {pct}%
+                                                </span>
+                                            </div>
+                                            <span className="text-[10px] text-slate-500 font-medium bg-slate-100 px-1.5 rounded mt-1">{data.h}/{data.t}</span>
+                                        </div>
+                                    )
+                                })}
                             </div>
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left">
-                                <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-xs">
-                                    <tr><th className="p-3">Tarikh</th><th className="p-3">Kelas</th><th className="p-3 text-center">Hadir</th><th className="p-3 text-center">TH</th><th className="p-3 text-center">Lewat</th><th className="p-3 text-right"></th></tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {filteredHistory.length === 0 ? (
-                                        <tr><td colSpan="6" className="p-6 text-center text-slate-400 italic">Tiada rekod kehadiran.</td></tr>
-                                    ) : (
-                                        filteredHistory.map(rec => (
-                                            <tr key={rec.id}>
-                                                <td className="p-3 font-mono">{formatDate(rec.date)}</td>
-                                                <td className="p-3 font-bold">{rec.className}</td>
-                                                <td className="p-3 text-center font-bold text-emerald-600">{rec.stats.hadir}</td>
-                                                <td className="p-3 text-center font-bold text-red-600">{rec.stats.tidakHadir}</td>
-                                                <td className="p-3 text-center font-bold text-amber-600">{rec.stats.lewat}</td>
-                                                <td className="p-3 text-right"><button onClick={() => handleEdit(rec)} className="bg-blue-50 text-blue-600 px-3 py-1 rounded text-xs font-bold">Edit</button></td>
+                    )}
+                    
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <div className="mb-6">
+                            <label className="lbl text-base">Pilih Tarikh & Kelas (Isi Kehadiran)</label>
+                            <div className="flex gap-2">
+                                <input 
+                                    type="date" 
+                                    className="border border-indigo-200 bg-indigo-50 text-indigo-700 rounded-lg px-3 py-3 w-1/3 text-sm font-bold shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                    value={today} 
+                                    onChange={e=>setToday(e.target.value)} 
+                                />
+                                <select 
+                                    className="w-2/3 p-3 border rounded-lg font-bold bg-white text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                    value={selectedClass} 
+                                    onChange={(e) => { setSelectedClass(e.target.value); setFilterName(""); }}
+                                >
+                                    <option value="">-- Sila Pilih Kelas --</option>
+                                    {classList.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            {selectedClass && (
+                                <div className={`mt-3 text-xs font-bold px-3 py-1.5 rounded-md inline-block ${statusMessage.includes('Terdahulu') ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                    {statusMessage.includes('Terdahulu') ? <History size={12} className="inline mr-1"/> : <Plus size={12} className="inline mr-1"/>}
+                                    {statusMessage}
+                                </div>
+                            )}
+                        </div>
+                        
+                        {selectedClass && <>
+                            {/* NEW: SEARCH FILTER IN ATTENDANCE */}
+                            <div className="mb-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <h3 className="font-bold text-slate-700 flex items-center gap-2"><List size={16}/> Senarai Nama ({allClassStudents.length})</h3>
+                                <div className="relative w-full md:w-64">
+                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
+                                     <input 
+                                        className="border p-2 pl-9 rounded-lg text-sm w-full outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm" 
+                                        placeholder="Cari nama murid..." 
+                                        value={filterName} 
+                                        onChange={e => setFilterName(e.target.value)}
+                                     />
+                                </div>
+                            </div>
+
+                            <div className="overflow-x-auto border rounded-lg mb-6 max-h-[500px]">
+                                <table className="w-full text-sm text-left relative">
+                                    <thead className="bg-slate-100 text-xs uppercase sticky top-0 z-10">
+                                        <tr><th className="p-3 w-10">Bil</th><th className="p-3">Nama</th><th className="p-3 text-center">Status</th></tr>
+                                    </thead>
+                                    <tbody className="divide-y">
+                                        {filteredClassStudents.length > 0 ? filteredClassStudents.map((s, i) => (
+                                            <tr key={s.id} className="hover:bg-slate-50">
+                                                <td className="p-3 text-center text-slate-500 font-mono text-xs">{i + 1}</td>
+                                                <td className="p-3 font-bold text-slate-700">{s.name}</td>
+                                                <td className="p-3 flex justify-center gap-2">
+                                                    {['Hadir', 'Tidak Hadir', 'Lewat'].map(st => (
+                                                        <button 
+                                                            key={st} 
+                                                            onClick={() => setAttendanceData(p => ({ ...p, [s.id]: st }))} 
+                                                            className={`px-3 py-1.5 rounded text-xs font-bold border transition-all active:scale-95 ${attendanceData[s.id] === st ? (st==='Hadir'?'bg-emerald-100 border-emerald-300 text-emerald-700 shadow-inner':st==='Tidak Hadir'?'bg-red-100 border-red-300 text-red-700 shadow-inner':'bg-amber-100 border-amber-300 text-amber-700 shadow-inner') : 'bg-white hover:bg-slate-50 text-slate-400'}`}
+                                                        >
+                                                            {st}
+                                                        </button>
+                                                    ))}
+                                                </td>
                                             </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                                        )) : (
+                                            <tr><td colSpan="3" className="p-8 text-center text-slate-400 italic">Tiada nama murid dijumpai.</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                    
+                            <div className="flex gap-3">
+                                <button onClick={() => setShowResetConfirm(true)} className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-lg font-bold border border-slate-300 hover:bg-slate-200 transition-colors flex justify-center items-center gap-2"><RotateCcw size={18}/> Reset Status</button>
+                                <button onClick={submitAttendance} className="flex-[3] bg-indigo-600 text-white py-3 rounded-lg font-bold shadow-lg hover:bg-indigo-700 transition-colors">{loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto"/> : 'Hantar Kehadiran'}</button>
+                            </div>
+                        </>}
+                    </div>
+                    
+                    {/* --- UBAH: SEJARAH KEHADIRAN SECTION (DATE FIRST) --- */}
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mt-8">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
+                            <h3 className="font-bold text-slate-800 flex items-center gap-2"><History className="w-5 h-5 text-indigo-600"/> Semakan Sejarah</h3>
+                            
+                            <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto items-end md:items-center">
+                                {/* Input Tarikh Utama */}
+                                <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                                    <span className="text-xs font-bold text-slate-500 uppercase px-2">Pilih Tarikh:</span>
+                                    <input 
+                                        type="date" 
+                                        className="bg-white border border-slate-300 text-slate-700 text-sm rounded px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-500 font-bold" 
+                                        value={filterDate} 
+                                        onChange={e => setFilterDate(e.target.value)} 
+                                    />
+                                    {filterDate && <button onClick={()=>setFilterDate("")} className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200 font-bold"><X size={14}/></button>}
+                                </div>
+
+                                {/* Butang Padam Semua Sejarah (Admin Only) */}
+                                {(userData.role === 'admin' || userData.role === 'pentadbir') && (
+                                    <button onClick={() => setShowHistoryResetConfirm(true)} className="flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100 whitespace-nowrap ml-2">
+                                        <Trash2 size={12}/> Padam DB
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto min-h-[150px]">
+                            {/* Paparan bergantung kepada filterDate */}
+                            {!filterDate ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-slate-400 border-2 border-dashed border-slate-100 rounded-lg bg-slate-50/50">
+                                    <Calendar className="w-12 h-12 mb-3 opacity-30 text-indigo-400"/>
+                                    <p className="font-bold text-slate-500">Sila pilih tarikh di atas untuk melihat rekod sejarah.</p>
+                                    <p className="text-xs text-slate-400 mt-1">Rekod akan dipaparkan selepas tarikh dipilih.</p>
+                                </div>
+                            ) : (
+                                <table className="w-full text-sm text-left animate-fade-in">
+                                    <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-xs">
+                                        <tr><th className="p-3">Tarikh</th><th className="p-3">Kelas</th><th className="p-3 text-center">Hadir</th><th className="p-3 text-center">TH</th><th className="p-3 text-center">Lewat</th><th className="p-3 text-right"></th></tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {filteredHistory.length === 0 ? (
+                                            <tr><td colSpan="6" className="p-8 text-center text-slate-400 italic bg-slate-50/30">Tiada rekod dijumpai pada tarikh <span className="font-bold text-slate-600">{formatDate(filterDate)}</span>.</td></tr>
+                                        ) : (
+                                            filteredHistory.map(rec => (
+                                                <tr key={rec.id} className="hover:bg-indigo-50/30 transition-colors">
+                                                    <td className="p-3 font-mono text-slate-600">{formatDate(rec.date)}</td>
+                                                    <td className="p-3 font-bold text-slate-800">{rec.className}</td>
+                                                    <td className="p-3 text-center font-bold text-emerald-600 bg-emerald-50/50 rounded-lg">{rec.stats.hadir}</td>
+                                                    <td className="p-3 text-center font-bold text-red-600 bg-red-50/50 rounded-lg">{rec.stats.tidakHadir}</td>
+                                                    <td className="p-3 text-center font-bold text-amber-600 bg-amber-50/50 rounded-lg">{rec.stats.lewat}</td>
+                                                    <td className="p-3 text-right"><button onClick={() => handleEdit(rec)} className="bg-white border border-blue-200 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-blue-50 shadow-sm">Lihat / Edit</button></td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            )}
                         </div>
                     </div>
 
-                    {showSummary && <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in"><div className="bg-white p-8 rounded-2xl w-96 text-center shadow-2xl"><h3 className="font-bold text-xl mb-4 text-emerald-600">Berjaya!</h3><div className="grid grid-cols-3 gap-2 mb-6"><div className="bg-emerald-50 p-2 rounded border border-emerald-100">H: {summaryData.hadir}</div><div className="bg-red-50 p-2 rounded border border-red-100">TH: {summaryData.tidakHadir}</div><div className="bg-amber-50 p-2 rounded border border-amber-100">L: {summaryData.lewat}</div></div><button onClick={() => {setShowSummary(false); window.scrollTo({top: 1000, behavior: 'smooth'});}} className="bg-slate-800 text-white w-full py-2 rounded-lg font-bold">Tutup</button></div></div>}
+                    {showSummary && summaryData && (
+                        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade-in backdrop-blur-sm">
+                            <div className="bg-white p-6 rounded-2xl w-full max-w-md text-center shadow-2xl m-4">
+                                <div className="flex justify-center mb-4">
+                                    <div className="bg-emerald-100 p-3 rounded-full">
+                                        <CheckCircle className="w-8 h-8 text-emerald-600" />
+                                    </div>
+                                </div>
+                                <h3 className="font-bold text-xl mb-1 text-slate-800">Kehadiran Direkod!</h3>
+                                <p className="text-slate-500 text-sm mb-6">{summaryData.className}</p>
+                                
+                                <div className="grid grid-cols-2 gap-3 mb-6">
+                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                        <div className="text-2xl font-bold text-slate-800">
+                                            {Math.round((summaryData.hadir / summaryData.total) * 100)}%
+                                        </div>
+                                        <div className="text-xs font-bold text-slate-400 uppercase">Peratus Hadir</div>
+                                    </div>
+                                    <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                                        <div className="text-2xl font-bold text-red-600">
+                                            {summaryData.tidakHadir}
+                                        </div>
+                                        <div className="text-xs font-bold text-red-400 uppercase">Tidak Hadir</div>
+                                    </div>
+                                </div>
+
+                                {/* List of Absent Students */}
+                                <div className="mb-6 text-left">
+                                    <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Senarai Tidak Hadir:</h4>
+                                    <div className="bg-slate-50 rounded-lg p-3 max-h-40 overflow-y-auto border border-slate-100">
+                                        {summaryData.absentNames && summaryData.absentNames.length > 0 ? (
+                                            <ul className="space-y-1">
+                                                {summaryData.absentNames.map((name, idx) => (
+                                                    <li key={idx} className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                                        <span className="text-red-500">•</span> {name}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <p className="text-sm text-emerald-600 italic font-medium text-center">Semua Murid Hadir.</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <button onClick={handleCloseSummary} className="bg-slate-800 text-white w-full py-3 rounded-xl font-bold shadow-lg hover:bg-slate-900 transition-colors">
+                                    Tutup & Selesai
+                                </button>
+                            </div>
+                        </div>
+                    )}
                     
                     {/* Modal Pengesahan Reset Form (Kelas Semasa) */}
                     {showResetConfirm && (
@@ -1754,8 +2352,24 @@
 
         function DataTable({ type, data, currentUserRole }) {
             const isReadOnly = currentUserRole === 'pentadbir'; const [newRec, setNewRec] = useState({}); const [editingId, setEditingId] = useState(null); const [selectedIds, setSelectedIds] = useState([]); const [filterClass, setFilterClass] = useState(""); const [sortOrder, setSortOrder] = useState('asc');
+            // NEW: SEARCH QUERY STATE
+            const [searchQuery, setSearchQuery] = useState("");
+
             const classList = type === 'student' ? [...new Set(data.map(d => d.class))].sort() : [];
-            const processedData = useMemo(() => { let r = [...data]; if (type === 'student' && filterClass) r = r.filter(d => d.class === filterClass); r.sort((a, b) => { const nA = (a.name || '').toLowerCase(); const nB = (b.name || '').toLowerCase(); return sortOrder === 'asc' ? nA.localeCompare(nB) : nB.localeCompare(nA); }); return r; }, [data, filterClass, sortOrder, type]);
+            const processedData = useMemo(() => { 
+                let r = [...data]; 
+                // Filter by Class (Existing)
+                if (type === 'student' && filterClass) r = r.filter(d => d.class === filterClass); 
+                
+                // NEW: Filter by Name (Search)
+                if (searchQuery) {
+                    const lowerQ = searchQuery.toLowerCase();
+                    r = r.filter(d => (d.name || '').toLowerCase().includes(lowerQ));
+                }
+
+                r.sort((a, b) => { const nA = (a.name || '').toLowerCase(); const nB = (b.name || '').toLowerCase(); return sortOrder === 'asc' ? nA.localeCompare(nB) : nB.localeCompare(nA); }); 
+                return r; 
+            }, [data, filterClass, sortOrder, type, searchQuery]);
             
             // FIX: save function now correctly updates portal_users if teacher role is changed
             const save = async (e) => { 
@@ -1795,6 +2409,15 @@
             const del = async (id) => { if (confirm("Padam?")) await deleteDoc(doc(db, type === 'student' ? 'portal_students' : 'portal_teachers', id)); };
             const bulkDel = async () => { if (confirm(`Padam ${selectedIds.length}?`)) { const b = writeBatch(db); selectedIds.forEach(id => b.delete(doc(db, type === 'student' ? 'portal_students' : 'portal_teachers', id))); await b.commit(); setSelectedIds([]); } };
             
+            // FUNGSI SELECT ALL
+            const toggleSelectAll = () => {
+                if (selectedIds.length === processedData.length && processedData.length > 0) {
+                    setSelectedIds([]);
+                } else {
+                    setSelectedIds(processedData.map(d => d.id));
+                }
+            };
+
             const [csvFile, setCsvFile] = useState(null);
             const [uploading, setUploading] = useState(false);
             const handleCsvUpload = async () => {
@@ -1851,7 +2474,23 @@
                   </>
                 }
                 <button className="w-full bg-indigo-600 text-white py-2 rounded font-bold">Simpan</button></form><div className="mt-6 border-t pt-4"><h3 className="font-bold mb-2">Upload CSV</h3><div className="text-xs text-slate-500 mb-3 bg-blue-50 p-2 rounded border border-blue-100"><p className="font-bold text-blue-700 mb-1 flex items-center gap-1"><Info size={12}/> Panduan Kolum CSV:</p>{type === 'student' ? (<><code className="block font-mono text-[10px] bg-white p-1 rounded border border-blue-100 text-slate-600 mb-1">Nama, Kelas, RMT</code><p className="text-[9px] italic text-slate-400">*RMT: "Layak" atau "Tidak"</p></>) : (<><code className="block font-mono text-[10px] bg-white p-1 rounded border border-blue-100 text-slate-600 mb-1">Nama, Email, Role, Jawatan</code><p className="text-[9px] italic text-slate-400">*Role: "admin", "pentadbir", atau "guru"</p></>)}<p className="mt-1 text-[9px] italic text-slate-400">*Baris pertama (header) akan diabaikan.</p></div><input type="file" onChange={e => setCsvFile(e.target.files[0])} className="text-xs mb-2"/><button onClick={handleCsvUpload} disabled={uploading} className="w-full bg-green-600 text-white py-2 rounded font-bold text-xs">{uploading ? 'Uploading...' : 'Upload CSV'}</button></div></div>}
-                <div className={`${isReadOnly ? 'col-span-12' : 'lg:col-span-8'} bg-white rounded-xl border flex flex-col h-full`}><div className="p-4 border-b flex justify-between items-center"><div><h3 className="font-bold">Senarai {type}</h3><p className="text-xs text-slate-500">Jumlah: {processedData.length}</p></div>{type === 'student' && <div className="flex gap-2"><select className="border p-1 rounded text-xs" value={filterClass} onChange={e => setFilterClass(e.target.value)}><option value="">Semua Kelas</option>{classList.map(c => <option key={c} value={c}>{c}</option>)}</select><button onClick={() => setSortOrder(p => p === 'asc' ? 'desc' : 'asc')} className="border p-1 rounded text-xs font-bold w-20">{sortOrder === 'asc' ? 'A-Z' : 'Z-A'}</button></div>}{selectedIds.length > 0 && <button onClick={bulkDel} className="bg-red-50 text-red-600 px-3 py-1 rounded text-xs font-bold">Padam {selectedIds.length}</button>}</div><div className="flex-1 overflow-y-auto"><table className="w-full text-sm text-left"><thead className="bg-slate-50 text-xs uppercase sticky top-0"><tr><th className="p-3 w-10"></th><th className="p-3">Nama</th><th className="p-3">Info</th>{type === 'student' && <th className="p-3">RMT</th>}<th className="p-3 text-right"></th></tr></thead><tbody className="divide-y">{processedData.map(d => <tr key={d.id} className="hover:bg-slate-50"><td className="p-3"><input type="checkbox" checked={selectedIds.includes(d.id)} onChange={() => setSelectedIds(p => p.includes(d.id) ? p.filter(x => x !== d.id) : [...p, d.id])} /></td><td className="p-3 font-bold">{d.name}</td><td className="p-3">{type === 'student' ? <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded font-bold">{d.class}</span> : <div>{d.email}<br/><span className="text-[10px] bg-slate-100 px-1 rounded">{d.role}</span></div>}</td>{type === 'student' && <td className="p-3"><span className={`text-xs font-bold px-2 py-1 rounded ${d.rmt === 'Layak' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-400'}`}>{d.rmt || 'Tidak'}</span></td>}<td className="p-3 text-right">{!isReadOnly && <div className="flex justify-end gap-2"><button onClick={() => { setNewRec(d); setEditingId(d.id); }} className="text-blue-400"><Edit3 size={16} /></button><button onClick={() => del(d.id)} className="text-red-400"><Trash2 size={16} /></button></div>}</td></tr>)}</tbody></table></div></div></div>);
+                <div className={`${isReadOnly ? 'col-span-12' : 'lg:col-span-8'} bg-white rounded-xl border flex flex-col h-full`}><div className="p-4 border-b flex justify-between items-center"><div><h3 className="font-bold">Senarai {type}</h3><p className="text-xs text-slate-500">Jumlah: {processedData.length}</p></div>{type === 'student' && <div className="flex gap-2">
+                    
+                    {/* NEW: SEARCH FILTER IN DATA TABLE */}
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400"/>
+                        <input 
+                            className="border p-1 pl-8 rounded text-xs w-32 md:w-40 outline-none focus:ring-1 focus:ring-indigo-500" 
+                            placeholder="Cari nama..." 
+                            value={searchQuery} 
+                            onChange={e => setSearchQuery(e.target.value)} 
+                        />
+                    </div>
+
+                    <select className="border p-1 rounded text-xs" value={filterClass} onChange={e => setFilterClass(e.target.value)}><option value="">Semua Kelas</option>{classList.map(c => <option key={c} value={c}>{c}</option>)}</select><button onClick={() => setSortOrder(p => p === 'asc' ? 'desc' : 'asc')} className="border p-1 rounded text-xs font-bold w-20">{sortOrder === 'asc' ? 'A-Z' : 'Z-A'}</button></div>}{selectedIds.length > 0 && <button onClick={bulkDel} className="bg-red-50 text-red-600 px-3 py-1 rounded text-xs font-bold">Padam {selectedIds.length}</button>}</div><div className="flex-1 overflow-y-auto"><table className="w-full text-sm text-left"><thead className="bg-slate-50 text-xs uppercase sticky top-0"><tr><th className="p-3 w-10">
+                    {/* CHECKBOX SELECT ALL */}
+                    <input type="checkbox" checked={processedData.length > 0 && selectedIds.length === processedData.length} onChange={toggleSelectAll} className="cursor-pointer" />
+                </th><th className="p-3">Nama</th><th className="p-3">Info</th>{type === 'student' && <th className="p-3">RMT</th>}<th className="p-3 text-right"></th></tr></thead><tbody className="divide-y">{processedData.map(d => <tr key={d.id} className="hover:bg-slate-50"><td className="p-3"><input type="checkbox" checked={selectedIds.includes(d.id)} onChange={() => setSelectedIds(p => p.includes(d.id) ? p.filter(x => x !== d.id) : [...p, d.id])} /></td><td className="p-3 font-bold">{d.name}</td><td className="p-3">{type === 'student' ? <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded font-bold">{d.class}</span> : <div>{d.email}<br/><span className="text-[10px] bg-slate-100 px-1 rounded">{d.role}</span></div>}</td>{type === 'student' && <td className="p-3"><span className={`text-xs font-bold px-2 py-1 rounded ${d.rmt === 'Layak' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-400'}`}>{d.rmt || 'Tidak'}</span></td>}<td className="p-3 text-right">{!isReadOnly && <div className="flex justify-end gap-2"><button onClick={() => { setNewRec(d); setEditingId(d.id); }} className="text-blue-400"><Edit3 size={16} /></button><button onClick={() => del(d.id)} className="text-red-400"><Trash2 size={16} /></button></div>}</td></tr>)}</tbody></table></div></div></div>);
         }
 
         // --- 3. DASHBOARD & MAIN ---
@@ -2317,7 +2956,8 @@
                             {view === 'tasks' && <TaskManager userData={user} tasks={tasks} currentUid={user.uid} />}
                             {view === 'reports' && <WeeklyReportManager userData={user} reports={reports} teachers={teachers} currentUid={user.uid} />}
                             {view === 'agihan' && <AgihanTugasManager teachers={teachers} canEdit={user.role === 'admin'} />}
-                            {view === 'builder' && (user.role === 'admin' ? <AppBuilder apps={apps} /> : <AccessDenied />)}
+                            {/* UBAH: Benarkan semua akses ke Builder, pass userData untuk check role dalam component */}
+                            {view === 'builder' && <AppBuilder apps={apps} userData={user} />}
                             {view === 'students' && (['admin', 'pentadbir'].includes(user.role) ? <DataTable type="student" data={students} currentUserRole={user.role} /> : <AccessDenied />)}
                             {view === 'teachers' && (['admin', 'pentadbir'].includes(user.role) ? <DataTable type="teacher" data={teachers} currentUserRole={user.role} /> : <AccessDenied />)}
                             {view === 'logs' && (user.role === 'admin' ? <SystemLogs /> : <AccessDenied />)}
