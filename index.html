@@ -1940,6 +1940,9 @@
             // --- STATE BARU: ANALISIS KEKERAPAN ---
             const [showFrequency, setShowFrequency] = useState(false);
             const [freqFilterClass, setFreqFilterClass] = useState("");
+            // NEW: Date Range Filter for Analysis
+            const [freqStartDate, setFreqStartDate] = useState(""); 
+            const [freqEndDate, setFreqEndDate] = useState("");
 
             const classList = [...new Set(students.map(s => s.class))].sort();
             
@@ -1972,7 +1975,7 @@
                 }
             }, [selectedClass, today, allClassStudents, history]); // use allClassStudents
 
-            // --- LOGIK ANALISIS KEKERAPAN (PONTENG) ---
+            // --- LOGIK ANALISIS KEKERAPAN (TIDAK HADIR) ---
             const frequencyStats = useMemo(() => {
                 const map = {};
                 // Inisialisasi map untuk semua murid
@@ -1982,6 +1985,10 @@
 
                 // Proses sejarah kehadiran
                 history.forEach(h => {
+                    // FILTER DATE RANGE
+                    if (freqStartDate && h.date < freqStartDate) return;
+                    if (freqEndDate && h.date > freqEndDate) return;
+
                     if (h.records) {
                         Object.entries(h.records).forEach(([sid, status]) => {
                             // Pastikan murid wujud (belum dipadam)
@@ -2007,7 +2014,7 @@
 
                 // Susun ikut kekerapan tidak hadir (Tertinggi ke Terendah)
                 return result.sort((a, b) => b.absent - a.absent);
-            }, [history, students, freqFilterClass]);
+            }, [history, students, freqFilterClass, freqStartDate, freqEndDate]);
 
             // --- LOGIK ANALISIS HARIAN (GRID) ---
             const dailyStats = useMemo(() => {
@@ -2170,7 +2177,7 @@
                         <div className="flex gap-2 w-full md:w-auto">
                             {/* BUTTON TOGGLE ANALISIS KEKERAPAN */}
                             <button onClick={() => setShowFrequency(!showFrequency)} className={`flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-sm border shadow-sm flex items-center justify-center gap-2 transition-colors ${showFrequency ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
-                                {showFrequency ? <><ChevronLeft className="w-4 h-4"/> Kembali</> : <><AlertCircle className="w-4 h-4" /> Rekod Ponteng</>}
+                                {showFrequency ? <><ChevronLeft className="w-4 h-4"/> Kembali</> : <><AlertCircle className="w-4 h-4" /> Rekod Tidak Hadir</>}
                             </button>
 
                             {/* BUTTON ANALISIS HARIAN (Hanya tunjuk jika bukan mode kekerapan) */}
@@ -2182,15 +2189,29 @@
                         </div>
                     </div>
 
-                    {/* --- VIEW: ANALISIS KEKERAPAN (PONTENG) --- */}
+                    {/* --- VIEW: ANALISIS KEKERAPAN (TIDAK HADIR) --- */}
                     {showFrequency ? (
                         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm animate-fade-in">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="font-bold text-slate-700 flex items-center gap-2"><AlertCircle className="w-5 h-5 text-red-500"/> Senarai Murid Paling Kerap Tidak Hadir</h3>
-                                <select className="border p-2 rounded-lg text-sm font-bold bg-slate-50" value={freqFilterClass} onChange={e => setFreqFilterClass(e.target.value)}>
-                                    <option value="">-- Semua Kelas --</option>
-                                    {classList.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
+                            <div className="flex flex-col gap-4 mb-6">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="font-bold text-slate-700 flex items-center gap-2"><AlertCircle className="w-5 h-5 text-red-500"/> Analisis Rekod Tidak Hadir</h3>
+                                    <select className="border p-2 rounded-lg text-sm font-bold bg-slate-50" value={freqFilterClass} onChange={e => setFreqFilterClass(e.target.value)}>
+                                        <option value="">-- Semua Kelas --</option>
+                                        {classList.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                                
+                                {/* Date Range Filter */}
+                                <div className="flex flex-col md:flex-row md:items-center gap-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                    <span className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1"><Calendar size={12}/> Julat Tarikh:</span>
+                                    <div className="flex items-center gap-2">
+                                        <input type="date" className="border rounded px-2 py-1 text-xs font-bold text-slate-700" value={freqStartDate} onChange={e=>setFreqStartDate(e.target.value)} />
+                                        <span className="text-slate-400 font-bold">-</span>
+                                        <input type="date" className="border rounded px-2 py-1 text-xs font-bold text-slate-700" value={freqEndDate} onChange={e=>setFreqEndDate(e.target.value)} />
+                                        {(freqStartDate || freqEndDate) && <button onClick={()=>{setFreqStartDate("");setFreqEndDate("")}} className="ml-2 text-red-500 hover:text-red-700 hover:underline text-xs font-bold">Reset</button>}
+                                    </div>
+                                    <span className="text-[10px] text-slate-400 italic md:ml-auto">*Jika kosong, semua rekod akan dikira.</span>
+                                </div>
                             </div>
 
                             <div className="overflow-x-auto rounded-lg border border-slate-200">
@@ -2223,12 +2244,12 @@
                                                 </tr>
                                             );
                                         }) : (
-                                            <tr><td colSpan="6" className="p-8 text-center text-slate-400 italic">Tiada rekod ketidakhadiran dijumpai.</td></tr>
+                                            <tr><td colSpan="6" className="p-8 text-center text-slate-400 italic">Tiada rekod ketidakhadiran dijumpai dalam tempoh ini.</td></tr>
                                         )}
                                     </tbody>
                                 </table>
                             </div>
-                            <p className="text-xs text-slate-400 mt-4 italic">* "Jumlah Hari" merujuk kepada bilangan hari rekod kehadiran kelas murid tersebut telah diisi dalam sistem.</p>
+                            <p className="text-xs text-slate-400 mt-4 italic">* "Jumlah Hari" merujuk kepada bilangan hari rekod kehadiran kelas murid tersebut telah diisi dalam sistem (dalam julat tarikh yang dipilih).</p>
                         </div>
                     ) : (
                         /* --- VIEW: NORMAL FORM (JIKA BUKAN KEKERAPAN) --- */
