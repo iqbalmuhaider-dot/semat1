@@ -1932,7 +1932,7 @@
             const [showResetConfirm, setShowResetConfirm] = useState(false); // Reset Form
             const [showHistoryResetConfirm, setShowHistoryResetConfirm] = useState(false); // Reset Database
             const [statusMessage, setStatusMessage] = useState(""); // Indikator Status Rekod
-            const [showAnalysis, setShowAnalysis] = useState(false); // State untuk Toggle Analisis
+            // REMOVED: const [showAnalysis, setShowAnalysis] = useState(false); 
 
             // NEW: SEARCH FILTER FOR ATTENDANCE
             const [filterName, setFilterName] = useState("");
@@ -1943,6 +1943,10 @@
             // NEW: Date Range Filter for Analysis
             const [freqStartDate, setFreqStartDate] = useState(""); 
             const [freqEndDate, setFreqEndDate] = useState("");
+
+            // STATE BARU: DATA ANALISIS MANUAL (JANA)
+            const [analysisData, setAnalysisData] = useState([]);
+            const [analysisDone, setAnalysisDone] = useState(false);
 
             const classList = [...new Set(students.map(s => s.class))].sort();
             
@@ -1975,8 +1979,10 @@
                 }
             }, [selectedClass, today, allClassStudents, history]); // use allClassStudents
 
-            // --- LOGIK ANALISIS KEKERAPAN (TIDAK HADIR) ---
-            const frequencyStats = useMemo(() => {
+            // --- LOGIK ANALISIS KEKERAPAN (MANUAL JANA) ---
+            const generateAnalysis = () => {
+                if (!freqStartDate || !freqEndDate) return alert("Sila pilih Tarikh Mula dan Tarikh Akhir.");
+                
                 const map = {};
                 // Inisialisasi map untuk semua murid
                 students.forEach(s => {
@@ -1986,8 +1992,7 @@
                 // Proses sejarah kehadiran
                 history.forEach(h => {
                     // FILTER DATE RANGE
-                    if (freqStartDate && h.date < freqStartDate) return;
-                    if (freqEndDate && h.date > freqEndDate) return;
+                    if (h.date < freqStartDate || h.date > freqEndDate) return;
 
                     if (h.records) {
                         Object.entries(h.records).forEach(([sid, status]) => {
@@ -2008,43 +2013,17 @@
                     result = result.filter(s => s.class === freqFilterClass);
                 } else {
                     // Jika paparan umum (semua kelas), hanya tunjuk murid yang pernah tidak hadir (>0)
-                    // untuk mengelakkan senarai terlalu panjang
                     result = result.filter(s => s.absent > 0);
                 }
 
                 // Susun ikut kekerapan tidak hadir (Tertinggi ke Terendah)
-                return result.sort((a, b) => b.absent - a.absent);
-            }, [history, students, freqFilterClass, freqStartDate, freqEndDate]);
+                result.sort((a, b) => b.absent - a.absent);
+                
+                setAnalysisData(result);
+                setAnalysisDone(true);
+            };
 
-            // --- LOGIK ANALISIS HARIAN (GRID) ---
-            const dailyStats = useMemo(() => {
-                const stats = {
-                    'Tahun 1': { h: 0, t: 0 }, 'Tahun 2': { h: 0, t: 0 }, 'Tahun 3': { h: 0, t: 0 },
-                    'Tahun 4': { h: 0, t: 0 }, 'Tahun 5': { h: 0, t: 0 }, 'Tahun 6': { h: 0, t: 0 },
-                    'Pra': { h: 0, t: 0 }, 'PPKI': { h: 0, t: 0 }
-                };
-                
-                // Filter rekod berdasarkan tarikh 'today' yang dipilih
-                const todayRecords = history.filter(h => h.date === today);
-                
-                todayRecords.forEach(rec => {
-                    const cls = (rec.className || "").toUpperCase();
-                    const h = rec.stats?.hadir || 0;
-                    const t = rec.stats?.total || 0;
-                    
-                    if (cls.includes('PRA')) { stats['Pra'].h += h; stats['Pra'].t += t; }
-                    else if (cls.includes('PPKI')) { stats['PPKI'].h += h; stats['PPKI'].t += t; }
-                    else {
-                        if (cls.includes('1') || cls.includes('SATU')) { stats['Tahun 1'].h += h; stats['Tahun 1'].t += t; }
-                        else if (cls.includes('2') || cls.includes('DUA')) { stats['Tahun 2'].h += h; stats['Tahun 2'].t += t; }
-                        else if (cls.includes('3') || cls.includes('TIGA')) { stats['Tahun 3'].h += h; stats['Tahun 3'].t += t; }
-                        else if (cls.includes('4') || cls.includes('EMPAT')) { stats['Tahun 4'].h += h; stats['Tahun 4'].t += t; }
-                        else if (cls.includes('5') || cls.includes('LIMA')) { stats['Tahun 5'].h += h; stats['Tahun 5'].t += t; }
-                        else if (cls.includes('6') || cls.includes('ENAM')) { stats['Tahun 6'].h += h; stats['Tahun 6'].t += t; }
-                    }
-                });
-                return stats;
-            }, [history, today]);
+            // REMOVED: const dailyStats logic used to be here
 
             const submitAttendance = async () => { 
                 if(!selectedClass) return alert("Pilih kelas."); 
@@ -2180,12 +2159,7 @@
                                 {showFrequency ? <><ChevronLeft className="w-4 h-4"/> Kembali</> : <><AlertCircle className="w-4 h-4" /> Rekod Tidak Hadir</>}
                             </button>
 
-                            {/* BUTTON ANALISIS HARIAN (Hanya tunjuk jika bukan mode kekerapan) */}
-                            {!showFrequency && (
-                                <button onClick={() => setShowAnalysis(!showAnalysis)} className="bg-white text-indigo-600 px-4 py-2 rounded-lg font-bold text-sm border border-indigo-200 shadow-sm flex items-center gap-2 hover:bg-indigo-50 transition-colors w-full md:w-auto justify-center">
-                                    <PieChart className="w-4 h-4" /> {showAnalysis ? 'Tutup Analisis' : 'Analisis Harian'}
-                                </button>
-                            )}
+                            {/* REMOVED: BUTTON ANALISIS HARIAN */}
                         </div>
                     </div>
 
@@ -2201,20 +2175,24 @@
                                     </select>
                                 </div>
                                 
-                                {/* Date Range Filter */}
-                                <div className="flex flex-col md:flex-row md:items-center gap-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                    <span className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1"><Calendar size={12}/> Julat Tarikh:</span>
-                                    <div className="flex items-center gap-2">
-                                        <input type="date" className="border rounded px-2 py-1 text-xs font-bold text-slate-700" value={freqStartDate} onChange={e=>setFreqStartDate(e.target.value)} />
-                                        <span className="text-slate-400 font-bold">-</span>
-                                        <input type="date" className="border rounded px-2 py-1 text-xs font-bold text-slate-700" value={freqEndDate} onChange={e=>setFreqEndDate(e.target.value)} />
-                                        {(freqStartDate || freqEndDate) && <button onClick={()=>{setFreqStartDate("");setFreqEndDate("")}} className="ml-2 text-red-500 hover:text-red-700 hover:underline text-xs font-bold">Reset</button>}
+                                {/* Date Range Filter & Generate Button */}
+                                <div className="flex flex-col md:flex-row md:items-end gap-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                    <div className="flex-1">
+                                        <span className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1 mb-1"><Calendar size={12}/> Julat Tarikh:</span>
+                                        <div className="flex items-center gap-2">
+                                            <input type="date" className="border rounded px-2 py-2 text-sm font-bold text-slate-700" value={freqStartDate} onChange={e=>{setFreqStartDate(e.target.value); setAnalysisDone(false);}} />
+                                            <span className="text-slate-400 font-bold">-</span>
+                                            <input type="date" className="border rounded px-2 py-2 text-sm font-bold text-slate-700" value={freqEndDate} onChange={e=>{setFreqEndDate(e.target.value); setAnalysisDone(false);}} />
+                                        </div>
                                     </div>
-                                    <span className="text-[10px] text-slate-400 italic md:ml-auto">*Jika kosong, semua rekod akan dikira.</span>
+                                    <button onClick={generateAnalysis} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold shadow-md hover:bg-indigo-700 text-sm flex items-center gap-2 h-10">
+                                        <RefreshCw size={14}/> Jana Analisis
+                                    </button>
                                 </div>
                             </div>
 
-                            <div className="overflow-x-auto rounded-lg border border-slate-200">
+                            {analysisDone ? (
+                            <div className="overflow-x-auto rounded-lg border border-slate-200 animate-fade-in">
                                 <table className="w-full text-sm text-left">
                                     <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-bold">
                                         <tr>
@@ -2227,7 +2205,7 @@
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
-                                        {frequencyStats.length > 0 ? frequencyStats.map((s, idx) => {
+                                        {analysisData.length > 0 ? analysisData.map((s, idx) => {
                                             const pct = s.total > 0 ? Math.round((s.absent / s.total) * 100) : 0;
                                             return (
                                                 <tr key={s.id} className="hover:bg-slate-50">
@@ -2249,33 +2227,17 @@
                                     </tbody>
                                 </table>
                             </div>
+                            ) : (
+                                <div className="p-12 text-center text-slate-400 italic border-2 border-dashed border-slate-200 rounded-lg">
+                                    Sila pilih julat tarikh dan tekan butang "Jana Analisis".
+                                </div>
+                            )}
                             <p className="text-xs text-slate-400 mt-4 italic">* "Jumlah Hari" merujuk kepada bilangan hari rekod kehadiran kelas murid tersebut telah diisi dalam sistem (dalam julat tarikh yang dipilih).</p>
                         </div>
                     ) : (
                         /* --- VIEW: NORMAL FORM (JIKA BUKAN KEKERAPAN) --- */
                         <>
-                            {/* --- ANALISIS GRID (SIDEBAR/PANEL) --- */}
-                            {showAnalysis && (
-                                <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 animate-fade-in">
-                                    <h3 className="text-xs font-bold text-indigo-400 uppercase mb-3 flex items-center gap-1"><BarChart3 size={12}/> Statistik Harian ({formatDate(today)})</h3>
-                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
-                                        {Object.entries(dailyStats).map(([label, data]) => {
-                                            const pct = data.t > 0 ? Math.round((data.h / data.t) * 100) : 0;
-                                            return (
-                                                <div key={label} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col items-center justify-center hover:border-indigo-300 transition-colors">
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mb-1">{label}</span>
-                                                    <div className="flex items-baseline gap-1">
-                                                        <span className={`text-xl font-bold ${pct >= 90 ? 'text-emerald-600' : (pct >= 80 ? 'text-indigo-600' : 'text-red-500')}`}>
-                                                            {pct}%
-                                                        </span>
-                                                    </div>
-                                                    <span className="text-[10px] text-slate-500 font-medium bg-slate-100 px-1.5 rounded mt-1">{data.h}/{data.t}</span>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                </div>
-                            )}
+                            {/* REMOVED: SIDEBAR ANALISIS GRID */}
                             
                             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                                 <div className="mb-6">
