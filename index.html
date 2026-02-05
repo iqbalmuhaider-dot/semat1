@@ -1007,14 +1007,178 @@
         }
 
         function TakwimManager({ canEdit, role, currentUid }) {
-            const [date, setDate] = useState(new Date(2026, 0, 1)); const [events, setEvents] = useState([]); const [selectedDate, setSelectedDate] = useState(null); const [newEvent, setNewEvent] = useState({ title: '', unit: '' });
+            const [date, setDate] = useState(new Date(2026, 0, 1)); 
+            const [events, setEvents] = useState([]); 
+            const [selectedDate, setSelectedDate] = useState(null); 
+            // State baru untuk warna
+            const [newEvent, setNewEvent] = useState({ title: '', unit: '', color: 'blue' });
+
+            // Definisi warna label
+            const EVENT_COLORS = {
+                blue: { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500' },
+                green: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+                red: { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500' },
+                orange: { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200', dot: 'bg-orange-500' },
+                purple: { bg: 'bg-violet-100', text: 'text-violet-700', border: 'border-violet-200', dot: 'bg-violet-500' }
+            };
+
             useEffect(() => { const unsub = onSnapshot(query(collection(db, 'portal_events')), s => { setEvents(s.docs.map(d => ({ id: d.id, ...d.data() }))); }); return () => unsub(); }, []);
+            
             const allEvents = [...KPM_EVENTS, ...events];
-            const handleCellClick = (d) => { if (canEdit) { setSelectedDate(d); setNewEvent({ title: '', unit: '' }); } };
-            const addEvent = async () => { if(!newEvent.title) return alert("Isi nama program."); await addDoc(collection(db, 'portal_events'), { title: newEvent.title, unit: newEvent.unit, start: selectedDate.toISOString().split('T')[0], end: selectedDate.toISOString().split('T')[0], type: 'event', createdBy: currentUid }); setSelectedDate(null); };
+            
+            const handleCellClick = (d) => { if (canEdit) { setSelectedDate(d); setNewEvent({ title: '', unit: '', color: 'blue' }); } };
+            
+            const addEvent = async () => { 
+                if(!newEvent.title) return alert("Isi nama program."); 
+                await addDoc(collection(db, 'portal_events'), { 
+                    title: newEvent.title, 
+                    unit: newEvent.unit, 
+                    color: newEvent.color, // Simpan warna
+                    start: selectedDate.toISOString().split('T')[0], 
+                    end: selectedDate.toISOString().split('T')[0], 
+                    type: 'event', 
+                    createdBy: currentUid 
+                }); 
+                setSelectedDate(null); 
+            };
+
             const deleteEvent = async (id, e) => { e.stopPropagation(); if(confirm("Padam?")) await deleteDoc(doc(db, 'portal_events', id)); }
-            const renderMonth = (targetDate) => { const year = targetDate.getFullYear(); const month = targetDate.getMonth(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const firstDay = new Date(year, month, 1).getDay(); const blanks = Array(firstDay).fill(null); const days = Array.from({length: daysInMonth}, (_, i) => i + 1); return (<div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><div className="flex justify-between mb-4 items-center"><button onClick={()=>setDate(new Date(year, month-1, 1))}><ChevronLeft/></button><h3 className="font-bold text-lg uppercase text-slate-700">{targetDate.toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' })}</h3><button onClick={()=>setDate(new Date(year, month+1, 1))}><ChevronRight/></button></div><div className="grid grid-cols-7 gap-1 mb-2 text-center text-xs font-bold text-slate-400">{['A','I','S','R','K','J','S'].map(d=><div key={d}>{d}</div>)}</div><div className="grid grid-cols-7 gap-1">{blanks.map((_,i)=><div key={i}></div>)}{days.map(d => { const currentDay = new Date(year, month, d); const dStr = currentDay.toISOString().split('T')[0]; const dailyEvents = allEvents.filter(e => dStr >= e.start && dStr <= (e.end || e.start)); const isSchool = dailyEvents.some(e => e.type === 'school'); const isHoliday = dailyEvents.some(e => e.type === 'holiday'); const bgClass = isSchool ? 'bg-emerald-50' : (isHoliday ? 'bg-yellow-50' : 'bg-white hover:bg-slate-50'); return (<div key={d} onClick={() => handleCellClick(currentDay)} className={`min-h-[80px] border border-slate-100 rounded p-1 text-xs relative cursor-pointer transition-colors ${bgClass}`}><span className={`font-bold block mb-1 ${isSchool ? 'text-emerald-700' : (isHoliday ? 'text-yellow-700' : 'text-slate-700')}`}>{d}</span><div className="space-y-1">{dailyEvents.map((ev, idx) => { if (ev.type === 'school') return null; const isHolidayItem = ev.type === 'holiday'; const canDelete = ev.type === 'event' && (role === 'admin' || ev.createdBy === currentUid); return (<div key={idx} className={`p-1 rounded text-[10px] leading-tight group relative ${isHolidayItem ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>{ev.title}{canDelete && (<button onClick={(e)=>deleteEvent(ev.id, e)} className="hidden group-hover:block absolute top-0 right-0 bg-red-500 text-white rounded-full p-0.5"><X size={8}/></button>)}</div>) })}</div></div>) })}</div></div>) };
-            return (<div className="space-y-6"><div className="flex justify-between items-center"><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><CalendarDays className="w-6 h-6 text-indigo-600"/> Takwim Sekolah</h3></div>{renderMonth(date)}<div className="flex gap-4 text-xs font-medium justify-center text-slate-600"><span className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-50 border border-emerald-200 rounded"></div> Sesi Sekolah</span><span className="flex items-center gap-2"><div className="w-3 h-3 bg-yellow-100 border border-yellow-200 rounded"></div> Cuti</span><span className="flex items-center gap-2"><div className="w-3 h-3 bg-blue-100 border border-blue-200 rounded"></div> Aktiviti</span></div>{selectedDate && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in"><div className="bg-white p-6 rounded-xl w-80 shadow-2xl"><h3 className="font-bold text-lg mb-4 text-slate-800">Tambah Aktiviti</h3><div className="space-y-3"><div><label className="lbl">Nama Program</label><input autoFocus className="inp w-full" value={newEvent.title} onChange={e=>setNewEvent({...newEvent, title:e.target.value})}/></div><div><label className="lbl">Unit / Panitia</label><input className="inp w-full" value={newEvent.unit} onChange={e=>setNewEvent({...newEvent, unit:e.target.value})}/></div></div><div className="flex justify-end gap-2 mt-6"><button onClick={()=>setSelectedDate(null)} className="px-4 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-100">Batal</button><button onClick={addEvent} className="px-4 py-2 rounded text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700">Simpan</button></div></div></div>)}</div>)
+            
+            const renderMonth = (targetDate) => { 
+                const year = targetDate.getFullYear(); 
+                const month = targetDate.getMonth(); 
+                const daysInMonth = new Date(year, month + 1, 0).getDate(); 
+                const firstDay = new Date(year, month, 1).getDay(); 
+                const blanks = Array(firstDay).fill(null); 
+                const days = Array.from({length: daysInMonth}, (_, i) => i + 1); 
+                
+                return (
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm animate-fade-in">
+                        <div className="flex justify-between mb-6 items-center">
+                            <button onClick={()=>setDate(new Date(year, month-1, 1))} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><ChevronLeft/></button>
+                            <div className="text-center">
+                                <h3 className="font-bold text-xl uppercase text-slate-800 tracking-wide">{targetDate.toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' })}</h3>
+                                <p className="text-xs text-slate-500 font-medium mt-1">Sila klik pada tarikh untuk tambah program</p>
+                            </div>
+                            <button onClick={()=>setDate(new Date(year, month+1, 1))} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><ChevronRight/></button>
+                        </div>
+                        <div className="grid grid-cols-7 gap-3 mb-2 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">{['Ahad','Isnin','Selasa','Rabu','Khamis','Jumaat','Sabtu'].map(d=><div key={d}>{d}</div>)}</div>
+                        <div className="grid grid-cols-7 gap-2">
+                            {blanks.map((_,i)=><div key={i} className="min-h-[100px] bg-slate-50/50 rounded-lg"></div>)}
+                            {days.map(d => { 
+                                const currentDay = new Date(year, month, d); 
+                                const dStr = currentDay.toISOString().split('T')[0]; 
+                                const dailyEvents = allEvents.filter(e => dStr >= e.start && dStr <= (e.end || e.start)); 
+                                const isSchool = dailyEvents.some(e => e.type === 'school'); 
+                                const isHoliday = dailyEvents.some(e => e.type === 'holiday'); 
+                                
+                                return (
+                                    <div key={d} onClick={() => handleCellClick(currentDay)} className={`min-h-[100px] border rounded-lg p-2 text-xs relative cursor-pointer transition-all hover:shadow-md hover:-translate-y-1 ${isSchool ? 'bg-emerald-50/50 border-emerald-100' : (isHoliday ? 'bg-amber-50/50 border-amber-100' : 'bg-white border-slate-100 hover:border-indigo-300')}`}>
+                                        <span className={`font-bold block mb-2 text-center w-6 h-6 leading-6 rounded-full mx-auto ${isSchool ? 'bg-emerald-100 text-emerald-700' : (isHoliday ? 'bg-amber-100 text-amber-700' : 'text-slate-700 bg-slate-50')}`}>{d}</span>
+                                        <div className="space-y-1.5">
+                                            {dailyEvents.map((ev, idx) => { 
+                                                if (ev.type === 'school') return null; 
+                                                const isHolidayItem = ev.type === 'holiday'; 
+                                                const canDelete = ev.type === 'event' && (role === 'admin' || ev.createdBy === currentUid); 
+                                                
+                                                // Tentukan style berdasarkan warna pilihan
+                                                let styleClass = 'bg-slate-100 text-slate-700 border-slate-200';
+                                                if(isHolidayItem) styleClass = 'bg-amber-100 text-amber-800 border-amber-200';
+                                                else if(ev.color && EVENT_COLORS[ev.color]) {
+                                                    const c = EVENT_COLORS[ev.color];
+                                                    styleClass = `${c.bg} ${c.text} ${c.border}`;
+                                                } else {
+                                                    styleClass = 'bg-blue-100 text-blue-800 border-blue-200'; // Default legacy
+                                                }
+
+                                                return (
+                                                    <div key={idx} className={`px-2 py-1.5 rounded border text-[10px] font-bold leading-tight group relative shadow-sm ${styleClass}`}>
+                                                        {ev.title}
+                                                        {ev.unit && <span className="block font-normal opacity-75 text-[9px] mt-0.5">{ev.unit}</span>}
+                                                        {canDelete && (<button onClick={(e)=>deleteEvent(ev.id, e)} className="hidden group-hover:flex absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 items-center justify-center shadow-sm hover:bg-red-600 transition-colors"><X size={8}/></button>)}
+                                                    </div>
+                                                ) 
+                                            })}
+                                        </div>
+                                    </div>
+                                ) 
+                            })}
+                        </div>
+                    </div>
+                ) 
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><CalendarDays className="w-7 h-7 text-indigo-600"/> Takwim Sekolah</h3>
+                        <div className="flex gap-2">
+                             {/* Lagenda ringkas */}
+                             <div className="hidden md:flex gap-3 text-xs font-medium bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Persekolahan</span>
+                                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Cuti</span>
+                                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Program</span>
+                             </div>
+                        </div>
+                    </div>
+                    
+                    {renderMonth(date)}
+                    
+                    {/* Modal Tambah Program */}
+                    {selectedDate && (
+                        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade-in backdrop-blur-sm">
+                            <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl">
+                                <div className="flex justify-between items-center mb-4 border-b pb-3">
+                                    <div>
+                                        <h3 className="font-bold text-lg text-slate-800">Tambah Aktiviti</h3>
+                                        <p className="text-xs text-slate-500 font-medium">{selectedDate.toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                                    </div>
+                                    <button onClick={()=>setSelectedDate(null)} className="text-slate-400 hover:text-red-500"><X size={20}/></button>
+                                </div>
+                                
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="lbl">Nama Program</label>
+                                        <input autoFocus className="inp w-full" placeholder="Contoh: Mesyuarat Guru Bil 1" value={newEvent.title} onChange={e=>setNewEvent({...newEvent, title:e.target.value})}/>
+                                    </div>
+                                    <div>
+                                        <label className="lbl">Unit / Panitia (Pilihan)</label>
+                                        <input className="inp w-full" placeholder="Contoh: Kurikulum / Panitia BM" value={newEvent.unit} onChange={e=>setNewEvent({...newEvent, unit:e.target.value})}/>
+                                    </div>
+                                    
+                                    {/* Pilihan Warna */}
+                                    <div>
+                                        <label className="lbl mb-2">Pilih Label Warna</label>
+                                        <div className="flex justify-between gap-2">
+                                            {Object.keys(EVENT_COLORS).map((colorKey) => {
+                                                const c = EVENT_COLORS[colorKey];
+                                                const isSelected = newEvent.color === colorKey;
+                                                return (
+                                                    <button 
+                                                        key={colorKey}
+                                                        onClick={() => setNewEvent({...newEvent, color: colorKey})}
+                                                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${c.bg} ${isSelected ? 'ring-2 ring-offset-2 ring-slate-400 scale-110' : 'hover:scale-105 opacity-70 hover:opacity-100'}`}
+                                                        title={colorKey}
+                                                    >
+                                                        <div className={`w-4 h-4 rounded-full ${c.dot}`}></div>
+                                                    </button>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2 mt-8 pt-4 border-t">
+                                    <button onClick={()=>setSelectedDate(null)} className="flex-1 py-2.5 rounded-lg text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Batal</button>
+                                    <button onClick={addEvent} className="flex-[2] py-2.5 rounded-lg text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 shadow-md transition-colors flex items-center justify-center gap-2">
+                                        <Plus size={16}/> Simpan
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )
         }
 
         function TaskManager({ userData, tasks, currentUid }) {
@@ -2814,30 +2978,36 @@
                   alert("Gagal melakukan reset: " + error.message);
               } finally {
                   setIsResetting(false);
-                  setShowResetConfirm(false);
               }
           };
 
           return (
-            <div className="max-w-6xl mx-auto space-y-8 animate-fade-in">
-               <div className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm"><h2 className="text-2xl font-bold text-slate-800 mb-2">Hai, {userData.name}!</h2><p className="text-slate-500">Selamat datang ke papan pemuka.</p></div>
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">{stats.map((s, i) => (<div key={i} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4"><div className={`w-14 h-14 rounded-full flex items-center justify-center ${s.b} ${s.c}`}><s.i className="w-7 h-7" /></div><div><p className="text-sm font-medium text-slate-500">{s.l}</p><h3 className="text-3xl font-bold text-slate-800">{s.v}</h3></div></div>))}</div>
-               
-               {/* --- TICKER / MARQUEE ACARA TERKINI --- */}
+            <div className="space-y-6 animate-fade-in">
+               {/* --- TICKER / MARQUEE ACARA TERKINI (UPDATED: CLICKABLE & ANIMATION FIX) --- */}
                {upcomingEvents.length > 0 && (
-                   <div className="bg-indigo-600 text-white p-3 rounded-xl shadow-md overflow-hidden relative flex items-center border border-indigo-700">
-                       <div className="bg-indigo-800 px-3 py-1.5 text-xs font-bold rounded uppercase mr-4 z-10 shrink-0 flex items-center gap-2 shadow-sm">
+                   <div 
+                       onClick={() => setView('takwim')} 
+                       className="bg-indigo-600 text-white p-3 rounded-xl shadow-md overflow-hidden relative flex items-center border border-indigo-700 cursor-pointer hover:bg-indigo-700 transition-colors group mb-6"
+                       title="Klik untuk lihat Takwim penuh"
+                   >
+                       <div className="bg-indigo-800 px-3 py-1.5 text-xs font-bold rounded uppercase mr-4 z-10 shrink-0 flex items-center gap-2 shadow-sm group-hover:bg-indigo-900 transition-colors">
                            <Megaphone size={14} className="animate-pulse"/> Info Terkini
                        </div>
-                       <div className="flex-1 overflow-hidden relative h-6">
-                           <div className="animate-marquee whitespace-nowrap absolute top-0 left-0 flex items-center h-full">
+                       <div className="flex-1 overflow-hidden relative h-6 mask-image-linear-gradient">
+                           <div className="animate-marquee whitespace-nowrap absolute top-0 left-0 flex items-center h-full w-max">
                                {upcomingEvents.map((e, idx) => (
                                    <span key={idx} className="mx-8 font-medium text-sm flex items-center gap-2">
-                                       <span className="text-indigo-200 font-bold">[{formatDate(e.start)}]</span> 
+                                       <span className="text-indigo-200 font-bold bg-indigo-800/50 px-1.5 rounded text-[10px]">
+                                           {new Date(e.start).toLocaleDateString('ms-MY', {day:'2-digit', month:'2-digit'})}
+                                       </span> 
                                        {e.title}
                                    </span>
                                ))}
+                               {/* Duplicate content for seamless loop effect if needed, but CSS marquee handles simple translation */}
                            </div>
+                       </div>
+                       <div className="absolute right-3 z-10">
+                           <ChevronRight size={16} className="text-indigo-300 group-hover:text-white group-hover:translate-x-1 transition-all"/>
                        </div>
                    </div>
                )}
@@ -3262,7 +3432,7 @@
             );
         }
 
-        const styles = `.lbl{display:block;font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:0.5rem;text-transform:uppercase}.inp{width:100%;padding:0.6rem 0.8rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.875rem;outline:none;background-color:#f8fafc;color:#1e293b}.inp:focus{background-color:white;border-color:#4f46e5}@keyframes fade-in{from{opacity:0}to{opacity:1}}@keyframes scale-up{from{transform:scale(0.95);opacity:0}to{transform:scale(1);opacity:1}}.animate-fade-in{animation:fade-in 0.2s ease-out}.animate-scale-up{animation:scale-up 0.2s cubic-bezier(0.16,1,0.3,1)}.diagonal-stripe{background-image:linear-gradient(45deg,#fcd34d 25%,#fbbf24 25%,#fbbf24 50%,#fcd34d 50%,#fcd34d 75%,#fbbf24 75%,#fbbf24 100%);background-size:10px 10px} .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 20s linear infinite; } @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }`;
+        const styles = `.lbl{display:block;font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:0.5rem;text-transform:uppercase}.inp{width:100%;padding:0.6rem 0.8rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.875rem;outline:none;background-color:#f8fafc;color:#1e293b}.inp:focus{background-color:white;border-color:#4f46e5}@keyframes fade-in{from{opacity:0}to{opacity:1}}@keyframes scale-up{from{transform:scale(0.95);opacity:0}to{transform:scale(1);opacity:1}}.animate-fade-in{animation:fade-in 0.2s ease-out}.animate-scale-up{animation:scale-up 0.2s cubic-bezier(0.16,1,0.3,1)}.diagonal-stripe{background-image:linear-gradient(45deg,#fcd34d 25%,#fbbf24 25%,#fbbf24 50%,#fcd34d 50%,#fcd34d 75%,#fbbf24 75%,#fbbf24 100%);background-size:10px 10px} .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 25s linear infinite; padding-left: 100%; } @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }`;
 
         // RENDER ENTRY
         const root = createRoot(document.getElementById('root'));
