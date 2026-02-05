@@ -131,7 +131,7 @@
           BookOpen, Calculator, FlaskConical, Languages, 
           Trophy, Users, Palette, Utensils, Bus, Library, 
           MonitorPlay, Code2, GraduationCap, ShieldCheck, 
-          Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2, Calendar, ChevronLeft, Flag, MapPin, CalendarDays, ClipboardList, Clock, AlertTriangle, FileText, Printer, Check, Settings, LogIn, UserCheck, PieChart, Filter, HelpCircle, Award, RotateCcw, History, RefreshCw, List, CalendarClock, QrCode, Copy, Camera, ChevronDown, Activity, BarChart3, Download, Share
+          Briefcase, Globe, AlertCircle, Save, Info, Edit3, CheckSquare, Square, XCircle, CheckCircle, User, Loader2, Calendar, ChevronLeft, Flag, MapPin, CalendarDays, ClipboardList, Clock, AlertTriangle, FileText, Printer, Check, Settings, LogIn, UserCheck, PieChart, Filter, HelpCircle, Award, RotateCcw, History, RefreshCw, List, CalendarClock, QrCode, Copy, Camera, ChevronDown, Activity, BarChart3, Download, Share, Megaphone
         } from 'lucide-react';
 
         // --- SERVICE WORKER REGISTRATION (DIKEMBALIKAN UNTUK ANDROID) ---
@@ -338,8 +338,8 @@
              { id: 'attendance', l: 'Kehadiran', i: UserCheck },
              { id: 'tasks', l: 'Tugasan', i: ClipboardList },
              { id: 'reports', l: 'Laporan', i: FileText },
-             { id: 'agihan', l: 'Agihan Tugas', i: Briefcase, access: ['admin', 'pentadbir'] },
-             // UBAH: Buang had akses 'admin' supaya semua guru boleh bina app
+             // UBAH: AGIHAN TUGAS DIBUANG DARI SIDEBAR
+             // { id: 'agihan', l: 'Agihan Tugas', i: Briefcase, access: ['admin', 'pentadbir'] },
              { id: 'builder', l: 'Bina App', i: Code2 }, 
              { id: 'students', l: 'Data Murid', i: GraduationCap, access: ['admin', 'pentadbir'] },
              { id: 'teachers', l: 'Data Guru', i: Users, access: ['admin', 'pentadbir'] },
@@ -2644,8 +2644,20 @@
           const [showResetConfirm, setShowResetConfirm] = useState(false);
           const [isResetting, setIsResetting] = useState(false);
 
+          // NEW: EVENTS FOR TICKER
+          const [events, setEvents] = useState([]);
+
           useEffect(() => { const unsub = onSnapshot(query(collection(db, 'portal_attendance'), where('date', '==', today)), s => { setTodayAttendance(s.docs.map(d => d.data())); setLoadingAtt(false); }, e => setLoadingAtt(false)); return () => unsub(); }, []);
           
+          // Fetch Events for Ticker
+          useEffect(() => {
+              const q = query(collection(db, 'portal_events'));
+              const unsub = onSnapshot(q, s => {
+                  setEvents(s.docs.map(d => d.data()));
+              });
+              return () => unsub();
+          }, []);
+
           // Reset target class on mount
           useEffect(() => { if(setTargetClass) setTargetClass(null); }, []);
 
@@ -2675,6 +2687,17 @@
           });
 
           const rmtPercent = rmtTotal > 0 ? Math.round((rmtPresent / rmtTotal) * 100) : 0;
+
+          // Logic untuk upcoming events
+          const upcomingEvents = useMemo(() => {
+              const todayStr = getTodayDate();
+              const combined = [...KPM_EVENTS, ...events];
+              // Filter acara yang tarikh tamat (atau mula) >= hari ini
+              return combined.filter(e => {
+                  const endDate = e.end || e.start;
+                  return endDate >= todayStr;
+              }).sort((a,b) => a.start.localeCompare(b.start));
+          }, [events]);
 
           const getAbsentNames = (record) => {
               if (!record || !record.records) return [];
@@ -2800,6 +2823,25 @@
                <div className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm"><h2 className="text-2xl font-bold text-slate-800 mb-2">Hai, {userData.name}!</h2><p className="text-slate-500">Selamat datang ke papan pemuka.</p></div>
                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">{stats.map((s, i) => (<div key={i} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4"><div className={`w-14 h-14 rounded-full flex items-center justify-center ${s.b} ${s.c}`}><s.i className="w-7 h-7" /></div><div><p className="text-sm font-medium text-slate-500">{s.l}</p><h3 className="text-3xl font-bold text-slate-800">{s.v}</h3></div></div>))}</div>
                
+               {/* --- TICKER / MARQUEE ACARA TERKINI --- */}
+               {upcomingEvents.length > 0 && (
+                   <div className="bg-indigo-600 text-white p-3 rounded-xl shadow-md overflow-hidden relative flex items-center border border-indigo-700">
+                       <div className="bg-indigo-800 px-3 py-1.5 text-xs font-bold rounded uppercase mr-4 z-10 shrink-0 flex items-center gap-2 shadow-sm">
+                           <Megaphone size={14} className="animate-pulse"/> Info Terkini
+                       </div>
+                       <div className="flex-1 overflow-hidden relative h-6">
+                           <div className="animate-marquee whitespace-nowrap absolute top-0 left-0 flex items-center h-full">
+                               {upcomingEvents.map((e, idx) => (
+                                   <span key={idx} className="mx-8 font-medium text-sm flex items-center gap-2">
+                                       <span className="text-indigo-200 font-bold">[{formatDate(e.start)}]</span> 
+                                       {e.title}
+                                   </span>
+                               ))}
+                           </div>
+                       </div>
+                   </div>
+               )}
+
                <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
                    <div className="flex justify-between items-center mb-4">
                         <h3 className="font-bold text-slate-800 flex items-center gap-2"><UserCheck className="w-5 h-5 text-indigo-600"/> Status Kehadiran Hari Ini</h3>
@@ -3165,7 +3207,8 @@
                             {view === 'mmi' && <MMIManager userData={user} currentUid={user.uid} students={students} teachers={teachers} />}
                             {view === 'timetable' && <TimetableManager userData={user} currentUid={user.uid} students={students} teachers={teachers} />}
                             {view === 'apps' && <AppGallery apps={apps} />}
-                            {view === 'takwim' && <TakwimManager canEdit={['admin', 'pentadbir'].includes(user.role)} role={user.role} currentUid={user.uid} />}
+                            {/* UBAH: SEMUA GURU BOLEH EDIT TAKWIM (canEdit sentiasa true) */}
+                            {view === 'takwim' && <TakwimManager canEdit={true} role={user.role} currentUid={user.uid} />}
                             {view === 'attendance' && <AttendanceManager 
                                 students={students} userData={user} 
                                 preSelectedClass={targetClass} // Pass getter ke AttendanceManager
@@ -3173,7 +3216,6 @@
                             {view === 'tasks' && <TaskManager userData={user} tasks={tasks} currentUid={user.uid} />}
                             {view === 'reports' && <WeeklyReportManager userData={user} reports={reports} teachers={teachers} currentUid={user.uid} />}
                             {view === 'agihan' && <AgihanTugasManager teachers={teachers} canEdit={user.role === 'admin'} />}
-                            {/* UBAH: Benarkan semua akses ke Builder, pass userData untuk check role dalam component */}
                             {view === 'builder' && <AppBuilder apps={apps} userData={user} />}
                             {view === 'students' && (['admin', 'pentadbir'].includes(user.role) ? <DataTable type="student" data={students} currentUserRole={user.role} /> : <AccessDenied />)}
                             {view === 'teachers' && (['admin', 'pentadbir'].includes(user.role) ? <DataTable type="teacher" data={teachers} currentUserRole={user.role} /> : <AccessDenied />)}
@@ -3220,7 +3262,7 @@
             );
         }
 
-        const styles = `.lbl{display:block;font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:0.5rem;text-transform:uppercase}.inp{width:100%;padding:0.6rem 0.8rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.875rem;outline:none;background-color:#f8fafc;color:#1e293b}.inp:focus{background-color:white;border-color:#4f46e5}@keyframes fade-in{from{opacity:0}to{opacity:1}}@keyframes scale-up{from{transform:scale(0.95);opacity:0}to{transform:scale(1);opacity:1}}.animate-fade-in{animation:fade-in 0.2s ease-out}.animate-scale-up{animation:scale-up 0.2s cubic-bezier(0.16,1,0.3,1)}.diagonal-stripe{background-image:linear-gradient(45deg,#fcd34d 25%,#fbbf24 25%,#fbbf24 50%,#fcd34d 50%,#fcd34d 75%,#fbbf24 75%,#fbbf24 100%);background-size:10px 10px}`;
+        const styles = `.lbl{display:block;font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:0.5rem;text-transform:uppercase}.inp{width:100%;padding:0.6rem 0.8rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.875rem;outline:none;background-color:#f8fafc;color:#1e293b}.inp:focus{background-color:white;border-color:#4f46e5}@keyframes fade-in{from{opacity:0}to{opacity:1}}@keyframes scale-up{from{transform:scale(0.95);opacity:0}to{transform:scale(1);opacity:1}}.animate-fade-in{animation:fade-in 0.2s ease-out}.animate-scale-up{animation:scale-up 0.2s cubic-bezier(0.16,1,0.3,1)}.diagonal-stripe{background-image:linear-gradient(45deg,#fcd34d 25%,#fbbf24 25%,#fbbf24 50%,#fcd34d 50%,#fcd34d 75%,#fbbf24 75%,#fbbf24 100%);background-size:10px 10px} .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 20s linear infinite; } @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }`;
 
         // RENDER ENTRY
         const root = createRoot(document.getElementById('root'));
