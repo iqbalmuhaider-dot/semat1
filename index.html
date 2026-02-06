@@ -2083,111 +2083,93 @@
         function AttendanceManager({ students, userData, preSelectedClass }) {
             const [selectedClass, setSelectedClass] = useState(preSelectedClass || "");
             const [attendanceData, setAttendanceData] = useState({});
-            // UBAH: Guna getTodayDate() untuk waktu Malaysia
             const [today, setToday] = useState(getTodayDate());
             const [loading, setLoading] = useState(false);
             const [showSummary, setShowSummary] = useState(false);
             const [summaryData, setSummaryData] = useState(null);
             const [history, setHistory] = useState([]);
             
-            // UBAH: filterDate dimulakan kosong supaya sejarah tidak keluar automatik
             const [filterDate, setFilterDate] = useState(""); 
-            
-            const [showResetConfirm, setShowResetConfirm] = useState(false); // Reset Form
-            const [showHistoryResetConfirm, setShowHistoryResetConfirm] = useState(false); // Reset Database
-            const [statusMessage, setStatusMessage] = useState(""); // Indikator Status Rekod
-            // REMOVED: const [showAnalysis, setShowAnalysis] = useState(false); 
-
-            // NEW: SEARCH FILTER FOR ATTENDANCE
+            const [showResetConfirm, setShowResetConfirm] = useState(false); 
+            const [showHistoryResetConfirm, setShowHistoryResetConfirm] = useState(false); 
+            const [statusMessage, setStatusMessage] = useState(""); 
             const [filterName, setFilterName] = useState("");
-
-            // --- STATE BARU: ANALISIS KEKERAPAN ---
             const [showFrequency, setShowFrequency] = useState(false);
             const [freqFilterClass, setFreqFilterClass] = useState("");
-            // NEW: Date Range Filter for Analysis
             const [freqStartDate, setFreqStartDate] = useState(""); 
             const [freqEndDate, setFreqEndDate] = useState("");
-
-            // STATE BARU: DATA ANALISIS MANUAL (JANA)
             const [analysisData, setAnalysisData] = useState([]);
             const [analysisDone, setAnalysisDone] = useState(false);
 
+            // Ref untuk elak reset borang secara tidak sengaja
+            const loadRef = useRef(""); 
+
             const classList = [...new Set(students.map(s => s.class))].sort();
             
-            // UBAH: Asingkan logik senarai semua vs senarai paparan
             const allClassStudents = useMemo(() => students.filter(s => s.class === selectedClass).sort((a,b) => a.name.localeCompare(b.name)), [students, selectedClass]);
             const filteredClassStudents = useMemo(() => allClassStudents.filter(s => s.name.toLowerCase().includes(filterName.toLowerCase())), [allClassStudents, filterName]);
 
-            // Dapatkan History dahulu
             useEffect(() => { const q = query(collection(db, 'portal_attendance'), orderBy('submittedAt', 'desc')); const unsub = onSnapshot(q, s => setHistory(s.docs.map(d => ({id: d.id, ...d.data()})))); return () => unsub(); }, []);
 
-            // --- SMART LOAD EFFECT (LOGIK BARU) ---
+            // --- SMART LOAD EFFECT (DIPERBAIKI UNTUK ELAK DATA HILANG) ---
             useEffect(() => {
                 if (!selectedClass) {
                     setAttendanceData({});
                     setStatusMessage("");
+                    loadRef.current = "";
                     return;
                 }
 
+                const currentContext = `${today}_${selectedClass}`;
                 const existingRecord = history.find(h => h.date === today && h.className === selectedClass);
 
-                if (existingRecord) {
-                    setAttendanceData(existingRecord.records);
-                    setStatusMessage("Rekod Terdahulu Dijumpai (Mod Edit)");
+                // Hanya reset/load data baru jika KONTEKS (Kelas/Tarikh) berubah
+                if (loadRef.current !== currentContext) {
+                    if (existingRecord) {
+                        setAttendanceData(existingRecord.records);
+                        setStatusMessage("Rekod Terdahulu Dijumpai (Mod Edit)");
+                    } else {
+                        const i = {};
+                        allClassStudents.forEach(s => { i[s.id] = 'Hadir'; });
+                        setAttendanceData(i);
+                        setStatusMessage("Rekod Baru (Default: Hadir)");
+                    }
+                    loadRef.current = currentContext; // Tandakan konteks ini sudah dimuatkan
                 } else {
-                    const i = {};
-                    // Use allClassStudents here to initialize everyone
-                    allClassStudents.forEach(s => { i[s.id] = 'Hadir'; });
-                    setAttendanceData(i);
-                    setStatusMessage("Rekod Baru (Default: Hadir)");
+                    // Jika konteks SAMA (user sedang edit), JANGAN reset borang.
+                    // Kecuali jika tiba-tiba rekod muncul dari DB (sync) dan kita masih mode 'Baru'
+                    if (existingRecord && !statusMessage.includes("Terdahulu")) {
+                         setAttendanceData(existingRecord.records);
+                         setStatusMessage("Rekod Terdahulu Dijumpai (Sync)");
+                    }
                 }
-            }, [selectedClass, today, allClassStudents, history]); // use allClassStudents
+            }, [selectedClass, today, allClassStudents, history]);
 
-            // --- LOGIK ANALISIS KEKERAPAN (MANUAL JANA) ---
             const generateAnalysis = () => {
                 if (!freqStartDate || !freqEndDate) return alert("Sila pilih Tarikh Mula dan Tarikh Akhir.");
                 
                 const map = {};
-                // Inisialisasi map untuk semua murid
-                students.forEach(s => {
-                    map[s.id] = { id: s.id, name: s.name, class: s.class, absent: 0, total: 0 };
-                });
+                students.forEach(s => { map[s.id] = { id: s.id, name: s.name, class: s.class, absent: 0, total: 0 }; });
 
-                // Proses sejarah kehadiran
                 history.forEach(h => {
-                    // FILTER DATE RANGE
                     if (h.date < freqStartDate || h.date > freqEndDate) return;
-
                     if (h.records) {
                         Object.entries(h.records).forEach(([sid, status]) => {
-                            // Pastikan murid wujud (belum dipadam)
                             if (map[sid]) {
-                                map[sid].total++; // Kira sebagai hari persekolahan
+                                map[sid].total++; 
                                 if (status === 'Tidak Hadir') map[sid].absent++;
                             }
                         });
                     }
                 });
 
-                // Tukar ke array
                 let result = Object.values(map);
-
-                // Filter mengikut kelas (jika ada pilihan)
-                if (freqFilterClass) {
-                    result = result.filter(s => s.class === freqFilterClass);
-                } else {
-                    // Jika paparan umum (semua kelas), hanya tunjuk murid yang pernah tidak hadir (>0)
-                    result = result.filter(s => s.absent > 0);
-                }
-
-                // Susun ikut kekerapan tidak hadir (Tertinggi ke Terendah)
+                if (freqFilterClass) { result = result.filter(s => s.class === freqFilterClass); } 
+                else { result = result.filter(s => s.absent > 0); }
                 result.sort((a, b) => b.absent - a.absent);
-                
                 setAnalysisData(result);
                 setAnalysisDone(true);
             };
-
-            // REMOVED: const dailyStats logic used to be here
 
             const submitAttendance = async () => { 
                 if(!selectedClass) return alert("Pilih kelas."); 
@@ -2195,9 +2177,14 @@
                 try { 
                     let h=0, th=0, l=0; 
                     const absentNames = [];
-                    // Use ALL students for stats calculation, regardless of filter
+                    const cleanRecords = {}; // Data bersih untuk disimpan
+
+                    // Guna allClassStudents untuk pastikan tiada murid tertinggal
                     allClassStudents.forEach(s => {
-                        const st = attendanceData[s.id]; 
+                        // Jika status undefined/null, default kepada 'Hadir' (Safety Net)
+                        const st = attendanceData[s.id] || 'Hadir'; 
+                        cleanRecords[s.id] = st;
+
                         if(st==='Hadir') h++; 
                         else if(st==='Tidak Hadir') { 
                             th++; 
@@ -2210,28 +2197,23 @@
                     const payload = { 
                         date: today, 
                         className: selectedClass, 
-                        records: attendanceData, 
+                        records: cleanRecords, // Simpan cleanRecords yg lengkap
                         stats: { hadir:h, tidakHadir:th, lewat:l, total: allClassStudents.length }, 
                         submittedBy: userData.name, 
                         submittedAt: new Date().toISOString() 
                     }; 
+                    
                     await setDoc(doc(db, 'portal_attendance', docId), payload); 
                     
-                    // Add extra info for popup
-                    setSummaryData({ 
-                        ...payload.stats, 
-                        absentNames: absentNames,
-                        className: selectedClass 
-                    }); 
+                    setSummaryData({ ...payload.stats, absentNames: absentNames, className: selectedClass }); 
                     setShowSummary(true); 
                 } catch(e){
                     console.error(e);
-                    alert("Ralat.");
+                    alert("Ralat semasa menyimpan data. Sila cuba lagi.");
                 } 
                 setLoading(false); 
             };
             
-            // FUNGSI WHATSAPP
             const shareToWhatsapp = () => {
                 if (!summaryData) return;
                 const pct = Math.round((summaryData.hadir / summaryData.total) * 100);
@@ -2304,8 +2286,8 @@
 
             const handleEdit = (rec) => { setSelectedClass(rec.className); setToday(rec.date); setAttendanceData(rec.records); window.scrollTo({ top: 0, behavior: 'smooth' }); };
             
-            // UBAH: Logik Filter Sejarah - Jika filterDate kosong, array kosong.
-            const filteredHistory = filterDate ? history.filter(h => h.date === filterDate) : [];
+            // UBAH: Buang '.slice(0, 100)' supaya SEMUA rekod sejarah dipaparkan (termasuk Januari)
+            const filteredHistory = filterDate ? history.filter(h => h.date === filterDate) : history;
 
             return (
                 <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
@@ -2322,8 +2304,6 @@
                             <button onClick={() => setShowFrequency(!showFrequency)} className={`flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-sm border shadow-sm flex items-center justify-center gap-2 transition-colors ${showFrequency ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
                                 {showFrequency ? <><ChevronLeft className="w-4 h-4"/> Kembali</> : <><AlertCircle className="w-4 h-4" /> Rekod Tidak Hadir</>}
                             </button>
-
-                            {/* REMOVED: BUTTON ANALISIS HARIAN */}
                         </div>
                     </div>
 
@@ -2357,6 +2337,9 @@
 
                             {analysisDone ? (
                             <div className="overflow-x-auto rounded-lg border border-slate-200 animate-fade-in">
+                                <div className="bg-indigo-50 p-2 text-center text-xs font-bold text-indigo-800 border-b border-indigo-100">
+                                    Laporan dari {formatDate(freqStartDate)} hingga {formatDate(freqEndDate)}
+                                </div>
                                 <table className="w-full text-sm text-left">
                                     <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-bold">
                                         <tr>
@@ -2401,8 +2384,6 @@
                     ) : (
                         /* --- VIEW: NORMAL FORM (JIKA BUKAN KEKERAPAN) --- */
                         <>
-                            {/* REMOVED: SIDEBAR ANALISIS GRID */}
-                            
                             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                                 <div className="mb-6">
                                     <label className="lbl text-base">Pilih Tarikh & Kelas (Isi Kehadiran)</label>
@@ -2481,7 +2462,7 @@
                                 </>}
                             </div>
                             
-                            {/* --- UBAH: SEJARAH KEHADIRAN SECTION (DATE FIRST) --- */}
+                            {/* --- SEJARAH KEHADIRAN (DIKEMASKINI: PAPAR SEMUA LALAI) --- */}
                             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mt-8">
                                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
                                     <h3 className="font-bold text-slate-800 flex items-center gap-2"><History className="w-5 h-5 text-indigo-600"/> Semakan Sejarah</h3>
@@ -2489,7 +2470,7 @@
                                     <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto items-end md:items-center">
                                         {/* Input Tarikh Utama */}
                                         <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
-                                            <span className="text-xs font-bold text-slate-500 uppercase px-2">Pilih Tarikh:</span>
+                                            <span className="text-xs font-bold text-slate-500 uppercase px-2">Cari Tarikh:</span>
                                             <input 
                                                 type="date" 
                                                 className="bg-white border border-slate-300 text-slate-700 text-sm rounded px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-500 font-bold" 
@@ -2509,35 +2490,32 @@
                                 </div>
 
                                 <div className="overflow-x-auto min-h-[150px]">
-                                    {/* Paparan bergantung kepada filterDate */}
-                                    {!filterDate ? (
-                                        <div className="flex flex-col items-center justify-center py-12 text-slate-400 border-2 border-dashed border-slate-100 rounded-lg bg-slate-50/50">
-                                            <Calendar className="w-12 h-12 mb-3 opacity-30 text-indigo-400"/>
-                                            <p className="font-bold text-slate-500">Sila pilih tarikh di atas untuk melihat rekod sejarah.</p>
-                                            <p className="text-xs text-slate-400 mt-1">Rekod akan dipaparkan selepas tarikh dipilih.</p>
-                                        </div>
-                                    ) : (
-                                        <table className="w-full text-sm text-left animate-fade-in">
-                                            <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-xs">
-                                                <tr><th className="p-3">Tarikh</th><th className="p-3">Kelas</th><th className="p-3 text-center">Hadir</th><th className="p-3 text-center">TH</th><th className="p-3 text-center">Lewat</th><th className="p-3 text-right"></th></tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {filteredHistory.length === 0 ? (
-                                                    <tr><td colSpan="6" className="p-8 text-center text-slate-400 italic bg-slate-50/30">Tiada rekod dijumpai pada tarikh <span className="font-bold text-slate-600">{formatDate(filterDate)}</span>.</td></tr>
-                                                ) : (
-                                                    filteredHistory.map(rec => (
-                                                        <tr key={rec.id} className="hover:bg-indigo-50/30 transition-colors">
-                                                            <td className="p-3 font-mono text-slate-600">{formatDate(rec.date)}</td>
-                                                            <td className="p-3 font-bold text-slate-800">{rec.className}</td>
-                                                            <td className="p-3 text-center font-bold text-emerald-600 bg-emerald-50/50 rounded-lg">{rec.stats.hadir}</td>
-                                                            <td className="p-3 text-center font-bold text-red-600 bg-red-50/50 rounded-lg">{rec.stats.tidakHadir}</td>
-                                                            <td className="p-3 text-center font-bold text-amber-600 bg-amber-50/50 rounded-lg">{rec.stats.lewat}</td>
-                                                            <td className="p-3 text-right"><button onClick={() => handleEdit(rec)} className="bg-white border border-blue-200 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-blue-50 shadow-sm">Lihat / Edit</button></td>
-                                                        </tr>
-                                                    ))
-                                                )}
-                                            </tbody>
-                                        </table>
+                                    {/* Table sentiasa dipaparkan sekarang */}
+                                    <table className="w-full text-sm text-left animate-fade-in">
+                                        <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-xs">
+                                            <tr><th className="p-3">Tarikh</th><th className="p-3">Kelas</th><th className="p-3 text-center">Hadir</th><th className="p-3 text-center">TH</th><th className="p-3 text-center">Lewat</th><th className="p-3 text-right"></th></tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {filteredHistory.length === 0 ? (
+                                                <tr><td colSpan="6" className="p-8 text-center text-slate-400 italic bg-slate-50/30">
+                                                    {filterDate ? `Tiada rekod dijumpai pada tarikh ${formatDate(filterDate)}.` : "Tiada sebarang rekod kehadiran dalam sistem."}
+                                                </td></tr>
+                                            ) : (
+                                                filteredHistory.map(rec => (
+                                                    <tr key={rec.id} className="hover:bg-indigo-50/30 transition-colors">
+                                                        <td className="p-3 font-mono text-slate-600">{formatDate(rec.date)}</td>
+                                                        <td className="p-3 font-bold text-slate-800">{rec.className}</td>
+                                                        <td className="p-3 text-center font-bold text-emerald-600 bg-emerald-50/50 rounded-lg">{rec.stats.hadir}</td>
+                                                        <td className="p-3 text-center font-bold text-red-600 bg-red-50/50 rounded-lg">{rec.stats.tidakHadir}</td>
+                                                        <td className="p-3 text-center font-bold text-amber-600 bg-amber-50/50 rounded-lg">{rec.stats.lewat}</td>
+                                                        <td className="p-3 text-right"><button onClick={() => handleEdit(rec)} className="bg-white border border-blue-200 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-blue-50 shadow-sm">Lihat / Edit</button></td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                    {!filterDate && history.length > 0 && (
+                                        <p className="text-[10px] text-center text-slate-400 mt-2 italic">Menunjukkan kesemua {history.length} rekod sejarah.</p>
                                     )}
                                 </div>
                             </div>
