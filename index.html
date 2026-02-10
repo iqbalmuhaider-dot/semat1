@@ -2111,7 +2111,7 @@
 
             useEffect(() => { const q = query(collection(db, 'portal_attendance'), orderBy('submittedAt', 'desc')); const unsub = onSnapshot(q, s => setHistory(s.docs.map(d => ({id: d.id, ...d.data()})))); return () => unsub(); }, []);
 
-            // --- SMART LOAD EFFECT (DIPERBAIKI UNTUK ELAK DATA HILANG) ---
+            // --- SMART LOAD EFFECT (DIPERBAIKI: AUTO-MERGE & RELOAD BILA PELAJAR BERUBAH) ---
             useEffect(() => {
                 if (!selectedClass) {
                     setAttendanceData({});
@@ -2120,27 +2120,35 @@
                     return;
                 }
 
-                const currentContext = `${today}_${selectedClass}`;
+                // Masukkan bilangan pelajar dalam konteks supaya borang refresh jika data pelajar baru masuk
+                const currentContext = `${today}_${selectedClass}_${allClassStudents.length}`;
                 const existingRecord = history.find(h => h.date === today && h.className === selectedClass);
 
-                // Hanya reset/load data baru jika KONTEKS (Kelas/Tarikh) berubah
+                // Helper: Gabungkan rekod sedia ada dengan senarai murid terkini
+                // Ini memastikan tiada murid yang statusnya 'kosong' (tak isi)
+                const getMergedData = (recordData = {}) => {
+                    const merged = {};
+                    allClassStudents.forEach(s => {
+                        // Ambil status dari DB, jika tiada (murid baru/error), default 'Hadir'
+                        merged[s.id] = recordData[s.id] || 'Hadir';
+                    });
+                    return merged;
+                };
+
+                // Hanya reset/load data baru jika KONTEKS berubah
                 if (loadRef.current !== currentContext) {
                     if (existingRecord) {
-                        setAttendanceData(existingRecord.records);
+                        setAttendanceData(getMergedData(existingRecord.records));
                         setStatusMessage("Rekod Terdahulu Dijumpai (Mod Edit)");
                     } else {
-                        const i = {};
-                        allClassStudents.forEach(s => { i[s.id] = 'Hadir'; });
-                        setAttendanceData(i);
+                        setAttendanceData(getMergedData({})); // Default semua Hadir
                         setStatusMessage("Rekod Baru (Default: Hadir)");
                     }
-                    loadRef.current = currentContext; // Tandakan konteks ini sudah dimuatkan
+                    loadRef.current = currentContext; 
                 } else {
-                    // Jika konteks SAMA (user sedang edit), JANGAN reset borang.
-                    // Kecuali jika tiba-tiba rekod muncul dari DB (sync) dan kita masih mode 'Baru'
+                    // Logic Sync: Update status message jika rekod wujud tapi user belum save
                     if (existingRecord && !statusMessage.includes("Terdahulu")) {
-                         setAttendanceData(existingRecord.records);
-                         setStatusMessage("Rekod Terdahulu Dijumpai (Sync)");
+                         setStatusMessage("Rekod Terdahulu Wujud (Sila Semak)");
                     }
                 }
             }, [selectedClass, today, allClassStudents, history]);
