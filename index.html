@@ -2110,7 +2110,14 @@
             const allClassStudents = useMemo(() => students.filter(s => s.class === selectedClass).sort((a,b) => a.name.localeCompare(b.name)), [students, selectedClass]);
             const filteredClassStudents = useMemo(() => allClassStudents.filter(s => s.name.toLowerCase().includes(filterName.toLowerCase())), [allClassStudents, filterName]);
 
-            useEffect(() => { const q = query(collection(db, 'portal_attendance'), orderBy('submittedAt', 'desc')); const unsub = onSnapshot(q, s => setHistory(s.docs.map(d => ({id: d.id, ...d.data()})))); return () => unsub(); }, []);
+            // UBAH: Tukar orderBy('submittedAt') kepada orderBy('date')
+            // Penjelasan: Firestore akan menyembunyikan dokumen yang tiada field 'submittedAt'.
+            // Field 'date' sentiasa wujud, jadi ini memastikan semua rekod lama & baru muncul.
+            useEffect(() => { 
+                const q = query(collection(db, 'portal_attendance'), orderBy('date', 'desc')); 
+                const unsub = onSnapshot(q, s => setHistory(s.docs.map(d => ({id: d.id, ...d.data()})))); 
+                return () => unsub(); 
+            }, []);
 
             // --- SMART LOAD EFFECT (DIPERBAIKI: AUTO-MERGE & RELOAD BILA PELAJAR BERUBAH) ---
             useEffect(() => {
