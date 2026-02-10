@@ -2513,7 +2513,17 @@
                             
                                     <div className="flex gap-3">
                                         <button onClick={() => setShowResetConfirm(true)} className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-lg font-bold border border-slate-300 hover:bg-slate-200 transition-colors flex justify-center items-center gap-2"><RotateCcw size={18}/> Reset Status</button>
-                                        <button onClick={submitAttendance} className="flex-[3] bg-indigo-600 text-white py-3 rounded-lg font-bold shadow-lg hover:bg-indigo-700 transition-colors">{loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto"/> : 'Hantar Kehadiran'}</button>
+                                        <button 
+                                            onClick={submitAttendance} 
+                                            disabled={loading}
+                                            className={`flex-[3] bg-indigo-600 text-white py-3 rounded-lg font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${loading ? 'opacity-75 cursor-not-allowed' : 'hover:bg-indigo-700'}`}
+                                        >
+                                            {loading ? (
+                                                <>
+                                                    <Loader2 className="w-5 h-5 animate-spin"/> Sedang Menyimpan...
+                                                </>
+                                            ) : 'Hantar Kehadiran'}
+                                        </button>
                                     </div>
                                 </>}
                             </div>
@@ -3236,6 +3246,7 @@
         function SettingsManager() {
             const [config, setConfig] = useState({ botToken: '', chatId: '', topicId: '' });
             const [loading, setLoading] = useState(true);
+            const [backupLoading, setBackupLoading] = useState(false);
 
             useEffect(() => {
                 const fetchSettings = async () => {
@@ -3279,60 +3290,109 @@
                 }
             };
 
+            // FUNGSI BACKUP DATA (JSON)
+            const handleBackup = async () => {
+                if(!confirm("Adakah anda ingin memuat turun sandaran (backup) penuh pangkalan data? Fail ini mengandungi data murid, guru, kehadiran, dan laporan.")) return;
+                setBackupLoading(true);
+                try {
+                    const collections = ['portal_students', 'portal_teachers', 'portal_attendance', 'portal_reports', 'portal_mmi', 'portal_tasks', 'portal_events', 'portal_apps'];
+                    const backupData = { timestamp: new Date().toISOString(), system: "SkolaHub Backup", data: {} };
+
+                    for (const colName of collections) {
+                        const snap = await getDocs(collection(db, colName));
+                        backupData.data[colName] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    }
+
+                    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `SKOLAHUB_BACKUP_${getTodayDate()}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    alert("✅ Backup berjaya dimuat turun!");
+                } catch (e) {
+                    console.error(e);
+                    alert("❌ Gagal membuat backup: " + e.message);
+                }
+                setBackupLoading(false);
+            };
+
             if (loading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin"/></div>;
 
             return (
-                <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
-                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Settings className="w-6 h-6 text-indigo-600"/> Tetapan Notifikasi Telegram</h2>
-                    
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                        <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-slate-700">
-                            <h4 className="font-bold text-blue-700 mb-2 flex items-center gap-2"><Info size={16}/> Panduan Setup:</h4>
-                            <ol className="list-decimal pl-4 space-y-1">
-                                <li>Cipta bot baru di Telegram melalui <b>@BotFather</b> dan dapatkan <b>Bot Token</b>.</li>
-                                <li>Masukkan bot ke dalam Group atau Channel Telegram yang dikehendaki.</li>
-                                <li>Jadikan bot sebagai <b>Admin</b> dalam group tersebut.</li>
-                                <li>Dapatkan <b>Chat ID</b> group tersebut (boleh guna bot seperti @userinfobot atau @getidsbot).</li>
-                                <li>Jika menggunakan <b>Topics</b>, masukkan ID Topik (biasanya nombor seperti 2, 42).</li>
-                            </ol>
-                        </div>
+                <div className="max-w-2xl mx-auto space-y-8 animate-fade-in">
+                    {/* SEKSYEN TELEGRAM */}
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2 mb-4"><Settings className="w-6 h-6 text-indigo-600"/> Tetapan Notifikasi Telegram</h2>
+                        
+                        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                            <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-slate-700">
+                                <h4 className="font-bold text-blue-700 mb-2 flex items-center gap-2"><Info size={16}/> Panduan Setup:</h4>
+                                <ol className="list-decimal pl-4 space-y-1">
+                                    <li>Cipta bot baru di Telegram melalui <b>@BotFather</b> dan dapatkan <b>Bot Token</b>.</li>
+                                    <li>Masukkan bot ke dalam Group atau Channel Telegram yang dikehendaki.</li>
+                                    <li>Jadikan bot sebagai <b>Admin</b> dalam group tersebut.</li>
+                                    <li>Dapatkan <b>Chat ID</b> group tersebut (boleh guna bot seperti @userinfobot atau @getidsbot).</li>
+                                    <li>Jika menggunakan <b>Topics</b>, masukkan ID Topik (biasanya nombor seperti 2, 42).</li>
+                                </ol>
+                            </div>
 
-                        <div className="space-y-4">
-                            <div>
-                                <label className="lbl">Telegram Bot Token</label>
-                                <input 
-                                    className="inp font-mono text-xs" 
-                                    placeholder="Contoh: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz" 
-                                    value={config.botToken} 
-                                    onChange={e => setConfig({...config, botToken: e.target.value})} 
-                                />
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="lbl">Telegram Bot Token</label>
+                                    <input 
+                                        className="inp font-mono text-xs" 
+                                        placeholder="Contoh: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz" 
+                                        value={config.botToken} 
+                                        onChange={e => setConfig({...config, botToken: e.target.value})} 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="lbl">Chat ID (Group / Channel)</label>
+                                    <input 
+                                        className="inp font-mono text-xs" 
+                                        placeholder="Contoh: -100123456789 (Mesti ada tanda negatif untuk Group)" 
+                                        value={config.chatId} 
+                                        onChange={e => setConfig({...config, chatId: e.target.value})} 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="lbl">Topic ID (Pilihan - Untuk Group Bertopik)</label>
+                                    <input 
+                                        className="inp font-mono text-xs" 
+                                        placeholder="Contoh: 42 (Biarkan kosong jika tiada)" 
+                                        value={config.topicId || ''} 
+                                        onChange={e => setConfig({...config, topicId: e.target.value})} 
+                                    />
+                                </div>
                             </div>
-                            <div>
-                                <label className="lbl">Chat ID (Group / Channel)</label>
-                                <input 
-                                    className="inp font-mono text-xs" 
-                                    placeholder="Contoh: -100123456789 (Mesti ada tanda negatif untuk Group)" 
-                                    value={config.chatId} 
-                                    onChange={e => setConfig({...config, chatId: e.target.value})} 
-                                />
-                            </div>
-                            <div>
-                                <label className="lbl">Topic ID (Pilihan - Untuk Group Bertopik)</label>
-                                <input 
-                                    className="inp font-mono text-xs" 
-                                    placeholder="Contoh: 42 (Biarkan kosong jika tiada)" 
-                                    value={config.topicId || ''} 
-                                    onChange={e => setConfig({...config, topicId: e.target.value})} 
-                                />
+
+                            <div className="flex gap-3 mt-8 pt-4 border-t border-slate-100">
+                                <button onClick={testMessage} className="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-lg font-bold hover:bg-slate-200 flex justify-center items-center gap-2">
+                                    <Megaphone size={16}/> Uji Hantar Mesej
+                                </button>
+                                <button onClick={save} className="flex-[2] bg-indigo-600 text-white py-2.5 rounded-lg font-bold shadow-md hover:bg-indigo-700 flex justify-center items-center gap-2">
+                                    <Save size={16}/> Simpan Tetapan
+                                </button>
                             </div>
                         </div>
+                    </div>
 
-                        <div className="flex gap-3 mt-8 pt-4 border-t border-slate-100">
-                            <button onClick={testMessage} className="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-lg font-bold hover:bg-slate-200 flex justify-center items-center gap-2">
-                                <Megaphone size={16}/> Uji Hantar Mesej
-                            </button>
-                            <button onClick={save} className="flex-[2] bg-indigo-600 text-white py-2.5 rounded-lg font-bold shadow-md hover:bg-indigo-700 flex justify-center items-center gap-2">
-                                <Save size={16}/> Simpan Tetapan
+                    {/* SEKSYEN BACKUP DATA */}
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2 mb-4"><ShieldCheck className="w-6 h-6 text-emerald-600"/> Pengurusan Data & Backup</h2>
+                        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                            <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100 text-sm text-slate-700 mb-4">
+                                <p>Sila lakukan sandaran data (backup) sekurang-kurangnya <b>sebulan sekali</b> untuk keselamatan data.</p>
+                            </div>
+                            <button 
+                                onClick={handleBackup} 
+                                disabled={backupLoading}
+                                className={`w-full bg-emerald-600 text-white py-3 rounded-lg font-bold shadow-md flex justify-center items-center gap-2 transition-all ${backupLoading ? 'opacity-75 cursor-not-allowed' : 'hover:bg-emerald-700'}`}
+                            >
+                                {backupLoading ? <><Loader2 className="animate-spin w-5 h-5"/> Sedang Memproses Data...</> : <><Download size={18}/> Muat Turun Data Lengkap (JSON)</>}
                             </button>
                         </div>
                     </div>
