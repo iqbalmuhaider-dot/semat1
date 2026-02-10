@@ -2218,7 +2218,7 @@
                     try {
                         const settingsSnap = await getDoc(doc(db, 'portal_settings', 'telegram_config'));
                         if (settingsSnap.exists()) {
-                            const { botToken, chatId } = settingsSnap.data();
+                            const { botToken, chatId, topicId } = settingsSnap.data();
                             if (botToken && chatId) {
                                 const pct = Math.round((h / allClassStudents.length) * 100);
                                 let msg = `🔔 *LAPORAN KEHADIRAN*\n`;
@@ -2235,11 +2235,15 @@
                                     msg += `\n✨ Kehadiran Penuh!`;
                                 }
                                 
+                                // Setup Payload (Support Topics)
+                                const tgPayload = { chat_id: chatId, text: msg, parse_mode: 'Markdown' };
+                                if (topicId) tgPayload.message_thread_id = topicId;
+
                                 // Hantar ke Telegram API
                                 await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'Markdown' })
+                                    body: JSON.stringify(tgPayload)
                                 });
                                 console.log("Telegram dihantar.");
                             }
@@ -3221,7 +3225,7 @@
         }
 
         function SettingsManager() {
-            const [config, setConfig] = useState({ botToken: '', chatId: '' });
+            const [config, setConfig] = useState({ botToken: '', chatId: '', topicId: '' });
             const [loading, setLoading] = useState(true);
 
             useEffect(() => {
@@ -3238,7 +3242,7 @@
             }, []);
 
             const save = async () => {
-                if (!config.botToken || !config.chatId) return alert("Sila isi kedua-dua maklumat.");
+                if (!config.botToken || !config.chatId) return alert("Sila isi Token dan Chat ID.");
                 try {
                     await setDoc(doc(db, 'portal_settings', 'telegram_config'), config);
                     alert("Tetapan Telegram berjaya disimpan!");
@@ -3250,10 +3254,13 @@
             const testMessage = async () => {
                 if (!config.botToken || !config.chatId) return alert("Sila simpan tetapan dahulu.");
                 try {
+                    const payload = { chat_id: config.chatId, text: "✅ Ujian Sambungan SkolaHub Berjaya!", parse_mode: 'Markdown' };
+                    if (config.topicId) payload.message_thread_id = config.topicId;
+
                     const res = await fetch(`https://api.telegram.org/bot${config.botToken}/sendMessage`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ chat_id: config.chatId, text: "✅ Ujian Sambungan SkolaHub Berjaya!", parse_mode: 'Markdown' })
+                        body: JSON.stringify(payload)
                     });
                     const data = await res.json();
                     if (data.ok) alert("Mesej ujian berjaya dihantar! Sila semak Telegram anda.");
@@ -3277,6 +3284,7 @@
                                 <li>Masukkan bot ke dalam Group atau Channel Telegram yang dikehendaki.</li>
                                 <li>Jadikan bot sebagai <b>Admin</b> dalam group tersebut.</li>
                                 <li>Dapatkan <b>Chat ID</b> group tersebut (boleh guna bot seperti @userinfobot atau @getidsbot).</li>
+                                <li>Jika menggunakan <b>Topics</b>, masukkan ID Topik (biasanya nombor seperti 2, 42).</li>
                             </ol>
                         </div>
 
@@ -3297,6 +3305,15 @@
                                     placeholder="Contoh: -100123456789 (Mesti ada tanda negatif untuk Group)" 
                                     value={config.chatId} 
                                     onChange={e => setConfig({...config, chatId: e.target.value})} 
+                                />
+                            </div>
+                            <div>
+                                <label className="lbl">Topic ID (Pilihan - Untuk Group Bertopik)</label>
+                                <input 
+                                    className="inp font-mono text-xs" 
+                                    placeholder="Contoh: 42 (Biarkan kosong jika tiada)" 
+                                    value={config.topicId || ''} 
+                                    onChange={e => setConfig({...config, topicId: e.target.value})} 
                                 />
                             </div>
                         </div>
