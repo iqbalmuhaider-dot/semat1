@@ -347,7 +347,8 @@
           
           const adminMenus = [
               { id: 'logs', l: 'Log Sistem', i: Activity, access: ['admin'] },
-              { id: 'stats', l: 'Statistik', i: BarChart3, access: ['admin'] }
+              { id: 'stats', l: 'Statistik', i: BarChart3, access: ['admin'] },
+              { id: 'settings', l: 'Tetapan Telegram', i: Settings, access: ['admin'] }
           ];
 
           // --- LOGIK INSTALL PWA ---
@@ -2213,6 +2214,42 @@
                     
                     await setDoc(doc(db, 'portal_attendance', docId), payload); 
                     
+                    // --- TELEGRAM NOTIFICATION LOGIC ---
+                    try {
+                        const settingsSnap = await getDoc(doc(db, 'portal_settings', 'telegram_config'));
+                        if (settingsSnap.exists()) {
+                            const { botToken, chatId } = settingsSnap.data();
+                            if (botToken && chatId) {
+                                const pct = Math.round((h / allClassStudents.length) * 100);
+                                let msg = `🔔 *LAPORAN KEHADIRAN*\n`;
+                                msg += `🏫 Kelas: *${selectedClass}*\n`;
+                                msg += `📅 Tarikh: ${formatDate(today)}\n`;
+                                msg += `👨‍🏫 Guru: ${userData.name}\n\n`;
+                                msg += `✅ Hadir: ${h}/${allClassStudents.length} (${pct}%)\n`;
+                                msg += `❌ Tidak Hadir: ${th}\n`;
+                                
+                                if (absentNames.length > 0) {
+                                    msg += `\n📋 *Senarai Tidak Hadir:*\n`;
+                                    absentNames.forEach((n, i) => msg += `${i+1}. ${n}\n`);
+                                } else {
+                                    msg += `\n✨ Kehadiran Penuh!`;
+                                }
+                                
+                                // Hantar ke Telegram API
+                                await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'Markdown' })
+                                });
+                                console.log("Telegram dihantar.");
+                            }
+                        }
+                    } catch (tgErr) {
+                        console.error("Gagal hantar Telegram:", tgErr);
+                        // Jangan block UI jika Telegram gagal, cuma log error
+                    }
+                    // -----------------------------------
+
                     setSummaryData({ ...payload.stats, absentNames: absentNames, className: selectedClass }); 
                     setShowSummary(true); 
                 } catch(e){
@@ -3144,97 +3181,137 @@
                                        <span className={isUrgent ? 'text-red-600' : 'text-slate-600'}>{days < 0 ? 'Tamat' : `${days} hari lagi`}</span>
                                    </div>
                                </div>
-                           )
+                           );
                        })}
                    </div>}
                </div>
 
-               {/* TASK DETAIL POPUP (DASHBOARD) */}
+               {/* TASK DETAIL MODAL FOR DASHBOARD (Ditambah Semula) */}
                {viewTask && (
-                    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in backdrop-blur-sm">
-                        <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
-                            <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50 rounded-t-2xl">
-                                <div>
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-white border px-2 py-1 rounded">Arahan {viewTask.assignedByRole}</span>
-                                    <h3 className="text-xl font-bold text-slate-800 mt-2 leading-tight">{viewTask.title}</h3>
-                                </div>
-                                <button onClick={() => setViewTask(null)} className="text-slate-400 hover:text-red-500 bg-white p-1 rounded-full border hover:bg-red-50 transition-colors"><X size={20}/></button>
-                            </div>
-                            
-                            <div className="p-6 overflow-y-auto space-y-6">
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                        <span className="block text-xs text-slate-400 uppercase font-bold mb-1">Dihantar Oleh</span>
-                                        <span className="font-bold text-slate-700">{viewTask.assignedBy}</span>
-                                    </div>
-                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                        <span className="block text-xs text-slate-400 uppercase font-bold mb-1">Tarikh Akhir</span>
-                                        <span className={`font-bold ${new Date(viewTask.deadline) < new Date() ? 'text-red-600' : 'text-emerald-600'}`}>{formatDate(viewTask.deadline)}</span>
-                                    </div>
-                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 col-span-2">
-                                        <span className="block text-xs text-slate-400 uppercase font-bold mb-1">Kepada</span>
-                                        <span className="font-bold text-slate-700">{viewTask.assignTo}</span>
-                                    </div>
-                                </div>
-
-                                {viewTask.description ? (
-                                    <div>
-                                        <h4 className="text-sm font-bold text-slate-700 uppercase mb-2 border-b pb-1">Butiran Tugasan</h4>
-                                        <p className="text-slate-600 text-sm whitespace-pre-wrap leading-relaxed">{viewTask.description}</p>
-                                    </div>
-                                ) : (
-                                    <p className="text-slate-400 italic text-sm text-center">Tiada deskripsi tambahan.</p>
-                                )}
-
-                                {viewTask.link && (
-                                    <a 
-                                        href={viewTask.link} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="flex items-center justify-center gap-2 w-full bg-blue-50 text-blue-600 border border-blue-200 py-3 rounded-xl font-bold hover:bg-blue-100 transition-colors"
-                                    >
-                                        <LinkIcon size={18}/> Buka Pautan / Lampiran
-                                    </a>
-                                )}
-                            </div>
-
-                            <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
-                                <button onClick={() => setViewTask(null)} className="w-full bg-white border border-slate-300 text-slate-600 py-2 rounded-lg font-bold hover:bg-slate-100 text-sm">Tutup</button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-               
-               {/* --- ADMIN FACTORY RESET BUTTON --- */}
-               {role === 'admin' && (
-                  <div className="mt-8 p-6 bg-red-50 border border-red-100 rounded-xl">
-                      <h3 className="font-bold text-red-800 mb-2 flex items-center gap-2"><AlertTriangle className="w-5 h-5"/> Zon Admin</h3>
-                      <p className="text-sm text-red-600 mb-4">Amaran: Tindakan ini akan memadam <b>SEMUA</b> data aplikasi (Murid, Guru, Laporan, Kehadiran, dll). Data tidak boleh dikembalikan.</p>
-                      <button onClick={() => setShowResetConfirm(true)} className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-red-700 transition-colors flex items-center gap-2"><Trash2 className="w-4 h-4"/> Factory Reset</button>
-                  </div>
+                   <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in backdrop-blur-sm">
+                       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
+                           <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50 rounded-t-2xl">
+                               <div>
+                                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-white border px-2 py-1 rounded">Arahan {viewTask.assignedByRole}</span>
+                                   <h3 className="text-xl font-bold text-slate-800 mt-2 leading-tight">{viewTask.title}</h3>
+                               </div>
+                               <button onClick={() => setViewTask(null)} className="text-slate-400 hover:text-red-500 bg-white p-1 rounded-full border hover:bg-red-50 transition-colors"><X size={20}/></button>
+                           </div>
+                           <div className="p-6 overflow-y-auto space-y-4">
+                               <p className="text-sm text-slate-600 whitespace-pre-wrap">{viewTask.description || "Tiada deskripsi."}</p>
+                               <div className="flex gap-4 text-xs font-bold text-slate-500">
+                                   <span>Oleh: {viewTask.assignedBy}</span>
+                                   <span>Due: {formatDate(viewTask.deadline)}</span>
+                               </div>
+                               {viewTask.link && (
+                                   <a href={viewTask.link} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full bg-blue-50 text-blue-600 border border-blue-200 py-3 rounded-xl font-bold hover:bg-blue-100 transition-colors mt-4">
+                                       <LinkIcon size={18}/> Buka Pautan
+                                   </a>
+                               )}
+                           </div>
+                           <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
+                               <button onClick={() => setViewTask(null)} className="w-full bg-white border border-slate-300 text-slate-600 py-2 rounded-lg font-bold hover:bg-slate-100 text-sm">Tutup</button>
+                           </div>
+                       </div>
+                   </div>
                )}
 
-               {/* --- RESET CONFIRMATION MODAL --- */}
-               {showResetConfirm && (
-                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
-                      <div className="bg-white p-6 rounded-xl w-96 shadow-2xl border-2 border-red-100">
-                          <div className="flex flex-col items-center text-center mb-6">
-                              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4"><AlertTriangle className="w-8 h-8"/></div>
-                              <h3 className="font-bold text-xl text-slate-800">Pasti Reset Kilang?</h3>
-                              <p className="text-slate-500 text-sm mt-2">Semua data akan dipadam kekal. Anda tidak boleh membatalkan tindakan ini.</p>
-                          </div>
-                          <div className="flex gap-3">
-                              <button onClick={() => setShowResetConfirm(false)} className="flex-1 px-4 py-2 rounded-lg font-bold bg-slate-100 text-slate-700 hover:bg-slate-200" disabled={isResetting}>Batal</button>
-                              <button onClick={performFactoryReset} className="flex-1 px-4 py-2 rounded-lg font-bold bg-red-600 text-white hover:bg-red-700 flex justify-center items-center gap-2" disabled={isResetting}>
-                                  {isResetting ? <Loader2 className="w-4 h-4 animate-spin"/> : <Trash2 className="w-4 h-4"/>}
-                                  {isResetting ? 'Memadam...' : 'Ya, Reset'}
-                              </button>
-                          </div>
-                      </div>
-                  </div>
-               )}
             </div>
           );
+        }
+
+        function SettingsManager() {
+            const [config, setConfig] = useState({ botToken: '', chatId: '' });
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                const fetchSettings = async () => {
+                    try {
+                        const snap = await getDoc(doc(db, 'portal_settings', 'telegram_config'));
+                        if (snap.exists()) {
+                            setConfig(snap.data());
+                        }
+                    } catch (e) { console.error(e); }
+                    setLoading(false);
+                };
+                fetchSettings();
+            }, []);
+
+            const save = async () => {
+                if (!config.botToken || !config.chatId) return alert("Sila isi kedua-dua maklumat.");
+                try {
+                    await setDoc(doc(db, 'portal_settings', 'telegram_config'), config);
+                    alert("Tetapan Telegram berjaya disimpan!");
+                } catch (e) {
+                    alert("Ralat menyimpan: " + e.message);
+                }
+            };
+
+            const testMessage = async () => {
+                if (!config.botToken || !config.chatId) return alert("Sila simpan tetapan dahulu.");
+                try {
+                    const res = await fetch(`https://api.telegram.org/bot${config.botToken}/sendMessage`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ chat_id: config.chatId, text: "✅ Ujian Sambungan SkolaHub Berjaya!", parse_mode: 'Markdown' })
+                    });
+                    const data = await res.json();
+                    if (data.ok) alert("Mesej ujian berjaya dihantar! Sila semak Telegram anda.");
+                    else alert("Gagal menghantar: " + data.description);
+                } catch (e) {
+                    alert("Ralat sambungan: " + e.message);
+                }
+            };
+
+            if (loading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin"/></div>;
+
+            return (
+                <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
+                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Settings className="w-6 h-6 text-indigo-600"/> Tetapan Notifikasi Telegram</h2>
+                    
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-slate-700">
+                            <h4 className="font-bold text-blue-700 mb-2 flex items-center gap-2"><Info size={16}/> Panduan Setup:</h4>
+                            <ol className="list-decimal pl-4 space-y-1">
+                                <li>Cipta bot baru di Telegram melalui <b>@BotFather</b> dan dapatkan <b>Bot Token</b>.</li>
+                                <li>Masukkan bot ke dalam Group atau Channel Telegram yang dikehendaki.</li>
+                                <li>Jadikan bot sebagai <b>Admin</b> dalam group tersebut.</li>
+                                <li>Dapatkan <b>Chat ID</b> group tersebut (boleh guna bot seperti @userinfobot atau @getidsbot).</li>
+                            </ol>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="lbl">Telegram Bot Token</label>
+                                <input 
+                                    className="inp font-mono text-xs" 
+                                    placeholder="Contoh: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz" 
+                                    value={config.botToken} 
+                                    onChange={e => setConfig({...config, botToken: e.target.value})} 
+                                />
+                            </div>
+                            <div>
+                                <label className="lbl">Chat ID (Group / Channel)</label>
+                                <input 
+                                    className="inp font-mono text-xs" 
+                                    placeholder="Contoh: -100123456789 (Mesti ada tanda negatif untuk Group)" 
+                                    value={config.chatId} 
+                                    onChange={e => setConfig({...config, chatId: e.target.value})} 
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-8 pt-4 border-t border-slate-100">
+                            <button onClick={testMessage} className="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-lg font-bold hover:bg-slate-200 flex justify-center items-center gap-2">
+                                <Megaphone size={16}/> Uji Hantar Mesej
+                            </button>
+                            <button onClick={save} className="flex-[2] bg-indigo-600 text-white py-2.5 rounded-lg font-bold shadow-md hover:bg-indigo-700 flex justify-center items-center gap-2">
+                                <Save size={16}/> Simpan Tetapan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
         }
 
         // --- MAIN APP COMPONENT (DITAMBAH UNTUK MEMBETULKAN RALAT REFERENCE) ---
@@ -3377,6 +3454,7 @@
                             {view === 'teachers' && (['admin', 'pentadbir'].includes(user.role) ? <DataTable type="teacher" data={teachers} currentUserRole={user.role} /> : <AccessDenied />)}
                             {view === 'logs' && (user.role === 'admin' ? <SystemLogs /> : <AccessDenied />)}
                             {view === 'stats' && (user.role === 'admin' ? <UsageStats /> : <AccessDenied />)}
+                            {view === 'settings' && (user.role === 'admin' ? <SettingsManager /> : <AccessDenied />)}
                         </main>
                     </div>
 
